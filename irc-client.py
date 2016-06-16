@@ -29,7 +29,6 @@ Mostly based on this:
 
 import argparse
 import collections
-import contextlib
 import threading
 import time
 import tkinter as tk
@@ -123,7 +122,7 @@ class ClientCore:
     def format_msg(self, sender, msg):
         """Return a printable form of the message."""
         return '[{}] {:<20} | {}'.format(time.strftime('%H:%M:%S'),
-                                           sender, msg)
+                                         sender, msg)
 
 
 class ClientGUI(tk.Tk):
@@ -203,7 +202,8 @@ class ClientGUI(tk.Tk):
         """Ask a string from the user and return it.
 
         This must be ran before making a ClientGUI instance or some
-        other tk.Tk() window."""
+        other tk.Tk() window.
+        """
         def on_ok(event=None):
             nonlocal result
             result = entry.get()
