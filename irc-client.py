@@ -200,9 +200,6 @@ class ClientGUI(tk.Tk):
         entry.selection_range(0, 'end')
         return 'break'
 
-    def _on_resize(self, event):
-        """"""
-
     @staticmethod
     def ask(prompt):
         """Ask a string from the user and return it.
