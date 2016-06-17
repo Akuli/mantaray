@@ -32,11 +32,11 @@ TODO: Add /me, /msg, /join and /part, but not support for multiple
 
 import argparse
 import collections
+import socket
+import sys
 import threading
 import time
 import tkinter as tk
-import socket
-import sys
 
 
 class ClientCore:
@@ -199,6 +199,9 @@ class ClientGUI(tk.Tk):
         entry = event.widget
         entry.selection_range(0, 'end')
         return 'break'
+
+    def _on_resize(self, event):
+        """"""
 
     @staticmethod
     def ask(prompt):
