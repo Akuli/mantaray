@@ -114,9 +114,9 @@ class ClientCore:
                         *lines, buf = buf.split(b'\r\n')
                         for line in lines:
                             self._check(line.decode('utf-8', errors='replace'))
-                except Exception as e:
-                    self.show("<info>", "Error: {}".format(e))
-                    self.show("<info>", "Trying again...")
+                except socket.error as e:
+                    self.show("*", "Error: {}".format(e))
+                    self.show("*", "Trying again...")
                     self.connect()
         finally:
             if self._logfile is not None:
@@ -124,7 +124,7 @@ class ClientCore:
 
     def format_msg(self, sender, msg):
         """Return a printable form of the message."""
-        return '[{}] {:<20} | {}'.format(time.strftime('%H:%M:%S'),
+        return '[{}] {:>20} | {}'.format(time.strftime('%H:%M:%S'),
                                          sender, msg)
 
 
