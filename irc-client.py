@@ -27,7 +27,6 @@ Mostly based on this:
   http://www.ohjelmointiputka.net/koodivinkit/24802-python-ircbot
 
 TODO:
-- Add a screenshot to README.
 - Add /me, /msg, /join and /part, but not support for multiple channels.
   This is a minimal client.
 """
