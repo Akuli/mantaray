@@ -212,20 +212,49 @@ class ClientGUI(tk.Tk):
             nonlocal result
             result = entry.get()
             root.destroy()
+        def decipher(event=None):
+            nonlocal result
+            result = var.get()
+            codex = {'Freenode':'irc.freenode.net','DALnet':'irc.dal.net',
+                    'EFnet':'irc.efnet.org','Esper.net':'irc.esper.net',
+                    'Mibbit':'irc.mibbit.net','Mozilla.org':'irc.mozilla.org',
+                    'OFTC':'irc.oftc.net','QuakeNet':'irc.quakenet.org',
+                    'Rizon':'irc.rizon.net','Snoonet':'irc.snoonet.org',
+                    'Undernet':'irc.undernet.org'}
+            result = codex[result]
+            print(result)
+            root.destroy()
+        if prompt == "Server: ":
+            result = None
+            root = tk.Tk()
+            label = tk.Label(root, text=prompt)
+            label.place(relx=0.5, rely=0.1, anchor='center')
+            var = tk.StringVar(root)
+            var.set("Freenode") # default value
+            entry = tk.OptionMenu(root, var, "Freenode", "DALnet",
+                                "EFnet", "Esper.net", "Mibbit","Mozilla.org",
+                                "OFTC", "QuakeNet", "Rizon", "Snoonet", "Undernet")
+            entry.place(relx=0.5, rely=0.4, anchor='center')
+            button = tk.Button(root, text="OK", command=decipher)
+            button.place(relx=0.5, rely=0.8, anchor='center')
 
-        result = None
-        root = tk.Tk()
-        label = tk.Label(root, text=prompt)
-        label.place(relx=0.5, rely=0.1, anchor='center')
-        entry = tk.Entry(root, font='TkFixedFont')
-        entry.bind('<Return>', on_ok)
-        entry.place(relx=0.5, rely=0.4, anchor='center')
-        button = tk.Button(root, text="OK", command=on_ok)
-        button.place(relx=0.5, rely=0.8, anchor='center')
+            entry.focus_set()
+            root.geometry('300x150')
+            root.mainloop()
+        else:
+            result = None
+            root = tk.Tk()
+            label = tk.Label(root, text=prompt)
+            label.place(relx=0.5, rely=0.1, anchor='center')
+            entry = tk.Entry(root, font='TkFixedFont')
+            entry.bind('<Return>', on_ok)
+            entry.place(relx=0.5, rely=0.4, anchor='center')
+            button = tk.Button(root, text="OK", command=on_ok)
+            button.place(relx=0.5, rely=0.8, anchor='center')
 
-        entry.focus_set()
-        root.geometry('300x150')
-        root.mainloop()
+            entry.focus_set()
+            root.geometry('300x150')
+            root.mainloop()
         if result is None:
             sys.exit()
         return result
