@@ -64,6 +64,7 @@ class ClientCore:
 
         Encode the message, add a line end and send it to the server.
         """
+        print(msg)
         self._socket.send(msg.encode('utf-8', errors='replace') + b'\r\n')
 
     def send_to_channel(self, msg):
@@ -125,7 +126,7 @@ class ClientCore:
 
     def format_msg(self, sender, msg):
         """Return a printable form of the message."""
-        return '[{}] {:>20} | {}'.format(time.strftime('%H:%M:%S'),
+        return '[{}] {:>10} | {}'.format(time.strftime('%H:%M:%S'),
                                          sender, msg)
 
 
@@ -135,7 +136,13 @@ class ClientGUI(tk.Tk):
     def __init__(self):
         """Initialize the GUI."""
         tk.Tk.__init__(self)
-
+        w = 800 # width for the Tk root
+        h = 600 # height for the Tk root
+        ws = self.winfo_screenwidth() # width of the screen
+        hs = self.winfo_screenheight() # height of the screen
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        self.geometry('%dx%d+%d+%d' % (w, h, x, y))
         textarea = tk.Frame(self)
         self._text = tk.Text(textarea, state='disabled')
         self._text.pack(side='left', fill='both', expand=True)
@@ -202,62 +209,86 @@ class ClientGUI(tk.Tk):
         return 'break'
 
     @staticmethod
-    def ask(prompt):
+    def ask(event=None):
         """Ask a string from the user and return it.
 
         This must be ran before making a ClientGUI instance or some
         other tk.Tk() window.
         """
-        def on_ok(event=None):
-            nonlocal result
-            result = entry.get()
-            root.destroy()
+
         def decipher(event=None):
-            nonlocal result
-            result = var.get()
-            codex = {'Freenode':'irc.freenode.net','DALnet':'irc.dal.net',
-                    'EFnet':'irc.efnet.org','Esper.net':'irc.esper.net',
-                    'Mibbit':'irc.mibbit.net','Mozilla.org':'irc.mozilla.org',
-                    'OFTC':'irc.oftc.net','QuakeNet':'irc.quakenet.org',
-                    'Rizon':'irc.rizon.net','Snoonet':'irc.snoonet.org',
-                    'Undernet':'irc.undernet.org'}
-            result = codex[result]
-            print(result)
+            nonlocal results, result_U, result_C
+            result_S = var.get()
+            codex = {
+                'Freenode': 'irc.freenode.net',
+                'DALnet': 'irc.dal.net',
+                'EFnet': 'irc.efnet.org',
+                'Esper.net': 'irc.esper.net',
+                'Mibbit': 'irc.mibbit.net',
+                'Mozilla.org': 'irc.mozilla.org',
+                'OFTC': 'irc.oftc.net',
+                'QuakeNet': 'irc.quakenet.org',
+                'Rizon': 'irc.rizon.net',
+                'Snoonet': 'irc.snoonet.org',
+                'Undernet': 'irc.undernet.org'
+            }
+            result_S = codex[result_S]
+            print(result_S)
+            result_U = entry_U.get()
+            print(result_U)
+            result_C = entry_C.get()
+            print(result_C)
+            results = [str(result_S), str(result_U), str(result_C)]
             root.destroy()
-        if prompt == "Server: ":
-            result = None
-            root = tk.Tk()
-            label = tk.Label(root, text=prompt)
-            label.place(relx=0.5, rely=0.1, anchor='center')
-            var = tk.StringVar(root)
-            var.set("Freenode") # default value
-            entry = tk.OptionMenu(root, var, "Freenode", "DALnet",
-                                "EFnet", "Esper.net", "Mibbit","Mozilla.org",
-                                "OFTC", "QuakeNet", "Rizon", "Snoonet", "Undernet")
-            entry.place(relx=0.5, rely=0.4, anchor='center')
-            button = tk.Button(root, text="OK", command=decipher)
-            button.place(relx=0.5, rely=0.8, anchor='center')
+        result_C = None
+        result_U = None
+        result_S = None
+        results = None
+        root = tk.Tk()
+        label = tk.Label(root, text='Login')
+        label.config(font=("Courier", 44))
+        label.pack()
 
-            entry.focus_set()
-            root.geometry('300x150')
-            root.mainloop()
-        else:
-            result = None
-            root = tk.Tk()
-            label = tk.Label(root, text=prompt)
-            label.place(relx=0.5, rely=0.1, anchor='center')
-            entry = tk.Entry(root, font='TkFixedFont')
-            entry.bind('<Return>', on_ok)
-            entry.place(relx=0.5, rely=0.4, anchor='center')
-            button = tk.Button(root, text="OK", command=on_ok)
-            button.place(relx=0.5, rely=0.8, anchor='center')
+        # Server
+        label_S = tk.Label(root, text='Server:')
+        label_S.pack()
+        var = tk.StringVar(root)
+        var.set("Freenode")  # default value
+        entry_S = tk.OptionMenu(root, var, "Freenode", "DALnet", "EFnet",
+                                "Esper.net","Mibbit", "Mozilla.org", "OFTC",
+                                "QuakeNet", "Rizon", "Snoonet", "Undernet")
+        entry_S.pack()
 
-            entry.focus_set()
-            root.geometry('300x150')
-            root.mainloop()
-        if result is None:
+        # Username
+        label_U = tk.Label(root, text="Username:")
+        label_U.pack()
+        entry_U = tk.Entry(root, font='TkFixedFont')
+        entry_U.bind('<Return>', decipher)
+        entry_U.pack()
+
+        # Channel
+        label_C = tk.Label(root, text="Channel:")
+        label_C.pack()
+        entry_C = tk.Entry(root, font='TkFixedFont')
+        entry_C.bind('<Return>', decipher)
+        entry_C.pack()
+        button = tk.Button(root, text="OK", command=decipher)
+        button.pack()
+
+        entry_S.focus_set()
+        w = 300 # width for the Tk root
+        h = 250 # height for the Tk root
+        ws = root.winfo_screenwidth() # width of the screen
+        hs = root.winfo_screenheight() # height of the screen
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+        root.mainloop()
+        if result_U is None or result_C is None:
             sys.exit()
-        return result
+        else:
+            return results
 
 
 def main():
@@ -284,11 +315,12 @@ def main():
         ask = input
     else:
         parser.error("invalid mode: {}".format(args.mode))
-
+    arg = ask()
+    print(arg)
     core_args = {
-        'server': args.server or ask("Server: "),
-        'nick': args.nick or ask("Your nickname: "),
-        'channel': args.channel or ask("Channel: "),
+        'server': args.server or arg[0],
+        'nick': args.nick or arg[1],
+        'channel': args.channel or arg[2],
         'username': args.username or args.nick,
         'realname': args.realname or args.nick,
         'port': args.port,
