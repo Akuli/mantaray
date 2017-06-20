@@ -27,8 +27,9 @@ Mostly based on this:
   http://www.ohjelmointiputka.net/koodivinkit/24802-python-ircbot
 
 TODO:
-- Add /me, /msg, /join and /part, but not support for multiple channels.
-  This is a minimal client.
+- Add /join and /part, but not support for multiple channels.
+- Add autocomplete for usernames
+- Get rid of args and parser in main()
 """
 
 import argparse
@@ -59,19 +60,33 @@ class ClientCore:
         self._outfunc = print if outfunc is None else outfunc
         self._logfile = None if logfile is None else open(logfile, 'a')
 
-    def _send(self, msg):
+    def _send(self, msg, cmd=0):
         """Send a message.
 
         Encode the message, add a line end and send it to the server.
         """
-        print(msg)
-        self._socket.send(msg.encode('utf-8', errors='replace') + b'\r\n')
+        if cmd == 1:
+            self.show("*"+self._nick, msg)
+            msg1 = 'PRIVMSG {} :'.format(self._channel)
+            msg2 ='ACTION {}'.format(msg)
+            self._socket.send(msg1.encode('utf-8', errors='replace') +b'\x01' + msg2.encode('utf-8', errors='replace') + b'\x01\r\n')
+        if cmd == 2:
+            print(msg)
+            msg1 = 'PRIVMSG {} :'.format(self._channel)
+            msg2 ='PRIVMSG {}'.format(msg)
+            self._socket.send(msg1.encode('utf-8', errors='replace') +msg2.encode('utf-8', errors='replace') + b'\r\n')
+        else:
+            self._socket.send(msg.encode('utf-8', errors='replace') + b'\r\n')
 
-    def send_to_channel(self, msg):
+    def send_to_channel(self, msg, cmd=0):
         """Send a message to channel if it's non-empty."""
         if msg:
-            self.show(self._nick, msg)
-            self._send('PRIVMSG {} :{}'.format(self._channel, msg))
+            if cmd > 0:
+                self._send(msg,cmd)
+            else:
+                self.show(self._nick, msg)
+                self._send('PRIVMSG {} :{}'.format(self._channel, msg),cmd)
+
 
     def connect(self):
         """Connect the client.
@@ -113,6 +128,7 @@ class ClientCore:
                     buf = b''
                     while True:
                         buf += self._socket.recv(4096)
+                        print(buf)
                         *lines, buf = buf.split(b'\r\n')
                         for line in lines:
                             self._check(line.decode('utf-8', errors='replace'))
@@ -125,6 +141,7 @@ class ClientCore:
                 self._logfile.close()
 
     def format_msg(self, sender, msg):
+
         """Return a printable form of the message."""
         return '[{}] {:>10} | {}'.format(time.strftime('%H:%M:%S'),
                                          sender, msg)
@@ -153,6 +170,7 @@ class ClientGUI(tk.Tk):
 
         entry = tk.Entry(self, font='TkFixedFont')
         entry.pack(fill='x')
+        #entry.bind('<Tab>', self._on_tab)
         entry.bind('<Return>', self._on_enter)
         entry.bind('<Control-A>', self._on_control_a)
         entry.bind('<Control-a>', self._on_control_a)
@@ -179,6 +197,7 @@ class ClientGUI(tk.Tk):
 
     def _queue_msg(self, sender, msg):
         """Add a message to the message queue."""
+        print(msg,)
         self._msg_queue.append(self._core.format_msg(sender, msg))
 
     def _clear_queue_loop(self):
@@ -194,12 +213,31 @@ class ClientGUI(tk.Tk):
                     break
             self._text['state'] = 'disabled'
         self.after(100, self._clear_queue_loop)
+    def _command_check(self, msg):
+
+        commands = {
+            '/me': 1,
+            '/msg': 2,
+            '/join': 3,
+            '/part': 4
+        }
+        if msg.startswith('/'):
+            cmdw = str(msg.split(' ', 1)[0])
+            cmd = commands[cmdw]
+            cmdw = cmdw + " "
+            print(type(msg),type(cmdw))
+            msg = msg.replace(cmdw,'')
+            return msg, cmd
+        else:
+            return msg, 0
 
     def _on_enter(self, event):
         """Send a message to the channel."""
         entry = event.widget
         msg = entry.get()
-        self._core.send_to_channel(msg)
+        msg,cmd = self._command_check(msg)
+        print(cmd)
+        self._core.send_to_channel(msg,cmd)
         entry.delete(0, 'end')
 
     def _on_control_a(self, event):
@@ -294,12 +332,12 @@ class ClientGUI(tk.Tk):
 def main():
     """Run the program."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--server', help="the IRC server to connect to, "
-                                               "for example irc.freenode.net")
+    # parser.add_argument('-s', '--server', help="the IRC server to connect to, "
+    #                                            "for example irc.freenode.net")
     parser.add_argument('-n', '--nick', help="your nickname")
-    parser.add_argument('-c', '--channel', help="the channel you want to join")
-    parser.add_argument('-m', '--mode', default='gui',
-                        help="gui or cli, defaults to gui")
+    # parser.add_argument('-c', '--channel', help="the channel you want to join")
+    # parser.add_argument('-m', '--mode', default='gui',
+    #                     help="gui or cli, defaults to gui")
     parser.add_argument('-u', '--username',
                         help="your username, defaults to nick")
     parser.add_argument('-r', '--realname',
@@ -309,42 +347,41 @@ def main():
     parser.add_argument('-l', '--logfile', help="a file used for logging")
 
     args = parser.parse_args()
-    if args.mode == 'gui':
-        ask = ClientGUI.ask
-    elif args.mode == 'cli':
-        ask = input
-    else:
-        parser.error("invalid mode: {}".format(args.mode))
-    arg = ask()
-    print(arg)
+    # if args.mode == 'gui':
+    #     ask = ClientGUI.ask
+    # elif args.mode == 'cli':
+    #     ask = input
+    # else:
+    #     parser.error("invalid mode: {}".format(args.mode))
+    # arg = ClientGUI.ask()
     core_args = {
-        'server': args.server or arg[0],
-        'nick': args.nick or arg[1],
-        'channel': args.channel or arg[2],
+        'server': 'irc.freenode.net',#arg[0],
+        'nick': 'brainn',#arg[1],
+        'channel': '##brainn',#arg[2],
         'username': args.username or args.nick,
         'realname': args.realname or args.nick,
         'port': args.port,
         'logfile': args.logfile,
     }
 
-    if args.mode == 'gui':
-        root = ClientGUI()
-        root.title("IRC Client")
-        root.create_core(**core_args)
-        root.mainloop()
-    else:
-        core = ClientCore(**core_args)
-        core.connect()
-        threading.Thread(target=core.outputloop, daemon=True).start()
-        while True:
-            try:
-                msg = input("{}> ".format(core_args['nick']))
-            except (KeyboardInterrupt, EOFError):
-                break
-            core.send_to_channel(msg)
+
+    root = ClientGUI()
+    root.title("IRC Client")
+    root.create_core(**core_args)
+    root.mainloop()
+    # else:
+    #     core = ClientCore(**core_args)
+    #     core.connect()
+    #     threading.Thread(target=core.outputloop, daemon=True).start()
+    #     while True:
+    #         try:
+    #             msg = input("{}> ".format(core_args['nick']))
+    #         except (KeyboardInterrupt, EOFError):
+    #             break
+    #         core.send_to_channel(msg)
 
     # This function is not meant to be ran twice.
-    sys.exit()
+    # sys.exit()
 
 
 if __name__ == '__main__':
