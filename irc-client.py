@@ -119,6 +119,16 @@ class ClientCore:
         self._outfunc(sender, msg)
         if self._logfile is not None:
             print(self.format_msg(sender, msg), file=self._logfile, flush=True)
+    def userlist(self,buf):
+    #     print(buf.decode('utf-8', errors='replace'))
+    #     divider = str(self._channel)+' :'
+    #     buf = buf.split(divider.encode('utf-8', errors='replace'))[1]
+    #     buf = buf.split(b'\r\n')[0]
+    #     buf = buf.decode('utf-8', errors='replace')
+    #     users =buf.split(' ')
+    #     print(users)
+    """need to use /who self.channel for this!!!!"""
+
 
     def outputloop(self):
         """Receive data from the channel and write it to outstream."""
@@ -128,7 +138,8 @@ class ClientCore:
                     buf = b''
                     while True:
                         buf += self._socket.recv(4096)
-                        print(buf)
+                        if b'/NAMES list' in buf:
+                             self.userlist(buf)
                         *lines, buf = buf.split(b'\r\n')
                         for line in lines:
                             self._check(line.decode('utf-8', errors='replace'))
@@ -170,7 +181,7 @@ class ClientGUI(tk.Tk):
 
         entry = tk.Entry(self, font='TkFixedFont')
         entry.pack(fill='x')
-        #entry.bind('<Tab>', self._on_tab)
+        entry.bind('<Tab>', self._on_tab)
         entry.bind('<Return>', self._on_enter)
         entry.bind('<Control-A>', self._on_control_a)
         entry.bind('<Control-a>', self._on_control_a)
@@ -245,7 +256,11 @@ class ClientGUI(tk.Tk):
         entry = event.widget
         entry.selection_range(0, 'end')
         return 'break'
-
+    def _on_tab(self,event):
+        entry = event.widget
+        msg = entry.get()
+        target = str(msg.split(' ', 1)[-1])
+        print(target)
     @staticmethod
     def ask(event=None):
         """Ask a string from the user and return it.
@@ -357,7 +372,7 @@ def main():
     core_args = {
         'server': 'irc.freenode.net',#arg[0],
         'nick': 'brainn',#arg[1],
-        'channel': '##brainn',#arg[2],
+        'channel': '##learnpython',#arg[2],
         'username': args.username or args.nick,
         'realname': args.realname or args.nick,
         'port': args.port,
