@@ -27,8 +27,9 @@ Mostly based on this:
   http://www.ohjelmointiputka.net/koodivinkit/24802-python-ircbot
 
 TODO:
-- Add /me, /msg, /join and /part, but not support for multiple channels.
-  This is a minimal client.
+- Better management of /msg.
+- Identify when another user is using /me and adjust accordingly.
+
 """
 
 import argparse
@@ -59,18 +60,41 @@ class ClientCore:
         self._outfunc = print if outfunc is None else outfunc
         self._logfile = None if logfile is None else open(logfile, 'a')
 
-    def _send(self, msg):
+    def _send(self, msg, cmd=0):
         """Send a message.
 
         Encode the message, add a line end and send it to the server.
         """
-        self._socket.send(msg.encode('utf-8', errors='replace') + b'\r\n')
+        if cmd == 1:
+            self.show("*"+self._nick, msg)
+            msg1 = 'PRIVMSG {} :'.format(self._channel)
+            msg2 ='ACTION {}'.format(msg)
+            self._socket.send(msg1.encode('utf-8', errors='replace') +b'\x01' + msg2.encode('utf-8', errors='replace') + b'\x01\r\n')
+        if cmd == 2:
+            self.show("*"+self._nick+"*", msg)
+            msg2 ='PRIVMSG {}'.format(msg)
+            self._socket.send(msg2.encode('utf-8', errors='replace') + b'\r\n')
+        if cmd == 3:
+            msg1 = 'PART {} :'.format(self._channel)
+            self._socket.send(msg1.encode('utf-8', errors='replace') + b'\r\n')
+            msg2 ='JOIN {}'.format(msg)
+            self._socket.send(msg2.encode('utf-8', errors='replace') + b'\r\n')
+            self._channel = msg
+        if cmd == 4:
+            msg1 = 'PART {} :'.format(self._channel)
+            self._socket.send(msg1.encode('utf-8', errors='replace') + b'\r\n')
+        else:
+            self._socket.send(msg.encode('utf-8', errors='replace') + b'\r\n')
 
-    def send_to_channel(self, msg):
+    def send_to_channel(self, msg, cmd=0):
         """Send a message to channel if it's non-empty."""
         if msg:
-            self.show(self._nick, msg)
-            self._send('PRIVMSG {} :{}'.format(self._channel, msg))
+            if cmd > 0:
+                self._send(msg,cmd)
+            else:
+                self.show(self._nick, msg)
+                self._send('PRIVMSG {} :{}'.format(self._channel, msg),cmd)
+
 
     def connect(self):
         """Connect the client.
@@ -112,6 +136,7 @@ class ClientCore:
                     buf = b''
                     while True:
                         buf += self._socket.recv(4096)
+                        #print(buf)
                         *lines, buf = buf.split(b'\r\n')
                         for line in lines:
                             self._check(line.decode('utf-8', errors='replace'))
@@ -124,8 +149,9 @@ class ClientCore:
                 self._logfile.close()
 
     def format_msg(self, sender, msg):
+
         """Return a printable form of the message."""
-        return '[{}] {:>20} | {}'.format(time.strftime('%H:%M:%S'),
+        return '[{}] {:>10} | {}'.format(time.strftime('%H:%M:%S'),
                                          sender, msg)
 
 
@@ -135,7 +161,13 @@ class ClientGUI(tk.Tk):
     def __init__(self):
         """Initialize the GUI."""
         tk.Tk.__init__(self)
-
+        w = 800 # width for the Tk root
+        h = 600 # height for the Tk root
+        ws = self.winfo_screenwidth() # width of the screen
+        hs = self.winfo_screenheight() # height of the screen
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+        self.geometry('%dx%d+%d+%d' % (w, h, x, y))
         textarea = tk.Frame(self)
         self._text = tk.Text(textarea, state='disabled')
         self._text.pack(side='left', fill='both', expand=True)
@@ -154,7 +186,7 @@ class ClientGUI(tk.Tk):
         self.bind_all('<Control-q>', lambda e: sys.exit())
 
         # New messages are stored here instead of adding them directly
-        # to the window. The core is ran in another thread and it
+        # to the window. The core is run in another thread and
         # doesn't access tkinter this way.
         self._msg_queue = collections.deque()
 
@@ -187,12 +219,29 @@ class ClientGUI(tk.Tk):
                     break
             self._text['state'] = 'disabled'
         self.after(100, self._clear_queue_loop)
+    def _command_check(self, msg):
+
+        commands = {
+            '/me': 1,
+            '/msg': 2,
+            '/join': 3,
+            '/part': 4
+        }
+        if msg.startswith('/'):
+            cmdw = str(msg.split(' ', 1)[0])
+            cmd = commands[cmdw]
+            cmdw = cmdw + " "
+            msg = msg.replace(cmdw,'')
+            return msg, cmd
+        else:
+            return msg, 0
 
     def _on_enter(self, event):
         """Send a message to the channel."""
         entry = event.widget
         msg = entry.get()
-        self._core.send_to_channel(msg)
+        msg,cmd = self._command_check(msg)
+        self._core.send_to_channel(msg,cmd)
         entry.delete(0, 'end')
 
     def _on_control_a(self, event):
@@ -200,90 +249,138 @@ class ClientGUI(tk.Tk):
         entry = event.widget
         entry.selection_range(0, 'end')
         return 'break'
-
     @staticmethod
-    def ask(prompt):
+    def ask(event=None):
         """Ask a string from the user and return it.
 
         This must be ran before making a ClientGUI instance or some
         other tk.Tk() window.
         """
-        def on_ok(event=None):
-            nonlocal result
-            result = entry.get()
+
+        def on_submit(event=None):
+            nonlocal results
+
+            codex = {
+                'Freenode': 'irc.freenode.net',
+                'DALnet': 'irc.dal.net',
+                'EFnet': 'irc.efnet.org',
+                'Esper.net': 'irc.esper.net',
+                'Mibbit': 'irc.mibbit.net',
+                'Mozilla.org': 'irc.mozilla.org',
+                'OFTC': 'irc.oftc.net',
+                'QuakeNet': 'irc.quakenet.org',
+                'Rizon': 'irc.rizon.net',
+                'Snoonet': 'irc.snoonet.org',
+                'Undernet': 'irc.undernet.org'
+            }
+            results=[]
+            results.extend((codex[var.get()],entry_N.get(),entry_C.get(),entry_U.get(),entry_R.get(),entry_P.get()))
+            for i in range(3,5):
+                if results[i] =='':
+                    results[i] = 'anon'
+            if results[5]=='':
+                results[5] = int(6667)
             root.destroy()
+        def hidoption():
+            if CheckVar1.get()==0:
+                labelframe.pack_forget()
+            else:
+                labelframe.pack(fill="both", expand="yes")
 
-        result = None
+        results = None
         root = tk.Tk()
-        label = tk.Label(root, text=prompt)
-        label.place(relx=0.5, rely=0.1, anchor='center')
-        entry = tk.Entry(root, font='TkFixedFont')
-        entry.bind('<Return>', on_ok)
-        entry.place(relx=0.5, rely=0.4, anchor='center')
-        button = tk.Button(root, text="OK", command=on_ok)
-        button.place(relx=0.5, rely=0.8, anchor='center')
+        label = tk.Label(root, text='Login')
+        label.config(font=("Courier", 44))
+        label.pack()
 
-        entry.focus_set()
-        root.geometry('300x150')
+        # Server
+        label_S = tk.Label(root, text='Server:')
+        label_S.pack()
+        var = tk.StringVar(root)
+        var.set("Freenode")  # default value
+        entry_S = tk.OptionMenu(root, var, "Freenode", "DALnet", "EFnet",
+                                "Esper.net","Mibbit", "Mozilla.org", "OFTC",
+                                "QuakeNet", "Rizon", "Snoonet", "Undernet")
+        entry_S.pack()
+
+        # Nickname
+        label_N = tk.Label(root, text="Nickname:")
+        label_N.pack()
+        entry_N = tk.Entry(root, font='TkFixedFont')
+        entry_N.bind('<Return>', on_submit)
+        entry_N.pack()
+
+        # Channel
+        label_C = tk.Label(root, text="Channel:")
+        label_C.pack()
+        entry_C = tk.Entry(root, font='TkFixedFont')
+        entry_C.bind('<Return>', on_submit)
+        entry_C.pack()
+
+        button = tk.Button(root, text="OK", command=on_submit)
+        button.pack()
+
+        #optional fields:
+
+        CheckVar1 = tk.IntVar()
+        C1 = tk.Checkbutton(root, text = "Click Here for Optional Fields!", variable = CheckVar1, \
+                 onvalue = 1, offvalue = 0, height=2, command=hidoption)
+        C1.pack()
+
+        #this is simply to widen the window... I looked for a bit,
+        #but then I realized that I could be lazy
+
+        laziness = tk.Label(root, text="                                                             ")
+        laziness.pack()
+
+        labelframe = tk.LabelFrame(root, text="Optional Fields:")
+
+
+
+        # Username
+        label_U = tk.Label(labelframe, text="Username:")
+        label_U.pack()
+        entry_U = tk.Entry(labelframe, font='TkFixedFont')
+        entry_U.bind('<Return>', on_submit)
+        entry_U.pack()
+
+        # Realname
+        label_R = tk.Label(labelframe, text="Realname:")
+        label_R.pack()
+        entry_R = tk.Entry(labelframe, font='TkFixedFont')
+        entry_R.bind('<Return>', on_submit)
+        entry_R.pack()
+
+        # Port
+        label_P = tk.Label(labelframe, text="Port:")
+        label_P.pack()
+        entry_P = tk.Entry(labelframe, font='TkFixedFont')
+        entry_P.bind('<Return>', on_submit)
+        entry_P.pack()
+
+
         root.mainloop()
-        if result is None:
+        if (results[1] or results[2]) == '':
             sys.exit()
-        return result
+        else:
+            return results
 
 
 def main():
     """Run the program."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--server', help="the IRC server to connect to, "
-                                               "for example irc.freenode.net")
-    parser.add_argument('-n', '--nick', help="your nickname")
-    parser.add_argument('-c', '--channel', help="the channel you want to join")
-    parser.add_argument('-m', '--mode', default='gui',
-                        help="gui or cli, defaults to gui")
-    parser.add_argument('-u', '--username',
-                        help="your username, defaults to nick")
-    parser.add_argument('-r', '--realname',
-                        help="your realname, defaults to nick")
-    parser.add_argument('-p', '--port', type=int, default=6667,
-                        help="the port to use, defaults to 6667")
-    parser.add_argument('-l', '--logfile', help="a file used for logging")
-
-    args = parser.parse_args()
-    if args.mode == 'gui':
-        ask = ClientGUI.ask
-    elif args.mode == 'cli':
-        ask = input
-    else:
-        parser.error("invalid mode: {}".format(args.mode))
-
+    arg = ClientGUI.ask()
     core_args = {
-        'server': args.server or ask("Server: "),
-        'nick': args.nick or ask("Your nickname: "),
-        'channel': args.channel or ask("Channel: "),
-        'username': args.username or args.nick,
-        'realname': args.realname or args.nick,
-        'port': args.port,
-        'logfile': args.logfile,
+        'server': arg[0],
+        'nick': arg[1],
+        'channel': arg[2],
+        'username': arg[3],
+        'realname': arg[4],
+        'port': arg[5]
     }
-
-    if args.mode == 'gui':
-        root = ClientGUI()
-        root.title("IRC Client")
-        root.create_core(**core_args)
-        root.mainloop()
-    else:
-        core = ClientCore(**core_args)
-        core.connect()
-        threading.Thread(target=core.outputloop, daemon=True).start()
-        while True:
-            try:
-                msg = input("{}> ".format(core_args['nick']))
-            except (KeyboardInterrupt, EOFError):
-                break
-            core.send_to_channel(msg)
-
-    # This function is not meant to be ran twice.
-    sys.exit()
+    root = ClientGUI()
+    root.title("IRC Client")
+    root.create_core(**core_args)
+    root.mainloop()
 
 
 if __name__ == '__main__':
