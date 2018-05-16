@@ -1,5 +1,5 @@
 # strongly inspired by xchat :)
-# hexchat is a fork of xchat, its developers didn't invent the gui layout
+# hexchat is a fork of xchat, so hexchat developers didn't invent this
 #
 # TODO: seems like channel names don't need to start with #
 #       https://tools.ietf.org/html/rfc2812#section-2.3.1
@@ -13,7 +13,6 @@ import tkinter
 from tkinter import ttk
 
 from . import backend, colors, commands
-from porcupine import images
 
 
 # because tkinter sucks at this
@@ -258,6 +257,13 @@ class IrcWidget(ttk.PanedWindow):
         self._command_handler = commands.CommandHandler(irc_core)
         self._on_quit = on_quit
 
+        images_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'images')
+        self._channel_image = tkinter.PhotoImage(
+            file=os.path.join(images_dir, 'hashtagbubble-20x20.png'))
+        self._pm_image = tkinter.PhotoImage(
+            file=os.path.join(images_dir, 'face-20x20.png'))
+
         treeview = ttk.Treeview(self, show='tree', selectmode='browse')
         treeview.tag_configure('new_message', foreground='red')
         treeview.bind('<<TreeviewSelect>>', self._on_selection)
@@ -342,10 +348,10 @@ class IrcWidget(ttk.PanedWindow):
                 channel_like.name, text=self.core.host)
         elif channel_like.is_channel():
             self._channel_selector.widget.item(
-                channel_like.name, image=images.get('hashtagbubble-20x20'))
+                channel_like.name, image=self._channel_image)
         else:
             self._channel_selector.widget.item(
-                channel_like.name, image=images.get('face-20x20'))
+                channel_like.name, image=self._pm_image)
 
     def remove_channel_like(self, channel_like):
         assert channel_like.name != _SERVER_VIEW_ID, ("cannot remove the "
@@ -372,6 +378,10 @@ class IrcWidget(ttk.PanedWindow):
 
     def handle_events(self):
         """Call this once to start processing events from the core."""
+        # this is here so that this will be called again, even if
+        # something raises an error this time
+        next_call_id = self.after(100, self.handle_events)
+
         while True:
             try:
                 event, *event_args = self.core.event_queue.get(block=False)
@@ -393,7 +403,9 @@ class IrcWidget(ttk.PanedWindow):
                 self.remove_channel_like(self._channel_likes[channel])
 
             elif event == backend.IrcEvent.self_quit:
+                print("got a self_quit event from core")
                 self._on_quit()
+                self.after_cancel(next_call_id)
                 return      # don't run self.handle_events again
 
             elif event == backend.IrcEvent.user_joined:
@@ -473,8 +485,6 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
-        self.after(100, self.handle_events)
-
     def _new_message_notify(self, channel_like_name):
         # privmsgs shouldn't come from the server, and this should be only
         # called on privmsgs
@@ -523,6 +533,7 @@ class IrcWidget(ttk.PanedWindow):
             if channel_like.is_channel():
                 # TODO: add a reason here?
                 self.core.part_channel(name)
+        print("calling self.core.quit()")
         self.core.quit()
 
 

@@ -1,7 +1,7 @@
 import re
-
+import tkinter
 import tkinter.font as tkfont
-from porcupine import settings, textwidget
+
 from . import backend
 
 # (he)xchat supports these
@@ -13,8 +13,8 @@ _BACK_TO_NORMAL = '\x0f'
 
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
-    0: '#ffffff',
-    1: '#000000',
+    0: '#000000',
+    1: '#ffffff',
     2: '#00007f',
     3: '#009300',
     4: '#ff0000',
@@ -31,9 +31,11 @@ _MIRC_COLORS = {
     15: '#d2d2d2',
 }
 
-# no yellow, white, black or grays
-# yellow doesn't look very good on a light background
-_NICK_COLORS = sorted(_MIRC_COLORS.keys() - {8, 0, 1, 14, 15})
+# uncomment if you don't want a dark background
+_MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
+
+# avoid dark colors, black, white and grays
+_NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 14, 15})
 
 
 # yields (text_substring, fg, bg, bold, underline) tuples
@@ -106,28 +108,21 @@ def color_nick(nick):
     return _BOLD + _COLOR + str(color) + nick + _BACK_TO_NORMAL
 
 
-class ColoredText(textwidget.ThemedText):
+class ColoredText(tkinter.Text):
 
     def __init__(self, *args, **kwargs):
+        kwargs.setdefault('fg', _MIRC_COLORS[0])
+        kwargs.setdefault('bg', _MIRC_COLORS[1])
         super().__init__(*args, **kwargs)
 
         # tags support underlining, but no bolding (lol)
+        # TODO: allow custom font families and sizes
+        this_font = tkfont.Font(name=self['font'], exists=True)
         self._bold_font = tkfont.Font(weight='bold')
-        settings.get_section('General').connect(
-            'font_family', self._on_font_changed, run_now=False)
-        settings.get_section('General').connect(
-            'font_size', self._on_font_changed, run_now=False)
-        self._on_font_changed()
+        for key, value in this_font.actual().items():
+            if key != 'weight':
+                self._bold_font[key] = value
 
-        def on_destroy(event):
-            settings.get_section('General').disconnect(
-                'font_family', self._on_font_changed)
-            settings.get_section('General').disconnect(
-                'font_size', self._on_font_changed)
-
-        self.bind('<Destroy>', on_destroy, add=True)
-
-        # these never change
         self.tag_configure('underline', underline=True)
         self.tag_configure('bold', font=self._bold_font)
         for number, hexcolor in _MIRC_COLORS.items():
@@ -146,7 +141,6 @@ class ColoredText(textwidget.ThemedText):
 
     def colored_insert(self, index, text):
         """Like insert(), but interprets special color sequences correctly."""
-        print("colored_insert is runninggg", repr(text))
         for substring, fg, bg, bold, underline in _parse_styles(text):
             print('  ', [substring, fg, bg, bold, underline])
             tags = []

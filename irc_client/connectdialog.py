@@ -2,10 +2,10 @@ import functools
 import getpass    # for getting the user name
 import logging
 import re
+import threading
 import tkinter
 from tkinter import ttk
-
-from porcupine import utils
+import traceback
 
 from . import backend
 
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 # TODO: this is ok for connecting the first time, but the defaults should go
-#       to porcupine.settings or something
+#       to a config file or something
 #       freenode and current username suck
 class ConnectDialogContent(ttk.Frame):
 
@@ -171,6 +171,27 @@ class ConnectDialogContent(ttk.Frame):
         self._connectbutton['state'] = 'normal'
         return True
 
+    def _connect_with_thread(self, core, done_callback):
+        error = None
+
+        def this_runs_in_thread():
+            nonlocal error
+            try:
+                core.connect()
+            except Exception as e:
+                error = traceback.format_exc()
+
+        thread = threading.Thread(target=this_runs_in_thread)
+        thread.start()
+
+        def this_runs_in_tk_mainloop():
+            if thread.is_alive():
+                done_callback(error)
+            else:
+                self.after(100, this_runs_in_tk_mainloop)
+
+        this_runs_in_tk_mainloop()
+
     def connect(self, junk_event=None):
         """Create an IrcCore.
 
@@ -198,28 +219,28 @@ class ConnectDialogContent(ttk.Frame):
             self._realname_entry.get(),
             autojoin=self._channel_entry.get().split())
 
-        # this will be ran from tk's event loop
-        def on_connect_done(succeeded, result):
+        def on_connected(error):
+            # this stuff must be ran from tk's event loop
             for widget in disabled:
                 widget['state'] = 'normal'
             progressbar.destroy()
 
-            if succeeded:
+            if error is None:
                 self.result = core
                 self._on_cancel_or_after_connect()
             else:
-                # result is a traceback string
+                # error is a traceback string
                 log.error("connecting to %s:%d failed\n%s",
-                          core.host, core.port, result)
+                          core.host, core.port, error)
 
-                last_line = result.splitlines()[-1]
+                last_line = error.splitlines()[-1]
                 self._statuslabel['text'] = (
                     "Connecting to %s failed!\n%s" % (core.host, last_line))
 
-        utils.run_in_thread(core.connect, on_connect_done)
+        self._connect_with_thread(core, on_connected)
 
 
-def run(transient_to):
+def run(transient_to=None):
     """Returns a connected IrcCore, or None if the user cancelled."""
     dialog = tkinter.Toplevel()
     content = ConnectDialogContent(dialog, dialog.destroy)
@@ -231,6 +252,7 @@ def run(transient_to):
                  add=True)
 
     dialog.title("Connect to IRC")
-    dialog.transient(transient_to)
+    if transient_to is not None:
+        dialog.transient(transient_to)
     dialog.wait_window()
     return content.result
