@@ -1,5 +1,5 @@
 # irc-client
 
-Minimal IRC client written in Python with Tkinter.
+A fun IRC client written in Python with Tkinter and ttk.
 
 ![Screenshot](screenshot.png)
