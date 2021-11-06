@@ -282,6 +282,7 @@ class IrcWidget(ttk.PanedWindow):
         self._entry = ttk.Entry(entryframe)
         self._entry.pack(side='left', fill='both', expand=True)
         self._entry.bind('<Return>', self._on_enter_pressed)
+        self._entry.bind('<Tab>', self._autocomplete)
 
         self._channel_likes = {}   # {channel_like.name: channel_like}
         self._current_channel_like = None  # selected in self._channel_selector
@@ -314,6 +315,38 @@ class IrcWidget(ttk.PanedWindow):
             assert command is commands.SHOW_MESSAGE
             [message] = args
             self._current_channel_like.add_message('*', message)
+
+    def _autocomplete(self, event):
+        channel_like: ChannelLikeView = self._current_channel_like
+        if channel_like.userlist is None:
+            return
+
+        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self._entry.get())
+        if match is None:
+            return
+        preceding_text, last_word = match.groups()  # preceding_text can be None
+
+        if last_word in channel_like.userlist:
+            index = channel_like.userlist.index(last_word)
+            index = (index + 1) % len(channel_like.userlist)  # TODO: shift+tab = backwards ?
+            completion = channel_like.userlist[index]
+        else:
+            try:
+                completion = next(
+                    username
+                    for username in channel_like.userlist
+                    if username.lower().startswith(last_word.lower())
+                )
+            except StopIteration:
+                return
+
+        if preceding_text:
+            new_text = preceding_text + completion + " "
+        else:
+            new_text = completion + ": "
+        self._entry.delete(0, 'end')
+        self._entry.insert(0, new_text)
+        self._entry.icursor('end')
 
     def _on_selection(self, event):
         (name,) = self._channel_selector.widget.selection()
