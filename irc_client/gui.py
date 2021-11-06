@@ -324,7 +324,7 @@ class IrcWidget(ttk.PanedWindow):
         match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self._entry.get())
         if match is None:
             return
-        preceding_text, last_word = match.groups()
+        preceding_text, last_word = match.groups()  # preceding_text can be None
 
         if last_word in channel_like.userlist:
             index = channel_like.userlist.index(last_word)
