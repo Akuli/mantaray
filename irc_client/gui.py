@@ -8,8 +8,11 @@ import hashlib
 import os
 import queue
 import re
+import subprocess
+import sys
 import time
 import tkinter
+import traceback
 from tkinter import ttk
 
 from . import backend, colors, commands
@@ -17,7 +20,26 @@ from . import backend, colors, commands
 
 # TODO: highlight channel when message arrives
 # TODO: clear highlight when channel selected
-# TODO: show popup when message arrives and window not focused
+
+
+def _show_popup(title: str, text: str) -> None:
+    try:
+        if sys.platform == "win32":
+            # FIXME
+            print("Sorry, no popups on windows yet :(")
+        elif sys.platform == "darwin":
+            # https://stackoverflow.com/a/41318195
+            # TODO: can this be indented too?
+            command = (
+                'on run argv\n'
+                '  display notification (item 2 of argv) with title (item 1 of argv)\n'
+                'end run\n'
+            )
+            subprocess.call(['osascript', '-e', command, title, text])
+        else:
+            subprocess.call(["notify-send", f"[{title}] {text}"])
+    except (OSError, subprocess.CalledProcessError):
+        traceback.print_exc()
 
 
 # because tkinter sucks at this
@@ -137,6 +159,9 @@ class ChannelLikeView:
 
     def on_privmsg(self, sender, message):
         self.add_message(sender, message, automagic_nick_coloring=True)
+        application_has_focus = bool(self.textwidget.tk.eval("focus"))
+        if self.name != _SERVER_VIEW_ID and not application_has_focus:
+            _show_popup(self.name, f"{sender}: {message}")
 
     def on_join(self, nick):
         """Called when another user joins this channel."""
