@@ -328,7 +328,7 @@ class IrcWidget(ttk.PanedWindow):
 
         if last_word in channel_like.userlist:
             index = channel_like.userlist.index(last_word)
-            index = (index + 1) % len(channel_like.userlist)
+            index = (index + 1) % len(channel_like.userlist)  # TODO: shift+tab = backwards ?
             completion = channel_like.userlist[index]
         else:
             try:
