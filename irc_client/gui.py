@@ -15,6 +15,11 @@ from tkinter import ttk
 from . import backend, colors, commands
 
 
+# TODO: highlight channel when message arrives
+# TODO: clear highlight when channel selected
+# TODO: show popup when message arrives and window not focused
+
+
 # because tkinter sucks at this
 class TreeviewWrapper(collections.abc.MutableSequence):
     """An easier way to use ttk.Treeview for non-nested data.
