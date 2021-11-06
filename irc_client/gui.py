@@ -317,15 +317,12 @@ class IrcWidget(ttk.PanedWindow):
             self._current_channel_like.add_message('*', message)
 
     def _autocomplete(self, event):
-        print("callback start")
         channel_like: ChannelLikeView = self._current_channel_like
         if channel_like.userlist is None:
-            print("no userlist")
             return
 
         match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self._entry.get())
         if match is None:
-            print("no match", repr(self._entry.get()))
             return
         preceding_text, last_word = match.groups()
 
@@ -341,7 +338,6 @@ class IrcWidget(ttk.PanedWindow):
                     if username.lower().startswith(last_word.lower())
                 )
             except StopIteration:
-                print("StopIteration", repr(last_word), list(channel_like.userlist))
                 return
 
         if preceding_text:
