@@ -8,6 +8,7 @@ import ssl
 import re
 import socket
 import threading
+from base64 import b64encode
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ _Message = collections.namedtuple(
 _RPL_ENDOFMOTD = '376'
 _RPL_NAMREPLY = '353'
 _RPL_ENDOFNAMES = '366'
+_RPL_LOGGEDIN = '900'
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -72,12 +74,13 @@ _IrcInternalEvent = enum.Enum('_IrcInternalEvent', [
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, host, port, nick, username, realname, *, autojoin=()):
+    def __init__(self, host, port, nick, username, realname, *, password=None, autojoin=()):
         self.host = host
         self.port = port
         self.nick = nick      # may be changed, see change_nick() below
         self.username = username
         self.realname = realname
+        self._password = password
         self._autojoin = autojoin
         self._running = True
 
@@ -99,6 +102,18 @@ class IrcCore:
     def _send(self, *parts):
         data = " ".join(parts).encode("utf-8") + b"\r\n"
         self._sock.sendall(data)
+
+    def _send_in_chunks(self, cmd, data, chunk_length):
+        while data:
+            if len(data) < chunk_length:
+                self._send(cmd, data)
+                return False
+            elif len(data) == chunk_length:
+                self._send(cmd, data)
+                return True
+            else:  # len(data) > chunk_length
+                chunk, data = data[:chunk_length], data[chunk_length:]
+                self._send(cmd, chunk)
 
     def _recv_line(self):
         if not self._linebuffer:
@@ -215,7 +230,33 @@ class IrcCore:
                                               msg.sender, reason))
 
                 elif msg.sender_is_server:
-                    if msg.command == _RPL_NAMREPLY:
+                    if msg.command == "CAP":
+                        subcommand = msg.args[1]
+
+                        if subcommand == "ACK":
+                            acknowledged = set(msg.args[-1].split())
+
+                            if "sasl" in acknowledged:
+                                print("SASL was acknowleged.")
+                                self._send("AUTHENTICATE", "PLAIN")
+                        elif subcommand == "NAK":
+                            rejected = set(msg.args[-1].split())
+                            if "sasl" in rejected:
+                                print("SASL was rejected.")
+                                raise ValueError("The server does not support SASL.")
+                        print("Responded to CAP", subcommand)
+
+                    elif msg.command == "AUTHENTICATE":
+                        query = f"\0{self.username}\0{self._password}"
+                        b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
+                        self._send_in_chunks("AUTHENTICATE", b64_query, chunk_length=400)
+                        print("Responded to AUTHENTICATE")
+
+                    elif msg.command == _RPL_LOGGEDIN:
+                        print("Logged in")
+                        self._send("CAP", "END")
+
+                    elif msg.command == _RPL_NAMREPLY:
                         # TODO: wtf are the first 2 args?
                         # rfc1459 doesn't mention them, but freenode
                         # gives 4-element msg.args lists
@@ -291,6 +332,10 @@ class IrcCore:
             self._sock = ssl.wrap_socket(socket.socket())
             print("SSLSocket created")
             self._sock.connect((self.host, self.port))
+            print("sock connected")
+
+            if self._password is not None:
+                self._send("CAP", "REQ", "sasl")
 
             # TODO: what if nick or user are in use? use alternatives?
             self._send("NICK", self.nick)

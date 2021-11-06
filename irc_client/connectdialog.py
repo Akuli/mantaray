@@ -38,6 +38,9 @@ class ConnectDialogContent(ttk.Frame):
         self._nick_entry.var.trace('w', self._on_nick_changed)
         self._add_row("Nickname:", self._nick_entry)
 
+        self._password_entry = self._create_entry()
+        self._add_row("Password:", self._password_entry)
+
         button = ttk.Button(self, text="More options...")
         button['command'] = functools.partial(self._show_more, button)
         button.grid(row=self._rownumber, column=0, columnspan=4,
@@ -218,6 +221,7 @@ class ConnectDialogContent(ttk.Frame):
             self._server_entry.get(), int(self._port_entry.get()),
             self._nick_entry.get(), self._username_entry.get(),
             self._realname_entry.get(),
+            password=self._password_entry.get() or None,
             autojoin=self._channel_entry.get().split())
 
         def on_connected(error):
