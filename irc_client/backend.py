@@ -4,6 +4,7 @@ import collections
 import enum
 import logging
 import queue
+import ssl
 import re
 import socket
 import threading
@@ -283,16 +284,20 @@ class IrcCore:
     # this starts the main loop
     # if this fails, you can call this again to try again
     def connect(self):
+        print("connecting")
         assert self._sock is None
 
         try:
-            self._sock = socket.socket()
+            self._sock = ssl.wrap_socket(socket.socket())
+            print("SSLSocket created")
             self._sock.connect((self.host, self.port))
 
             # TODO: what if nick or user are in use? use alternatives?
             self._send("NICK", self.nick)
             self._send("USER", self.username, "0", "*", ":" + self.realname)
-        except Exception as e:
+            print("nick,user sent")
+        except OSError as e:
+            print("connect failed", e)
             # _add_messages_to_internal_queue() knows how to close the
             # socket, but we didn't get to actually run it
             if self._sock is not None:

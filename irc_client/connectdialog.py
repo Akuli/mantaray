@@ -32,6 +32,7 @@ class ConnectDialogContent(ttk.Frame):
 
         self._channel_entry = self._create_entry()
         self._add_row("Channel:", self._channel_entry)
+        self._channel_entry.var.set("##learnpython")
 
         self._nick_entry = self._create_entry()
         self._nick_entry.var.trace('w', self._on_nick_changed)
@@ -69,9 +70,9 @@ class ConnectDialogContent(ttk.Frame):
 
         # now everything's ready for _validate()
         # all of these call validate()
-        self._server_entry.var.set('chat.freenode.net')
+        self._server_entry.var.set('irc.libera.chat')
         self._nick_entry.var.set(getpass.getuser())
-        self._port_entry.var.set('6667')
+        self._port_entry.var.set('6697')
         self._on_nick_changed()
 
     # TODO: 2nd alternative for nicknames
