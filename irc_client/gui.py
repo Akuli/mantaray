@@ -544,14 +544,14 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
-    def _new_message_notify(self, channel_like_name, who_said_what):
+    def _new_message_notify(self, channel_like_name, message_with_sender):
         # privmsgs shouldn't come from the server, and this should be only
         # called on privmsgs
         # TODO: /me's and stuff should also call this when they are supported
         assert channel_like_name != _SERVER_VIEW_ID
 
         if not self.tk.eval("focus"):
-            _show_popup(channel_like_name, who_said_what)
+            _show_popup(channel_like_name, message_with_sender)
 
         if channel_like_name != self._current_channel_like.name:
             self._channel_selector.widget.item(channel_like_name,
