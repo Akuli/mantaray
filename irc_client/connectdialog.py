@@ -24,7 +24,6 @@ class EntryWithVar(ttk.Entry):
 
 # TODO: this is ok for connecting the first time, but the defaults should go
 #       to a config file or something
-#       freenode and current username suck
 class ConnectDialogContent(ttk.Frame):
     def __init__(
         self,
