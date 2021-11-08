@@ -132,8 +132,7 @@ class ConnectDialogContent(ttk.Frame):
     def _add_row(self, label: str, widget: ttk.Entry) -> None:
         ttk.Label(self, text=label).grid(row=self._rownumber, column=0, sticky="w")
         widget.grid(row=self._rownumber, column=1, columnspan=3, sticky="we")
-        if isinstance(widget, ttk.Entry):
-            self._setup_entry_bindings(widget)
+        self._setup_entry_bindings(widget)
         self._rownumber += 1
 
     def _on_nick_changed(self, *junk: object) -> None:

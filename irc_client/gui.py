@@ -321,8 +321,6 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    _current_channel_like: ChannelLikeView
-
     def __init__(
         self,
         master: tkinter.Misc,
@@ -367,8 +365,8 @@ class IrcWidget(ttk.PanedWindow):
         self._channel_likes: dict[
             str, ChannelLikeView
         ] = {}  # {channel_like.name: channel_like}
+        self._current_channel_like: ChannelLikeView | None = None
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
-        # now self._current_channel_like exists
 
     def focus_the_entry(self) -> None:
         self._entry.focus()
@@ -379,6 +377,7 @@ class IrcWidget(ttk.PanedWindow):
             self.core.change_nick(new_nick)
 
     def _on_enter_pressed(self, event: object) -> None:
+        assert self._current_channel_like is not None
         response = self._command_handler.handle_command(
             self._current_channel_like.name, self._entry.get()
         )
@@ -387,7 +386,8 @@ class IrcWidget(ttk.PanedWindow):
             self._current_channel_like.add_message("*", response)
 
     def _autocomplete(self, event: object) -> None:
-        channel_like: ChannelLikeView = self._current_channel_like
+        channel_like = self._current_channel_like
+        assert channel_like is not None
         if channel_like.userlist is None:
             return
 
@@ -423,7 +423,7 @@ class IrcWidget(ttk.PanedWindow):
     def _on_selection(self, event: object) -> None:
         (name,) = self._channel_selector.widget.selection()
         new_channel_like = self._channel_likes[name]
-        if hasattr(self, "_current_channel_like"):
+        if self._current_channel_like is not None:
             # not running for the first time
             if self._current_channel_like is new_channel_like:
                 return
@@ -463,7 +463,7 @@ class IrcWidget(ttk.PanedWindow):
         ), "cannot remove the server channel-like"
 
         if channel_like is self._current_channel_like:
-            del self._current_channel_like
+            self._current_channel_like = None
         self._channel_selector.select_something_else(channel_like.name)
         self._channel_selector.remove(channel_like.name)
         channel_like.destroy_widgets()
@@ -604,6 +604,7 @@ class IrcWidget(ttk.PanedWindow):
         if not self.tk.eval("focus"):  # window not focused
             _show_popup(channel_like_name, message_with_sender)
 
+        assert self._current_channel_like is not None
         if channel_like_name != self._current_channel_like.name:
             self._channel_selector.widget.item(channel_like_name, tags="new_message")
             self.event_generate("<<NotSeenCountChanged>>")
