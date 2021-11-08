@@ -431,9 +431,9 @@ class IrcWidget(ttk.PanedWindow):
             self._channel_selector.widget.item(channel_like.name, image=self._pm_image)
 
     def remove_channel_like(self, channel_like):
-        assert channel_like.name != _SERVER_VIEW_ID, (
-            "cannot remove the " "server channel-like"
-        )
+        assert (
+            channel_like.name != _SERVER_VIEW_ID
+        ), "cannot remove the server channel-like"
         self._channel_selector.select_something_else(channel_like)
         self._channel_selector.remove(channel_like)
         channel_like.destroy_widgets()
