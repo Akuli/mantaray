@@ -296,7 +296,7 @@ class IrcCore:
         assert self._sock is None
 
         try:
-            self._sock = ssl.wrap_socket(socket.socket())
+            self._sock = ssl.create_default_context().wrap_socket(socket.socket())
             print("SSLSocket created")
             self._sock.connect((self.host, self.port))
 
