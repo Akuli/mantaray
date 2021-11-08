@@ -1,5 +1,5 @@
 import functools
-import getpass    # for getting the user name
+import getpass  # for getting the user name
 import logging
 import re
 import threading
@@ -16,12 +16,11 @@ log = logging.getLogger(__name__)
 #       to a config file or something
 #       freenode and current username suck
 class ConnectDialogContent(ttk.Frame):
-
     def __init__(self, master, on_cancel_or_after_connect, **kwargs):
         super().__init__(master, **kwargs)
         self._on_cancel_or_after_connect = on_cancel_or_after_connect
 
-        self.result = None   # will be set to the IrcCore, see connect()
+        self.result = None  # will be set to the IrcCore, see connect()
 
         self._rownumber = 0
         self.grid_columnconfigure(0, minsize=60)
@@ -35,16 +34,17 @@ class ConnectDialogContent(ttk.Frame):
         self._channel_entry.var.set("##learnpython")
 
         self._nick_entry = self._create_entry()
-        self._nick_entry.var.trace('w', self._on_nick_changed)
+        self._nick_entry.var.trace("w", self._on_nick_changed)
         self._add_row("Nickname:", self._nick_entry)
 
         self._password_entry = self._create_entry()
         self._add_row("Password:", self._password_entry)
 
         button = ttk.Button(self, text="More options...")
-        button['command'] = functools.partial(self._show_more, button)
-        button.grid(row=self._rownumber, column=0, columnspan=4,
-                    sticky='w', padx=5, pady=5)
+        button["command"] = functools.partial(self._show_more, button)
+        button.grid(
+            row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
+        )
         # leave self._rownumber untouched
 
         # _show_more() grids these
@@ -54,28 +54,31 @@ class ConnectDialogContent(ttk.Frame):
 
         # big row makes sure that this is always below everything
         self._statuslabel = ttk.Label(self)
-        self._statuslabel.grid(row=30, column=0, columnspan=4,
-                               pady=5, sticky='swe')
+        self._statuslabel.grid(row=30, column=0, columnspan=4, pady=5, sticky="swe")
         self._statuslabel.bind(
-            '<Configure>',
-            lambda event: self._statuslabel.config(wraplength=event.width))
+            "<Configure>",
+            lambda event: self._statuslabel.config(wraplength=event.width),
+        )
         self.grid_rowconfigure(30, weight=1)
 
         self._bottomframe = ttk.Frame(self)
-        self._bottomframe.grid(row=31, column=0, columnspan=4,
-                               padx=5, pady=5, sticky='we')
+        self._bottomframe.grid(
+            row=31, column=0, columnspan=4, padx=5, pady=5, sticky="we"
+        )
 
-        ttk.Button(self._bottomframe, text="Cancel",
-                   command=self.cancel).pack(side='right')
+        ttk.Button(self._bottomframe, text="Cancel", command=self.cancel).pack(
+            side="right"
+        )
         self._connectbutton = ttk.Button(
-            self._bottomframe, text="Connect!", command=self.connect)
-        self._connectbutton.pack(side='right')
+            self._bottomframe, text="Connect!", command=self.connect
+        )
+        self._connectbutton.pack(side="right")
 
         # now everything's ready for _validate()
         # all of these call validate()
-        self._server_entry.var.set('irc.libera.chat')
+        self._server_entry.var.set("irc.libera.chat")
         self._nick_entry.var.set(getpass.getuser())
-        self._port_entry.var.set('6697')
+        self._port_entry.var.set("6697")
         self._on_nick_changed()
 
     # TODO: 2nd alternative for nicknames
@@ -92,30 +95,34 @@ class ConnectDialogContent(ttk.Frame):
         self._add_row("Username:", self._username_entry)
         self._add_row("Real* name:", self._realname_entry)
 
-        infolabel = ttk.Label(self, text=(
-            "* This doesn't need to be your real name.\n"
-            "   You can set this to anything you want."))
-        infolabel.grid(row=self._rownumber, column=0, columnspan=4, sticky='w',
-                       padx=5, pady=5)
+        infolabel = ttk.Label(
+            self,
+            text=(
+                "* This doesn't need to be your real name.\n"
+                "   You can set this to anything you want."
+            ),
+        )
+        infolabel.grid(
+            row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
+        )
         self._rownumber += 1
 
-        self.event_generate('<<MoreOptions>>')
+        self.event_generate("<<MoreOptions>>")
 
     def _create_entry(self, **kwargs):
-        var = kwargs['textvariable'] = tkinter.StringVar()
-        var.trace('w', self._validate)
+        var = kwargs["textvariable"] = tkinter.StringVar()
+        var.trace("w", self._validate)
         entry = ttk.Entry(self, **kwargs)
-        entry.var = var     # because this is handy
+        entry.var = var  # because this is handy
         return entry
 
     def _setup_entry_bindings(self, entry):
-        entry.bind('<Return>', self.connect, add=True)
-        entry.bind('<Escape>', self.cancel, add=True)
+        entry.bind("<Return>", self.connect, add=True)
+        entry.bind("<Escape>", self.cancel, add=True)
 
     def _add_row(self, label, widget):
-        ttk.Label(self, text=label).grid(row=self._rownumber, column=0,
-                                         sticky='w')
-        widget.grid(row=self._rownumber, column=1, columnspan=3, sticky='we')
+        ttk.Label(self, text=label).grid(row=self._rownumber, column=0, sticky="w")
+        widget.grid(row=self._rownumber, column=1, columnspan=3, sticky="we")
         if isinstance(widget, ttk.Entry):
             self._setup_entry_bindings(widget)
         self._rownumber += 1
@@ -130,37 +137,39 @@ class ConnectDialogContent(ttk.Frame):
 
     def _validate(self, *junk):
         # this will be re-enabled if everything's ok
-        self._connectbutton['state'] = 'disabled'
+        self._connectbutton["state"] = "disabled"
 
         if not self._server_entry.get():
-            self._statuslabel['text'] = "Please specify a server."
+            self._statuslabel["text"] = "Please specify a server."
             return False
         if not self._nick_entry.get():
-            self._statuslabel['text'] = "Please specify a nickname."
+            self._statuslabel["text"] = "Please specify a nickname."
             return False
         if not self._username_entry.get():
-            self._statuslabel['text'] = "Please specify a username."
+            self._statuslabel["text"] = "Please specify a username."
             return False
         # TODO: can realname be empty?
 
-        if not re.search('^' + backend.NICK_REGEX + '$',
-                         self._nick_entry.get()):
-            self._statuslabel['text'] = ("'%s' is not a valid nickname." %
-                                         self._nick_entry.get())
+        if not re.search("^" + backend.NICK_REGEX + "$", self._nick_entry.get()):
+            self._statuslabel["text"] = (
+                "'%s' is not a valid nickname." % self._nick_entry.get()
+            )
             return False
 
         # if the channel entry is empty, no channels are joined
         channels = self._channel_entry.get().split()
         for channel in channels:
             if not re.fullmatch(backend.CHANNEL_REGEX, channel):
-                self._statuslabel['text'] = (
-                    "'%s' is not a valid channel name." % channel)
+                self._statuslabel["text"] = (
+                    "'%s' is not a valid channel name." % channel
+                )
 
                 # see comments of backend.CHANNEL_REGEX
-                if not channel.startswith(('&', '#', '+', '!')):
+                if not channel.startswith(("&", "#", "+", "!")):
                     # the user probably doesn't know what (s)he's doing
-                    self._statuslabel['text'] += (
-                        " Usually channel names start with a # character.")
+                    self._statuslabel[
+                        "text"
+                    ] += " Usually channel names start with a # character."
                 return False
 
         try:
@@ -168,11 +177,11 @@ class ConnectDialogContent(ttk.Frame):
             if port <= 0:
                 raise ValueError
         except ValueError:
-            self._statuslabel['text'] = "The port must be a positive integer."
+            self._statuslabel["text"] = "The port must be a positive integer."
             return False
 
-        self._statuslabel['text'] = ''
-        self._connectbutton['state'] = 'normal'
+        self._statuslabel["text"] = ""
+        self._connectbutton["state"] = "normal"
         return True
 
     def _connect_with_thread(self, core, done_callback):
@@ -182,7 +191,7 @@ class ConnectDialogContent(ttk.Frame):
             nonlocal error
             try:
                 core.connect()
-            except Exception as e:
+            except Exception:
                 error = traceback.format_exc()
 
         thread = threading.Thread(target=this_runs_in_thread)
@@ -208,18 +217,20 @@ class ConnectDialogContent(ttk.Frame):
         disabled.remove(self._bottomframe)
         disabled.remove(self._statuslabel)
         for widget in disabled:
-            widget['state'] = 'disabled'
+            widget["state"] = "disabled"
 
-        progressbar = ttk.Progressbar(self._bottomframe, mode='indeterminate')
-        progressbar.pack(side='left', fill='both', expand=True)
+        progressbar = ttk.Progressbar(self._bottomframe, mode="indeterminate")
+        progressbar.pack(side="left", fill="both", expand=True)
         progressbar.start()
-        self._statuslabel['text'] = "Connecting..."
+        self._statuslabel["text"] = "Connecting..."
 
         # creating an IrcCore creates a socket, but that shouldn't block
         # toooo much
         core = backend.IrcCore(
-            self._server_entry.get(), int(self._port_entry.get()),
-            self._nick_entry.get(), self._username_entry.get(),
+            self._server_entry.get(),
+            int(self._port_entry.get()),
+            self._nick_entry.get(),
+            self._username_entry.get(),
             self._realname_entry.get(),
             password=self._password_entry.get() or None,
             autojoin=self._channel_entry.get().split())
@@ -227,7 +238,7 @@ class ConnectDialogContent(ttk.Frame):
         def on_connected(error):
             # this stuff must be ran from tk's event loop
             for widget in disabled:
-                widget['state'] = 'normal'
+                widget["state"] = "normal"
             progressbar.destroy()
 
             if error is None:
@@ -235,12 +246,13 @@ class ConnectDialogContent(ttk.Frame):
                 self._on_cancel_or_after_connect()
             else:
                 # error is a traceback string
-                log.error("connecting to %s:%d failed\n%s",
-                          core.host, core.port, error)
+                log.error("connecting to %s:%d failed\n%s", core.host, core.port, error)
 
                 last_line = error.splitlines()[-1]
-                self._statuslabel['text'] = (
-                    "Connecting to %s failed!\n%s" % (core.host, last_line))
+                self._statuslabel["text"] = "Connecting to %s failed!\n%s" % (
+                    core.host,
+                    last_line,
+                )
 
         self._connect_with_thread(core, on_connected)
 
@@ -249,12 +261,12 @@ def run(transient_to=None):
     """Returns a connected IrcCore, or None if the user cancelled."""
     dialog = tkinter.Toplevel()
     content = ConnectDialogContent(dialog, dialog.destroy)
-    content.pack(fill='both', expand=True)
+    content.pack(fill="both", expand=True)
 
     dialog.minsize(350, 200)
-    content.bind('<<MoreOptions>>',
-                 lambda junk_event: dialog.minsize(350, 250),
-                 add=True)
+    content.bind(
+        "<<MoreOptions>>", lambda junk_event: dialog.minsize(350, 250), add=True
+    )
 
     dialog.title("Connect to IRC")
     if transient_to is not None:
