@@ -7,7 +7,6 @@ SHOW_MESSAGE = object()
 
 # TODO: this stuff needs tests and seems easy enough to test
 class CommandHandler:
-
     def __init__(self, core):
         self.irc_core = core
         self._commands = {}
@@ -45,9 +44,11 @@ class CommandHandler:
         The return value can be ``(SHOW_MESSAGE, message_string)`` to
         show a message in the GUI, or ``None`` to show no message.
         """
-        if not name.startswith('/'):
-            raise ValueError("%r is an invalid command name because command "
-                             "names must start with '/'" % name)
+        if not name.startswith("/"):
+            raise ValueError(
+                "%r is an invalid command name because command "
+                "names must start with '/'" % name
+            )
 
         def do_it(func):
             self._commands[name] = func
@@ -57,7 +58,7 @@ class CommandHandler:
 
     # TODO: something for adding more commands?
     def _add_default_commands(self):
-        @self.add_command('/join')
+        @self.add_command("/join")
         def join(channel):
             # plain '/join' for joining the current channel would be
             # useful if the user is kicked often, but that's unlikely
@@ -67,7 +68,7 @@ class CommandHandler:
             self.irc_core.join_channel(channel)
             return None
 
-        @self.add_command('/part')
+        @self.add_command("/part")
         def part(channel):
             # TODO: plain '/part' to part from the current channel?
             if not channel:
@@ -75,14 +76,14 @@ class CommandHandler:
             self.irc_core.part_channel(channel)
             return None
 
-        @self.add_command('/nick')
+        @self.add_command("/nick")
         def nick(new_nick):
             if not new_nick:
                 return (SHOW_MESSAGE, "Usage: /nick <new_nick>")
             self.irc_core.change_nick(new_nick)
             return None
 
-        @self.add_command('/msg')
+        @self.add_command("/msg")
         def msg(params):
             try:
                 nick, message = params.split(None, 1)
@@ -92,15 +93,15 @@ class CommandHandler:
             self.irc_core.send_privmsg(nick, message)
             return None
 
-        @self.add_command('/ns')
-        @self.add_command('/nickserv')
+        @self.add_command("/ns")
+        @self.add_command("/nickserv")
         def msg_nickserv(message):
-            return msg('NickServ ' + message)
+            return msg("NickServ " + message)
 
-        @self.add_command('/ms')
-        @self.add_command('/memoserv')
+        @self.add_command("/ms")
+        @self.add_command("/memoserv")
         def msg_memoserv(message):
-            return msg('MemoServ ' + message)
+            return msg("MemoServ " + message)
 
         # TODO: /me, /kick, /ban etc... lots of commands to add
 
@@ -119,13 +120,13 @@ class CommandHandler:
             return None
 
         # '//lol' escapes the /, but '//lol/' is a literal '/lol/'
-        if message.startswith('/') and not message.startswith('//'):
+        if message.startswith("/") and not message.startswith("//"):
             # we have a special command
             try:
                 command, args = message.split(None, 1)
             except ValueError:
                 command = message.strip()
-                args = ''
+                args = ""
 
             if command in self._commands:
                 return self._commands[command](args)
@@ -133,11 +134,13 @@ class CommandHandler:
 
         # not a special command
         if current_channel_or_nick is None:
-            return (SHOW_MESSAGE,
-                    "You can't send messages directly to the server. "
-                    "Join a channel instead and send messages there.")
+            return (
+                SHOW_MESSAGE,
+                "You can't send messages directly to the server. "
+                "Join a channel instead and send messages there.",
+            )
 
-        if message.startswith('//'):
-            message = message.replace('//', '/', 1)
+        if message.startswith("//"):
+            message = message.replace("//", "/", 1)
         self.irc_core.send_privmsg(current_channel_or_nick, message)
         return None
