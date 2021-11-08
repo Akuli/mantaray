@@ -4,7 +4,9 @@ import tkinter
 from . import connectdialog, gui
 
 
-def update_title(root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None) -> None:
+def update_title(
+    root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
+) -> None:
     title = "IRC: %s" % irc_widget.core.host
     number = irc_widget.not_seen_count()
     if number != 0:

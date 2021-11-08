@@ -83,9 +83,13 @@ class TreeviewWrapper(_base):
         return len(self.widget.get_children(""))
 
     @overload
-    def __getitem__(self, index: int) -> str: ...
+    def __getitem__(self, index: int) -> str:
+        ...
+
     @overload
-    def __getitem__(self, index: slice) -> list[str]: ...
+    def __getitem__(self, index: slice) -> list[str]:
+        ...
+
     def __getitem__(self, index: int | slice) -> str | list[str]:
         return list(self.widget.get_children(""))[index]
 
@@ -114,7 +118,9 @@ class TreeviewWrapper(_base):
         if was_selected:
             self.widget.selection_set(new_value)
 
-    def select_something_else(self, than_this_item: str) -> None:  # https://xkcd.com/1960/
+    def select_something_else(
+        self, than_this_item: str
+    ) -> None:  # https://xkcd.com/1960/
         if than_this_item in self.widget.selection():
             if than_this_item == self[-1]:
                 self.widget.selection_set(self[-2])
@@ -162,7 +168,9 @@ class ChannelLikeView:
         if self.userlist is not None:
             self.userlist.widget.destroy()
 
-    def add_message(self, sender: str, message: str, automagic_nick_coloring: bool = False) -> None:
+    def add_message(
+        self, sender: str, message: str, automagic_nick_coloring: bool = False
+    ) -> None:
         """Add a message to self.textwidget."""
         # scroll down all the way if the user hasn't scrolled up manually
         do_the_scroll = self.textwidget.yview()[1] == 1.0
@@ -241,9 +249,7 @@ class ChannelLikeView:
             self.userlist[self.userlist.index(old)] = new
 
         # notify about the nick change everywhere, no ifs in front of this
-        self.add_message(
-            "*", "You are now known as %s." % colors.color_nick(new)
-        )
+        self.add_message("*", "You are now known as %s." % colors.color_nick(new))
 
     def on_user_changed_nick(self, old: str, new: str) -> None:
         """Called after anyone has changed nick.
@@ -317,7 +323,12 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 class IrcWidget(ttk.PanedWindow):
     _current_channel_like: ChannelLikeView
 
-    def __init__(self, master: tkinter.Misc, irc_core: backend.IrcCore, on_quit: Callable[[], object]):
+    def __init__(
+        self,
+        master: tkinter.Misc,
+        irc_core: backend.IrcCore,
+        on_quit: Callable[[], object],
+    ):
         super().__init__(master, orient="horizontal")
         self.core = irc_core
         self._command_handler = commands.CommandHandler(irc_core)
@@ -353,7 +364,9 @@ class IrcWidget(ttk.PanedWindow):
         self._entry.bind("<Return>", self._on_enter_pressed)
         self._entry.bind("<Tab>", self._autocomplete)
 
-        self._channel_likes: dict[str, ChannelLikeView] = {}  # {channel_like.name: channel_like}
+        self._channel_likes: dict[
+            str, ChannelLikeView
+        ] = {}  # {channel_like.name: channel_like}
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
         # now self._current_channel_like exists
 
@@ -410,7 +423,7 @@ class IrcWidget(ttk.PanedWindow):
     def _on_selection(self, event: object) -> None:
         (name,) = self._channel_selector.widget.selection()
         new_channel_like = self._channel_likes[name]
-        if hasattr(self, '_current_channel_like'):
+        if hasattr(self, "_current_channel_like"):
             # not running for the first time
             if self._current_channel_like is new_channel_like:
                 return
@@ -580,7 +593,9 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
-    def _new_message_notify(self, channel_like_name: str, message_with_sender: str) -> None:
+    def _new_message_notify(
+        self, channel_like_name: str, message_with_sender: str
+    ) -> None:
         # privmsgs shouldn't come from the server, and this should be only
         # called on privmsgs
         # TODO: /me's and stuff should also call this when they are supported

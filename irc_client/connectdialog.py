@@ -7,7 +7,7 @@ import threading
 import tkinter
 from tkinter import ttk
 import traceback
-from typing import Callable,Any
+from typing import Callable, Any
 
 from . import backend
 
@@ -26,7 +26,12 @@ class EntryWithVar(ttk.Entry):
 #       to a config file or something
 #       freenode and current username suck
 class ConnectDialogContent(ttk.Frame):
-    def __init__(self, master: tkinter.Misc, on_cancel_or_after_connect: Callable[[], None], **kwargs: Any):
+    def __init__(
+        self,
+        master: tkinter.Misc,
+        on_cancel_or_after_connect: Callable[[], None],
+        **kwargs: Any
+    ):
         super().__init__(master, **kwargs)
         self._on_cancel_or_after_connect = on_cancel_or_after_connect
 
@@ -189,7 +194,9 @@ class ConnectDialogContent(ttk.Frame):
         self._connectbutton["state"] = "normal"
         return True
 
-    def _connect_with_thread(self, core: backend.IrcCore, done_callback: Callable[[str | None], object]) -> None:
+    def _connect_with_thread(
+        self, core: backend.IrcCore, done_callback: Callable[[str | None], object]
+    ) -> None:
         error: str | None = None
 
         def this_runs_in_thread() -> None:

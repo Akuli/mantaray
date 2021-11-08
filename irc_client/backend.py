@@ -22,6 +22,7 @@ class _Message:
     command: str
     args: list[str]
 
+
 # from rfc1459
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
@@ -84,7 +85,16 @@ _IrcInternalEvent = enum.Enum(
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, host: str, port: int, nick: str, username: str, realname: str, *, autojoin: Sequence[str] = ()):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        nick: str,
+        username: str,
+        realname: str,
+        *,
+        autojoin: Sequence[str] = ()
+    ):
         self.host = host
         self.port = port
         self.nick = nick  # may be changed, see change_nick() below

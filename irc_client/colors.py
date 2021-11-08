@@ -40,7 +40,9 @@ _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 _NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 14, 15})
 
 
-def _parse_styles(text: str) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
+def _parse_styles(
+    text: str,
+) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
     # ^ and $ are included to make the next step easier
     style_regex = r"\x02|\x1f|\x03\d{1,2}(?:,\d{1,2})?|\x0f"
 
@@ -64,9 +66,7 @@ def _parse_styles(text: str) -> Iterator[tuple[str, int | None, int | None, bool
             underline = True
         elif style_spec.startswith(_COLOR):
             # _COLOR == '\x03'
-            match = re.fullmatch(
-                r"\x03(\d{1,2})(,\d{1,2})?", style_spec
-            )
+            match = re.fullmatch(r"\x03(\d{1,2})(,\d{1,2})?", style_spec)
             assert match is not None
             fg_spec, bg_spec = match.groups()
 

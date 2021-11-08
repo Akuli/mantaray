@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Callable, TypeVar, Optional
 from irc_client.backend import IrcCore
 
-_CommandT = TypeVar('_CommandT', bound=Callable[[str], Optional[str]])
-
+_CommandT = TypeVar("_CommandT", bound=Callable[[str], Optional[str]])
 
 
 # TODO: this stuff needs tests and seems easy enough to test
@@ -85,7 +84,7 @@ class CommandHandler:
             return None
 
         @self.add_command("/msg")
-        def msg(params: str) -> str  | None:
+        def msg(params: str) -> str | None:
             try:
                 nick, message = params.split(maxsplit=1)
             except ValueError:
@@ -106,7 +105,9 @@ class CommandHandler:
 
         # TODO: /me, /kick, /ban etc... lots of commands to add
 
-    def handle_command(self, current_channel_or_nick: str | None, message: str) -> str | None:
+    def handle_command(
+        self, current_channel_or_nick: str | None, message: str
+    ) -> str | None:
         """This runs when the user types something.
 
         This takes care of special commands like ``/join #somechannel``
