@@ -8,11 +8,46 @@ import hashlib
 import os
 import queue
 import re
+import subprocess
+import sys
 import time
 import tkinter
+import traceback
 from tkinter import ttk
 
 from . import backend, colors, commands
+
+
+def _show_popup(title: str, text: str) -> None:
+    try:
+        if sys.platform == "win32":
+            # FIXME
+            print("Sorry, no popups on windows yet :(")
+        elif sys.platform == "darwin":
+            # https://stackoverflow.com/a/41318195
+            # TODO: can this be indented too?
+            command = (
+                'on run argv\n'
+                '  display notification (item 2 of argv) with title (item 1 of argv)\n'
+                'end run\n'
+            )
+            subprocess.call(['osascript', '-e', command, title, text])
+        else:
+            subprocess.call(["notify-send", f"[{title}] {text}"])
+    except OSError:
+        traceback.print_exc()
+
+
+def _fix_tag_coloring_bug():
+    # https://stackoverflow.com/a/60949800
+
+    style = ttk.Style()
+
+    def fixed_map(option):
+        return [elm for elm in style.map("Treeview", query_opt=option)
+                if elm[:2] != ("!disabled", "!selected")]
+
+    style.map("Treeview", foreground=fixed_map("foreground"), background=fixed_map("background"))
 
 
 # because tkinter sucks at this
@@ -264,6 +299,7 @@ class IrcWidget(ttk.PanedWindow):
         self._pm_image = tkinter.PhotoImage(
             file=os.path.join(images_dir, 'face-20x20.png'))
 
+        _fix_tag_coloring_bug()
         treeview = ttk.Treeview(self, show='tree', selectmode='browse')
         treeview.tag_configure('new_message', foreground='red')
         treeview.bind('<<TreeviewSelect>>', self._on_selection)
@@ -289,13 +325,6 @@ class IrcWidget(ttk.PanedWindow):
 
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
         # from now on, _current_channel_like is never None
-
-        # if this is True, new message notifications are generated whenever
-        # someone mentions the current nick in a message
-        # if this is False, notifications for the currently selected channel or
-        # PM chat are not generated
-        # this is set to True when the IRC tab is not selected
-        self.current_channel_like_notify = False
 
     def focus_the_entry(self):
         self._entry.focus()
@@ -488,18 +517,15 @@ class IrcWidget(ttk.PanedWindow):
                     if sender not in self._channel_likes:
                         # create a new channel-like for the conversation
                         self.add_channel_like(ChannelLikeView(self, sender))
-                    self._new_message_notify(sender)
+                    self._new_message_notify(sender, msg)
                     channel_like_name = sender
                 else:  # the message has been sent to an entire channel
                     assert re.fullmatch(backend.CHANNEL_REGEX, recipient)
                     channel_like_name = recipient
 
-                    # this handles corner cases nicely
-                    # funnydude123 must not be notified when someone mentions
-                    # funny or dude, but we can't use \b because nicknames can
-                    # be non-wordy, e.g. {-o-} or `^\_
+                    # FIXME: case insensitive
                     if self.core.nick in re.findall(backend.NICK_REGEX, msg):
-                        self._new_message_notify(channel_like_name)
+                        self._new_message_notify(channel_like_name, f"<{sender}> {msg}")
 
                 self._channel_likes[channel_like_name].on_privmsg(sender, msg)
 
@@ -518,19 +544,19 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
-    def _new_message_notify(self, channel_like_name):
+    def _new_message_notify(self, channel_like_name, message_with_sender):
         # privmsgs shouldn't come from the server, and this should be only
         # called on privmsgs
         # TODO: /me's and stuff should also call this when they are supported
         assert channel_like_name != _SERVER_VIEW_ID
 
-        if (channel_like_name == self._current_channel_like.name and
-                not self.current_channel_like_notify):
-            return
+        if not self.tk.eval("focus"):  # window not focused
+            _show_popup(channel_like_name, message_with_sender)
 
-        self._channel_selector.widget.item(channel_like_name,
-                                           tags='new_message')
-        self.event_generate('<<NotSeenCountChanged>>')
+        if channel_like_name != self._current_channel_like.name:
+            self._channel_selector.widget.item(channel_like_name,
+                                               tags='new_message')
+            self.event_generate('<<NotSeenCountChanged>>')
 
     def mark_seen(self):
         """Make the currently selected channel-like not red in the list.
