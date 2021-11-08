@@ -233,7 +233,8 @@ class ConnectDialogContent(ttk.Frame):
             self._username_entry.get(),
             self._realname_entry.get(),
             password=self._password_entry.get() or None,
-            autojoin=self._channel_entry.get().split())
+            autojoin=self._channel_entry.get().split(),
+        )
 
         def on_connected(error):
             # this stuff must be ran from tk's event loop

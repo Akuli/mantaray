@@ -18,10 +18,10 @@ _Message = collections.namedtuple(
 )
 
 # from rfc1459
-_RPL_ENDOFMOTD = '376'
-_RPL_NAMREPLY = '353'
-_RPL_ENDOFNAMES = '366'
-_RPL_LOGGEDIN = '900'
+_RPL_ENDOFMOTD = "376"
+_RPL_NAMREPLY = "353"
+_RPL_ENDOFNAMES = "366"
+_RPL_LOGGEDIN = "900"
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -80,7 +80,9 @@ _IrcInternalEvent = enum.Enum(
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, host, port, nick, username, realname, *, password=None, autojoin=()):
+    def __init__(
+        self, host, port, nick, username, realname, *, password=None, autojoin=()
+    ):
         self.host = host
         self.port = port
         self.nick = nick  # may be changed, see change_nick() below
@@ -256,7 +258,9 @@ class IrcCore:
                     elif msg.command == "AUTHENTICATE":
                         query = f"\0{self.username}\0{self._password}"
                         b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
-                        self._send_in_chunks("AUTHENTICATE", b64_query, chunk_length=400)
+                        self._send_in_chunks(
+                            "AUTHENTICATE", b64_query, chunk_length=400
+                        )
                         print("Responded to AUTHENTICATE")
 
                     elif msg.command == _RPL_LOGGEDIN:
