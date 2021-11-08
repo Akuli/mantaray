@@ -34,7 +34,7 @@ def _show_popup(title: str, text: str) -> None:
             subprocess.call(['osascript', '-e', command, title, text])
         else:
             subprocess.call(["notify-send", f"[{title}] {text}"])
-    except (OSError, subprocess.CalledProcessError):
+    except OSError:
         traceback.print_exc()
 
 
