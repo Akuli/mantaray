@@ -6,6 +6,7 @@ A fun IRC client written in Python with Tkinter and ttk.
 
 You can run this IRC client like this:
 
+	$ sudo apt install libnotify-bin   # skip this on MacOS
 	$ git clone https://github.com/Akuli/irc-client
 	$ cd irc-client
 	$ python3 -m irc_client
