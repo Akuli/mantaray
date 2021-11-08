@@ -448,8 +448,11 @@ class IrcWidget(ttk.PanedWindow):
         assert (
             channel_like.name != _SERVER_VIEW_ID
         ), "cannot remove the server channel-like"
-        self._channel_selector.select_something_else(channel_like)
-        self._channel_selector.remove(channel_like)
+
+        if channel_like is self._current_channel_like:
+            del self._current_channel_like
+        self._channel_selector.select_something_else(channel_like.name)
+        self._channel_selector.remove(channel_like.name)
         channel_like.destroy_widgets()
 
     # this must be called when someone that the user PM's with changes nick

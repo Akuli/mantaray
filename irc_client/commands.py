@@ -1,5 +1,5 @@
 """This file handles commands like /join."""
-
+from __future__ import annotations
 from typing import Callable, TypeVar, Optional
 from irc_client.backend import IrcCore
 
