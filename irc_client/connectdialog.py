@@ -179,7 +179,7 @@ class ConnectDialogContent(ttk.Frame):
             nonlocal error
             try:
                 core.connect()
-            except Exception as e:
+            except Exception:
                 error = traceback.format_exc()
 
         thread = threading.Thread(target=this_runs_in_thread)
