@@ -1,0 +1,13 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: |
+        grep $(date +%Y) LICENSE
