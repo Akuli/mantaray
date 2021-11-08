@@ -550,7 +550,7 @@ class IrcWidget(ttk.PanedWindow):
         # TODO: /me's and stuff should also call this when they are supported
         assert channel_like_name != _SERVER_VIEW_ID
 
-        if not self.tk.eval("focus"):
+        if not self.tk.eval("focus"):  # window not focused
             _show_popup(channel_like_name, who_said_what)
 
         if channel_like_name != self._current_channel_like.name:
