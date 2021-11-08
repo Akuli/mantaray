@@ -138,7 +138,7 @@ class ColoredText(tkinter.Text):
             if fg is not None:
                 tags.append("foreground-%d" % fg)
             if bg is not None:
-                tags.append("background-%d" % fg)
+                tags.append("background-%d" % bg)
             if bold:
                 tags.append("bold")
             if underline:
