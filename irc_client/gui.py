@@ -201,13 +201,12 @@ class ChannelLikeView:
         if do_the_scroll:
             self.textwidget.see("end")
 
-    def on_privmsg(self, sender: str, message: str) -> None:
-        nicks = re.findall(backend.NICK_REGEX, message)
+    def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
         self.add_message(
             sender,
             message,
             automagic_nick_coloring=True,
-            pinged=self.core.nick.lower() in (n.lower() for n in nicks),
+            pinged=pinged,
         )
 
     def on_join(self, nick: str) -> None:
@@ -574,20 +573,26 @@ class IrcWidget(ttk.PanedWindow):
                 sender, recipient, msg = event_args
 
                 if recipient == self.core.nick:  # PM
+                    pinged = True
                     if sender not in self._channel_likes:
                         # create a new channel-like for the conversation
                         self.add_channel_like(ChannelLikeView(self, sender))
                     self._new_message_notify(sender, msg)
                     channel_like_name = sender
+                    msg_with_sender = msg
+
                 else:  # the message has been sent to an entire channel
                     assert re.fullmatch(backend.CHANNEL_REGEX, recipient)
                     channel_like_name = recipient
 
                     # FIXME: case insensitive
-                    if self.core.nick in re.findall(backend.NICK_REGEX, msg):
-                        self._new_message_notify(channel_like_name, f"<{sender}> {msg}")
+                    mentioned = [nick.lower() for nick in re.findall(backend.NICK_REGEX, msg)]
+                    pinged = self.core.nick.lower() in mentioned
+                    msg_with_sender = f"<{sender}> {msg}"
 
-                self._channel_likes[channel_like_name].on_privmsg(sender, msg)
+                self._channel_likes[channel_like_name].on_privmsg(sender, msg, pinged=pinged)
+                if pinged:
+                    self._new_message_notify(channel_like_name, msg_with_sender)
 
             # TODO: do something to unknown messages!! maybe log in backend?
             elif event in {
@@ -605,12 +610,10 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
+    # TODO: /me's and stuff should also call this when they are supported
     def _new_message_notify(
         self, channel_like_name: str, message_with_sender: str
     ) -> None:
-        # privmsgs shouldn't come from the server, and this should be only
-        # called on privmsgs
-        # TODO: /me's and stuff should also call this when they are supported
         assert channel_like_name != _SERVER_VIEW_ID
 
         if not self.tk.eval("focus"):  # window not focused
