@@ -296,14 +296,14 @@ class IrcCore:
         assert self._sock is None
 
         try:
-            self._sock = ssl.wrap_socket(socket.socket())
-            print("SSLSocket created")
+            context = ssl.create_default_context()
+            self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
             self._sock.connect((self.host, self.port))
 
             # TODO: what if nick or user are in use? use alternatives?
             self._send("NICK", self.nick)
             self._send("USER", self.username, "0", "*", ":" + self.realname)
-            print("nick,user sent")
+            print("connected")
         except OSError as e:
             print("connect failed", e)
             # _add_messages_to_internal_queue() knows how to close the
