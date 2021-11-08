@@ -1,3 +1,4 @@
+from __future__ import annotations
 import functools
 import getpass  # for getting the user name
 import logging
@@ -6,21 +7,30 @@ import threading
 import tkinter
 from tkinter import ttk
 import traceback
+from typing import Callable,Any
 
 from . import backend
 
 log = logging.getLogger(__name__)
 
 
+# TODO: get rid of this
+class EntryWithVar(ttk.Entry):
+    def __init__(self, master: tkinter.Misc, **kwargs: Any):
+        var = tkinter.StringVar()
+        super().__init__(master, textvariable=var, **kwargs)
+        self.var = var
+
+
 # TODO: this is ok for connecting the first time, but the defaults should go
 #       to a config file or something
 #       freenode and current username suck
 class ConnectDialogContent(ttk.Frame):
-    def __init__(self, master, on_cancel_or_after_connect, **kwargs):
+    def __init__(self, master: tkinter.Misc, on_cancel_or_after_connect: Callable[[], None], **kwargs: Any):
         super().__init__(master, **kwargs)
         self._on_cancel_or_after_connect = on_cancel_or_after_connect
 
-        self.result = None  # will be set to the IrcCore, see connect()
+        self.result: backend.IrcCore | None = None
 
         self._rownumber = 0
         self.grid_columnconfigure(0, minsize=60)
@@ -81,7 +91,7 @@ class ConnectDialogContent(ttk.Frame):
     # TODO: 2nd alternative for nicknames
     # rest of the code should also handle nickname errors better
     # https://tools.ietf.org/html/rfc1459#section-4.1.2
-    def _show_more(self, show_more_button):
+    def _show_more(self, show_more_button: ttk.Button) -> None:
         show_more_button.destroy()
 
         self._server_entry.grid_configure(columnspan=1)
@@ -106,33 +116,31 @@ class ConnectDialogContent(ttk.Frame):
 
         self.event_generate("<<MoreOptions>>")
 
-    def _create_entry(self, **kwargs):
-        var = kwargs["textvariable"] = tkinter.StringVar()
-        var.trace("w", self._validate)
-        entry = ttk.Entry(self, **kwargs)
-        entry.var = var  # because this is handy
+    def _create_entry(self, **kwargs: Any) -> EntryWithVar:
+        entry = EntryWithVar(self, **kwargs)
+        entry.var.trace("w", self._validate)
         return entry
 
-    def _setup_entry_bindings(self, entry):
+    def _setup_entry_bindings(self, entry: ttk.Entry) -> None:
         entry.bind("<Return>", self.connect, add=True)
         entry.bind("<Escape>", self.cancel, add=True)
 
-    def _add_row(self, label, widget):
+    def _add_row(self, label: str, widget: ttk.Entry) -> None:
         ttk.Label(self, text=label).grid(row=self._rownumber, column=0, sticky="w")
         widget.grid(row=self._rownumber, column=1, columnspan=3, sticky="we")
         if isinstance(widget, ttk.Entry):
             self._setup_entry_bindings(widget)
         self._rownumber += 1
 
-    def _on_nick_changed(self, *junk):
+    def _on_nick_changed(self, *junk: object) -> None:
         # these call self._validate()
         self._username_entry.var.set(self._nick_entry.get())
         self._realname_entry.var.set(self._nick_entry.get())
 
-    def cancel(self, junk_event=None):
+    def cancel(self, junk_event: object = None) -> None:
         self._on_cancel_or_after_connect()
 
-    def _validate(self, *junk):
+    def _validate(self, *junk: object) -> bool:
         # this will be re-enabled if everything's ok
         self._connectbutton["state"] = "disabled"
 
@@ -181,10 +189,10 @@ class ConnectDialogContent(ttk.Frame):
         self._connectbutton["state"] = "normal"
         return True
 
-    def _connect_with_thread(self, core, done_callback):
-        error = None
+    def _connect_with_thread(self, core: backend.IrcCore, done_callback: Callable[[str | None], object]) -> None:
+        error: str | None = None
 
-        def this_runs_in_thread():
+        def this_runs_in_thread() -> None:
             nonlocal error
             try:
                 core.connect()
@@ -194,7 +202,7 @@ class ConnectDialogContent(ttk.Frame):
         thread = threading.Thread(target=this_runs_in_thread)
         thread.start()
 
-        def this_runs_in_tk_mainloop():
+        def this_runs_in_tk_mainloop() -> None:
             if thread.is_alive():
                 done_callback(error)
             else:
@@ -202,7 +210,7 @@ class ConnectDialogContent(ttk.Frame):
 
         this_runs_in_tk_mainloop()
 
-    def connect(self, junk_event=None):
+    def connect(self, junk_event: object = None) -> None:
         """Create an IrcCore.
 
         On success, this sets self.result to the connected core and
@@ -232,7 +240,7 @@ class ConnectDialogContent(ttk.Frame):
             autojoin=self._channel_entry.get().split(),
         )
 
-        def on_connected(error):
+        def on_connected(error: str | None) -> None:
             # this stuff must be ran from tk's event loop
             for widget in disabled:
                 widget["state"] = "normal"
@@ -254,7 +262,7 @@ class ConnectDialogContent(ttk.Frame):
         self._connect_with_thread(core, on_connected)
 
 
-def run(transient_to=None):
+def run(transient_to: tkinter.Tk | None = None) -> backend.IrcCore | None:
     """Returns a connected IrcCore, or None if the user cancelled."""
     dialog = tkinter.Toplevel()
     content = ConnectDialogContent(dialog, dialog.destroy)

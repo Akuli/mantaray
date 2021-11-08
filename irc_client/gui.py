@@ -3,6 +3,7 @@
 #
 # TODO: seems like channel names don't need to start with #
 #       https://tools.ietf.org/html/rfc2812#section-2.3.1
+from __future__ import annotations
 import collections.abc
 import hashlib
 import os
@@ -14,6 +15,7 @@ import time
 import tkinter
 import traceback
 from tkinter import ttk
+from typing import Callable, TYPE_CHECKING, overload, Iterable, Any
 
 from . import backend, colors, commands
 
@@ -38,12 +40,12 @@ def _show_popup(title: str, text: str) -> None:
         traceback.print_exc()
 
 
-def _fix_tag_coloring_bug():
+def _fix_tag_coloring_bug() -> None:
     # https://stackoverflow.com/a/60949800
 
     style = ttk.Style()
 
-    def fixed_map(option):
+    def fixed_map(option: str) -> list[Any]:
         return [
             elm
             for elm in style.map("Treeview", query_opt=option)
@@ -57,33 +59,47 @@ def _fix_tag_coloring_bug():
     )
 
 
+if TYPE_CHECKING:
+    _base = collections.abc.MutableSequence[str]
+else:
+    _base = collections.abc.MutableSequence
+
+
 # because tkinter sucks at this
-class TreeviewWrapper(collections.abc.MutableSequence):
+class TreeviewWrapper(_base):
     """An easier way to use ttk.Treeview for non-nested data.
 
     This behaves like a list of strings, and the treeview is updated
     automatically.
     """
 
-    def __init__(self, treeview):
+    def __init__(self, treeview: ttk.Treeview):
         self.widget = treeview
 
-    def __len__(self):
+    def __len__(self) -> int:
         # tkinter uses a children attribute for another thing, so the method
         # that calls 'pathname children item' from ttk_treeview(3tk) is
         # named get_children()
         return len(self.widget.get_children(""))
 
-    def __getitem__(self, index):
-        return self.widget.get_children("")[index]
+    @overload
+    def __getitem__(self, index: int) -> str: ...
+    @overload
+    def __getitem__(self, index: slice) -> list[str]: ...
+    def __getitem__(self, index: int | slice) -> str | list[str]:
+        return list(self.widget.get_children(""))[index]
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: int | slice) -> None:
+        assert not isinstance(index, slice), "deleting slices not supported"
         self.widget.delete(self.widget.get_children("")[index])
 
-    def insert(self, index, value):
+    def insert(self, index: int, value: str) -> None:
         self.widget.insert("", index, value, text=value)
 
-    def __setitem__(self, index, new_value):
+    def __setitem__(self, index: int | slice, new_value: str | Iterable[str]) -> None:
+        assert not isinstance(index, slice), "slicing not supported :("
+        assert isinstance(new_value, str)
+
         # preserve as much info of the old value as possible
         item_options = self.widget.item(self.widget.get_children("")[index])
         was_selected = self[index] in self.widget.selection()
@@ -98,7 +114,7 @@ class TreeviewWrapper(collections.abc.MutableSequence):
         if was_selected:
             self.widget.selection_set(new_value)
 
-    def select_something_else(self, than_this_item):  # https://xkcd.com/1960/
+    def select_something_else(self, than_this_item: str) -> None:  # https://xkcd.com/1960/
         if than_this_item in self.widget.selection():
             if than_this_item == self[-1]:
                 self.widget.selection_set(self[-2])
@@ -118,7 +134,7 @@ class ChannelLikeView:
 
     # users is a list of nicks or None if this is not a channel
     # name is a nick or channel name, nick name for PMS or _SERVER_VIEW_ID
-    def __init__(self, ircwidget, name, users=None):
+    def __init__(self, ircwidget: IrcWidget, name: str, users: list[str] | None = None):
         # if someone changes nick, IrcWidget takes care of updating .name
         self.name = name
 
@@ -137,16 +153,16 @@ class ChannelLikeView:
             self.userlist.extend(sorted(users, key=str.casefold))
 
     # 'wat.is_channel()' is way more readable than 'wat.userlist is not None'
-    def is_channel(self):
+    def is_channel(self) -> bool:
         return self.userlist is not None
 
-    def destroy_widgets(self):
+    def destroy_widgets(self) -> None:
         """This is called by IrcWidget.remove_channel_like()."""
         self.textwidget.destroy()
         if self.userlist is not None:
             self.userlist.widget.destroy()
 
-    def add_message(self, sender, message, automagic_nick_coloring=False):
+    def add_message(self, sender: str, message: str, automagic_nick_coloring: bool = False) -> None:
         """Add a message to self.textwidget."""
         # scroll down all the way if the user hasn't scrolled up manually
         do_the_scroll = self.textwidget.yview()[1] == 1.0
@@ -171,12 +187,13 @@ class ChannelLikeView:
         if do_the_scroll:
             self.textwidget.see("end")
 
-    def on_privmsg(self, sender, message):
+    def on_privmsg(self, sender: str, message: str) -> None:
         self.add_message(sender, message, automagic_nick_coloring=True)
 
-    def on_join(self, nick):
+    def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
         assert self.is_channel()
+        assert self.userlist is not None
 
         # TODO: a better algorithm?
         #       timsort is good, but maybe sorting every time is not?
@@ -187,9 +204,10 @@ class ChannelLikeView:
 
         self.add_message("*", "%s joined %s." % (colors.color_nick(nick), self.name))
 
-    def on_part(self, nick, reason):
+    def on_part(self, nick: str, reason: str) -> None:
         """Called when another user leaves this channel."""
         assert self.is_channel()
+        assert self.userlist is not None
         self.userlist.remove(nick)
 
         msg = "%s left %s." % (colors.color_nick(nick), self.name)
@@ -197,13 +215,14 @@ class ChannelLikeView:
             msg = "%s (%s)" % (msg, reason)
         self.add_message("*", msg)
 
-    def on_quit(self, nick, reason):
+    def on_quit(self, nick: str, reason: str) -> None:
         """Called when a user that was on this channel quits the whole IRC.
 
         This is also called if the channel-like is not a channel, but it
         represents a PM conversation with the quitting user.
         """
         if self.is_channel():
+            assert self.userlist is not None
             self.userlist.remove(nick)
         else:  # a PM conversation
             if self.name != nick:
@@ -215,7 +234,7 @@ class ChannelLikeView:
             msg = "%s (%s)" % (msg, reason)
         self.add_message("*", msg)
 
-    def on_self_changed_nick(self, old, new):
+    def on_self_changed_nick(self, old: str, new: str) -> None:
         """Called after the user of this thing changes nick successfully."""
         # if this is a channel, update the list of nicks
         if self.userlist is not None:
@@ -224,9 +243,9 @@ class ChannelLikeView:
         # notify about the nick change everywhere, no ifs in front of this
         self.add_message(
             "*", "You are now known as %s." % colors.color_nick(new)
-        )  # lol pep8
+        )
 
-    def on_user_changed_nick(self, old, new):
+    def on_user_changed_nick(self, old: str, new: str) -> None:
         """Called after anyone has changed nick.
 
         This must be called AFTER updating self.name.
@@ -236,6 +255,7 @@ class ChannelLikeView:
             return
 
         if self.is_channel():
+            assert self.userlist is not None
             if old not in self.userlist:
                 return
             self.userlist[self.userlist.index(old)] = new
@@ -250,7 +270,7 @@ class ChannelLikeView:
         )
 
 
-def ask_new_nick(parent, old_nick):
+def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
@@ -275,7 +295,7 @@ def ask_new_nick(parent, old_nick):
 
     result = old_nick
 
-    def ok(junk_event=None):
+    def ok(junk_event: object = None) -> None:
         nonlocal result
         result = entry.get()
         dialog.destroy()
@@ -295,9 +315,10 @@ def ask_new_nick(parent, old_nick):
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master, irc_core, on_quit, **kwargs):
-        kwargs.setdefault("orient", "horizontal")
-        super().__init__(master, **kwargs)
+    _current_channel_like: ChannelLikeView
+
+    def __init__(self, master: tkinter.Misc, irc_core: backend.IrcCore, on_quit: Callable[[], object]):
+        super().__init__(master, orient="horizontal")
         self.core = irc_core
         self._command_handler = commands.CommandHandler(irc_core)
         self._on_quit = on_quit
@@ -332,33 +353,27 @@ class IrcWidget(ttk.PanedWindow):
         self._entry.bind("<Return>", self._on_enter_pressed)
         self._entry.bind("<Tab>", self._autocomplete)
 
-        self._channel_likes = {}  # {channel_like.name: channel_like}
-        self._current_channel_like = None  # selected in self._channel_selector
-
+        self._channel_likes: dict[str, ChannelLikeView] = {}  # {channel_like.name: channel_like}
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
-        # from now on, _current_channel_like is never None
+        # now self._current_channel_like exists
 
-    def focus_the_entry(self):
+    def focus_the_entry(self) -> None:
         self._entry.focus()
 
-    def _show_change_nick_dialog(self):
+    def _show_change_nick_dialog(self) -> None:
         new_nick = ask_new_nick(self.winfo_toplevel(), self.core.nick)
         if new_nick != self.core.nick:
             self.core.change_nick(new_nick)
 
-    def _on_enter_pressed(self, event):
+    def _on_enter_pressed(self, event: object) -> None:
         response = self._command_handler.handle_command(
-            self._current_channel_like.name, event.widget.get()
+            self._current_channel_like.name, self._entry.get()
         )
-        event.widget.delete(0, "end")
-
+        self._entry.delete(0, "end")
         if response is not None:
-            command, *args = response
-            assert command is commands.SHOW_MESSAGE
-            [message] = args
-            self._current_channel_like.add_message("*", message)
+            self._current_channel_like.add_message("*", response)
 
-    def _autocomplete(self, event):
+    def _autocomplete(self, event: object) -> None:
         channel_like: ChannelLikeView = self._current_channel_like
         if channel_like.userlist is None:
             return
@@ -392,14 +407,13 @@ class IrcWidget(ttk.PanedWindow):
         self._entry.insert(0, new_text)
         self._entry.icursor("end")
 
-    def _on_selection(self, event):
+    def _on_selection(self, event: object) -> None:
         (name,) = self._channel_selector.widget.selection()
         new_channel_like = self._channel_likes[name]
-        if self._current_channel_like is new_channel_like:
-            return
-
-        if self._current_channel_like is not None:
+        if hasattr(self, '_current_channel_like'):
             # not running for the first time
+            if self._current_channel_like is new_channel_like:
+                return
             if self._current_channel_like.userlist is not None:
                 self.remove(self._current_channel_like.userlist.widget)
             self._current_channel_like.textwidget.pack_forget()
@@ -413,7 +427,7 @@ class IrcWidget(ttk.PanedWindow):
         self._current_channel_like = new_channel_like
         self.mark_seen()
 
-    def add_channel_like(self, channel_like):
+    def add_channel_like(self, channel_like: ChannelLikeView) -> None:
         assert channel_like.name not in self._channel_likes
         self._channel_likes[channel_like.name] = channel_like
 
@@ -430,7 +444,7 @@ class IrcWidget(ttk.PanedWindow):
         else:
             self._channel_selector.widget.item(channel_like.name, image=self._pm_image)
 
-    def remove_channel_like(self, channel_like):
+    def remove_channel_like(self, channel_like: ChannelLikeView) -> None:
         assert (
             channel_like.name != _SERVER_VIEW_ID
         ), "cannot remove the server channel-like"
@@ -440,7 +454,7 @@ class IrcWidget(ttk.PanedWindow):
 
     # this must be called when someone that the user PM's with changes nick
     # channels and the special server channel-like can't be renamed
-    def rename_channel_like(self, old_name, new_name):
+    def rename_channel_like(self, old_name: str, new_name: str) -> None:
         assert (
             old_name != _SERVER_VIEW_ID and new_name != _SERVER_VIEW_ID
         ), "cannot rename the server channel-like"
@@ -455,7 +469,7 @@ class IrcWidget(ttk.PanedWindow):
         index = self._channel_selector.index(old_name)
         self._channel_selector[index] = new_name
 
-    def handle_events(self):
+    def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
         # this is here so that this will be called again, even if
         # something raises an error this time
@@ -563,7 +577,7 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 raise ValueError("unknown event type " + repr(event))
 
-    def _new_message_notify(self, channel_like_name, message_with_sender):
+    def _new_message_notify(self, channel_like_name: str, message_with_sender: str) -> None:
         # privmsgs shouldn't come from the server, and this should be only
         # called on privmsgs
         # TODO: /me's and stuff should also call this when they are supported
@@ -576,18 +590,19 @@ class IrcWidget(ttk.PanedWindow):
             self._channel_selector.widget.item(channel_like_name, tags="new_message")
             self.event_generate("<<NotSeenCountChanged>>")
 
-    def mark_seen(self):
+    def mark_seen(self) -> None:
         """Make the currently selected channel-like not red in the list.
 
         This should be called when the user has a chance to read new
         messages in the channel-like.
         """
+        assert self._current_channel_like is not None
         if self._current_channel_like.name != _SERVER_VIEW_ID:
             # TODO: don't erase all tags if there will be other tags later
             self._channel_selector.widget.item(self._current_channel_like.name, tags="")
             self.event_generate("<<NotSeenCountChanged>>")
 
-    def not_seen_count(self):
+    def not_seen_count(self) -> int:
         """Returns the number of channel-likes that are shown in red.
 
         A <<NotSeenCountChanged>> event is generated when the value may
@@ -600,7 +615,7 @@ class IrcWidget(ttk.PanedWindow):
                 result += 1
         return result
 
-    def part_all_channels_and_quit(self):
+    def part_all_channels_and_quit(self) -> None:
         """Call this to get out of IRC."""
         # the channel is not parted right away, self.core just puts a thing to
         # a queue and does the actual parting later

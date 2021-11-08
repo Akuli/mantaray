@@ -1,6 +1,8 @@
+from __future__ import annotations
 import re
 import tkinter
 import tkinter.font as tkfont
+from typing import Any, Iterator
 
 from . import backend
 
@@ -38,10 +40,7 @@ _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 _NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 14, 15})
 
 
-# yields (text_substring, fg, bg, bold, underline) tuples
-# fg and bg are mirc color numbers or None for default color
-# bold and underline are booleans
-def _parse_styles(text):
+def _parse_styles(text: str) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
     # ^ and $ are included to make the next step easier
     style_regex = r"\x02|\x1f|\x03\d{1,2}(?:,\d{1,2})?|\x0f"
 
@@ -65,9 +64,11 @@ def _parse_styles(text):
             underline = True
         elif style_spec.startswith(_COLOR):
             # _COLOR == '\x03'
-            fg_spec, bg_spec = re.fullmatch(
+            match = re.fullmatch(
                 r"\x03(\d{1,2})(,\d{1,2})?", style_spec
-            ).groups()
+            )
+            assert match is not None
+            fg_spec, bg_spec = match.groups()
 
             # https://www.mirc.com/colors.html talks about big color numbers:
             # "The way these colors are interpreted varies from client to
@@ -96,7 +97,7 @@ def _parse_styles(text):
 
 # python's string hashes use a randomization by default, so hash('a')
 # returns a different value after restarting python
-def _nick_hash(nick):
+def _nick_hash(nick: str) -> int:
     # http://www.cse.yorku.ca/~oz/hash.html
     hash_ = 5381
     for c in nick:
@@ -104,16 +105,16 @@ def _nick_hash(nick):
     return hash_
 
 
-def color_nick(nick):
+def color_nick(nick: str) -> str:
     color = _NICK_COLORS[_nick_hash(nick) % len(_NICK_COLORS)]
     return _BOLD + _COLOR + str(color) + nick + _BACK_TO_NORMAL
 
 
 class ColoredText(tkinter.Text):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, master: tkinter.Misc, **kwargs: Any):
         kwargs.setdefault("fg", _MIRC_COLORS[0])
         kwargs.setdefault("bg", _MIRC_COLORS[1])
-        super().__init__(*args, **kwargs)
+        super().__init__(master, **kwargs)
 
         # tags support underlining, but no bolding (lol)
         # TODO: allow custom font families and sizes
@@ -129,17 +130,7 @@ class ColoredText(tkinter.Text):
             self.tag_configure("foreground-%d" % number, foreground=hexcolor)
             self.tag_configure("background-%d" % number, background=hexcolor)
 
-    def _on_font_changed(self, junk=None):
-        # when the font family or size changes, self['font'] also changes
-        # see porcupine.textwiddet.ThemedText
-        font_updates = tkfont.Font(name=self["font"], exists=True).actual()
-        del font_updates["weight"]  # ignore boldness
-
-        # fonts don't have a dict-style update() method :(
-        for key, value in font_updates.items():
-            self._bold_font[key] = value
-
-    def colored_insert(self, index, text):
+    def colored_insert(self, index: str, text: str) -> None:
         """Like insert(), but interprets special color sequences correctly."""
         for substring, fg, bg, bold, underline in _parse_styles(text):
             print("  ", [substring, fg, bg, bold, underline])
@@ -154,7 +145,7 @@ class ColoredText(tkinter.Text):
                 tags.append("underline")
             self.insert(index, substring, tags)
 
-    def nicky_insert(self, index, text, known_nicks):
+    def nicky_insert(self, index: str, text: str, known_nicks: list[str]) -> None:
         """Like colored_insert(), but colors nicks in known_nicks."""
         result_chars = list(text)
         matches = [
