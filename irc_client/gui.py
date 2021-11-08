@@ -143,6 +143,7 @@ class ChannelLikeView:
     def __init__(self, ircwidget: IrcWidget, name: str, users: list[str] | None = None):
         # if someone changes nick, IrcWidget takes care of updating .name
         self.name = name
+        self.core = ircwidget.core
 
         # width and height are minimums
         # IrcWidget packs this and lets this stretch
@@ -169,7 +170,12 @@ class ChannelLikeView:
             self.userlist.widget.destroy()
 
     def add_message(
-        self, sender: str, message: str, automagic_nick_coloring: bool = False
+        self,
+        sender: str,
+        message: str,
+        automagic_nick_coloring: bool = False,
+        *,
+        pinged: bool = False,
     ) -> None:
         """Add a message to self.textwidget."""
         # scroll down all the way if the user hasn't scrolled up manually
@@ -183,12 +189,12 @@ class ChannelLikeView:
 
         self.textwidget["state"] = "normal"
         self.textwidget.insert("end", "[%s] %s" % (time.strftime("%H:%M"), padding))
-        self.textwidget.colored_insert("end", colors.color_nick(sender))
+        self.textwidget.colored_insert("end", colors.color_nick(sender), pinged=False)
         self.textwidget.insert("end", " | ")
         if self.userlist is None or not automagic_nick_coloring:
-            self.textwidget.colored_insert("end", message)
+            self.textwidget.colored_insert("end", message, pinged)
         else:
-            self.textwidget.nicky_insert("end", message, list(self.userlist))
+            self.textwidget.nicky_insert("end", message, list(self.userlist), pinged)
         self.textwidget.insert("end", "\n")
         self.textwidget["state"] = "disabled"
 
@@ -196,7 +202,13 @@ class ChannelLikeView:
             self.textwidget.see("end")
 
     def on_privmsg(self, sender: str, message: str) -> None:
-        self.add_message(sender, message, automagic_nick_coloring=True)
+        nicks = re.findall(backend.NICK_REGEX, message)
+        self.add_message(
+            sender,
+            message,
+            automagic_nick_coloring=True,
+            pinged=self.core.nick.lower() in (n.lower() for n in nicks),
+        )
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
@@ -645,18 +657,3 @@ class IrcWidget(ttk.PanedWindow):
                 self.core.part_channel(name)
         print("calling self.core.quit()")
         self.core.quit()
-
-
-# if __name__ == '__main__':
-#    core = backend.IrcCore('chat.freenode.net', 6667, 'testieeeee')
-#    core.connect()
-#
-#    root = tkinter.Tk()
-#    ircwidget = IrcWidget(root, core, root.destroy)
-#    ircwidget.pack(fill='both', expand=True)
-#
-#    ircwidget.handle_events()
-#    ircwidget.focus_the_entry()
-#    root.protocol('WM_DELETE_WINDOW', ircwidget.part_all_channels_and_quit)
-#
-#    root.mainloop()
