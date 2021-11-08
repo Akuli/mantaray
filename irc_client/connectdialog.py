@@ -14,7 +14,7 @@ from . import backend
 log = logging.getLogger(__name__)
 
 
-# TODO: get rid of this
+# TODO: get rid of this?
 class EntryWithVar(ttk.Entry):
     def __init__(self, master: tkinter.Misc, **kwargs: Any):
         var = tkinter.StringVar()
