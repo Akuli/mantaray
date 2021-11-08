@@ -1,6 +1,8 @@
 # based on a thing that myst wrote for me
 # thanks myst :)   https://github.com/PurpleMyst/
+from __future__ import annotations
 import collections
+import dataclasses
 import enum
 import logging
 import queue
@@ -8,13 +10,18 @@ import ssl
 import re
 import socket
 import threading
+from typing import Sequence, Any
 
 log = logging.getLogger(__name__)
 
 
-_Message = collections.namedtuple(
-    "_Message", ["sender", "sender_is_server", "command", "args"]
-)
+@dataclasses.dataclass
+class _Message:
+    sender: str | None
+    sender_is_server: bool
+    command: str
+    args: list[str]
+
 
 # from rfc1459
 _RPL_ENDOFMOTD = "376"
@@ -78,7 +85,16 @@ _IrcInternalEvent = enum.Enum(
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, host, port, nick, username, realname, *, autojoin=()):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        nick: str,
+        username: str,
+        realname: str,
+        *,
+        autojoin: Sequence[str] = ()
+    ):
         self.host = host
         self.port = port
         self.nick = nick  # may be changed, see change_nick() below
@@ -87,11 +103,12 @@ class IrcCore:
         self._autojoin = autojoin
         self._running = True
 
-        self._sock = None  # see connect()
-        self._linebuffer = collections.deque()
+        self._sock: ssl.SSLSocket | None = None  # see connect()
+        self._linebuffer: collections.deque[str] = collections.deque()
 
-        self._internal_queue = queue.Queue()
-        self.event_queue = queue.Queue()
+        # TODO: improve types
+        self._internal_queue: queue.Queue[tuple[Any, ...]] = queue.Queue()
+        self.event_queue: queue.Queue[tuple[Any, ...]] = queue.Queue()
 
         # TODO: is automagic RPL_NAMREPLY in an rfc??
         # TODO: what do the rfc's say about huge NAMES replies with more nicks
@@ -100,19 +117,21 @@ class IrcCore:
         # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when a
         # client connects
         # the replies are collected here before emitting a self_joined event
-        self._names_replys = {}  # {channel: [nick1, nick2, ...]}
+        self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
 
-    def _send(self, *parts):
+    def _send(self, *parts: str) -> None:
         data = " ".join(parts).encode("utf-8") + b"\r\n"
+        assert self._sock is not None
         self._sock.sendall(data)
 
-    def _recv_line(self):
+    def _recv_line(self) -> str:
         if not self._linebuffer:
             data = bytearray()
 
             # this accepts both \r\n and \n because b'blah blah\r\n' ends
             # with b'\n'
             while not data.endswith(b"\n"):
+                assert self._sock is not None
                 chunk = self._sock.recv(4096)
                 if chunk:
                     data += chunk
@@ -124,7 +143,7 @@ class IrcCore:
 
         return self._linebuffer.popleft()
 
-    def _add_messages_to_internal_queue(self):
+    def _add_messages_to_internal_queue(self) -> None:
         # We need to have this function because it would be very complicated to
         # wait on two different queues, one for requests to send stuff and one
         # received messages.
@@ -142,12 +161,17 @@ class IrcCore:
                     (_IrcInternalEvent.got_message, self._split_line(line))
                 )
         finally:
+            assert self._sock is not None
             self._sock.close()
             self._sock = None
 
     @staticmethod
-    def _split_line(line):
-        if line.startswith(":"):
+    def _split_line(line: str) -> _Message:
+        if not line.startswith(":"):
+            sender_is_server = True  # TODO: when does this code run?
+            sender = None
+            command, *args = line.split(" ")
+        else:
             sender, command, *args = line.split(" ")
             sender = sender[1:]
             if "!" in sender:
@@ -158,10 +182,7 @@ class IrcCore:
             else:
                 # leave sender as is
                 sender_is_server = True
-        else:
-            sender_is_server = True  # TODO: when does this code run?
-            sender = None
-            command, *args = line.split(" ")
+
         for n, arg in enumerate(args):
             if arg.startswith(":"):
                 temp = args[:n]
@@ -170,7 +191,7 @@ class IrcCore:
                 break
         return _Message(sender, sender_is_server, command, args)
 
-    def _mainloop(self):
+    def _mainloop(self) -> None:
         while self._running:
             event, *args = self._internal_queue.get()
             log.debug("got an internal %r event", event)
@@ -291,7 +312,7 @@ class IrcCore:
     # run this in a thread if you don't want blocking
     # this starts the main loop
     # if this fails, you can call this again to try again
-    def connect(self):
+    def connect(self) -> None:
         print("connecting")
         assert self._sock is None
 
@@ -317,13 +338,13 @@ class IrcCore:
         threading.Thread(target=self._add_messages_to_internal_queue).start()
         threading.Thread(target=self._mainloop).start()
 
-    def join_channel(self, channel):
+    def join_channel(self, channel: str) -> None:
         self._internal_queue.put((_IrcInternalEvent.should_join, channel))
 
-    def part_channel(self, channel, reason=None):
+    def part_channel(self, channel: str, reason: str | None = None) -> None:
         self._internal_queue.put((_IrcInternalEvent.should_part, channel, reason))
 
-    def send_privmsg(self, nick_or_channel, text):
+    def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self._internal_queue.put(
             (_IrcInternalEvent.should_send_privmsg, nick_or_channel, text)
         )
@@ -331,11 +352,11 @@ class IrcCore:
     # this doesn't change self.nick right away, but .nick is updated
     # when the nick name has actually changed
     # emits a self_changed_nick event on success
-    def change_nick(self, new_nick):
+    def change_nick(self, new_nick: str) -> None:
         self._internal_queue.put((_IrcInternalEvent.should_change_nick, new_nick))
 
     # part all channels before calling this
-    def quit(self):
+    def quit(self) -> None:
         self._internal_queue.put((_IrcInternalEvent.should_quit,))
 
 

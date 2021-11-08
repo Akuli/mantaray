@@ -4,7 +4,9 @@ import tkinter
 from . import connectdialog, gui
 
 
-def update_title(root, irc_widget, junk_event=None):
+def update_title(
+    root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
+) -> None:
     title = "IRC: %s" % irc_widget.core.host
     number = irc_widget.not_seen_count()
     if number != 0:
@@ -13,7 +15,7 @@ def update_title(root, irc_widget, junk_event=None):
 
 
 # TODO: current_channel_like_notify and mark_seen()
-def main():
+def main() -> None:
     # connectdialog wants an existing root window, but i don't want to show it
     root = tkinter.Tk()
     root.withdraw()  # hide it
