@@ -576,7 +576,6 @@ class IrcWidget(ttk.PanedWindow):
                     if sender not in self._channel_likes:
                         # create a new channel-like for the conversation
                         self.add_channel_like(ChannelLikeView(self, sender))
-                    self._new_message_notify(sender, msg)
                     channel_like_name = sender
                     msg_with_sender = msg
 
