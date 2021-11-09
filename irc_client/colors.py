@@ -37,7 +37,7 @@ _MIRC_COLORS = {
 _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 
 # avoid dark colors, black, white and grays
-# 9 is green and it's reserved for messages that ping user
+# 9 is green, would conflict with pinged tag
 _NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 9, 14, 15})
 
 
