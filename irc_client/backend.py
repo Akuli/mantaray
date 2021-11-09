@@ -112,6 +112,26 @@ _IrcEvent = Union[
 ]
 
 
+def _recv_line(sock: ssl.SSLSocket, buffer: collections.deque[str]) -> str:
+    if not buffer:
+        data = bytearray()
+
+        # this accepts both \r\n and \n because b'blah blah\r\n' ends
+        # with b'\n'
+        while not data.endswith(b"\n"):
+            assert sock is not None
+            chunk = sock.recv(4096)
+            if chunk:
+                data += chunk
+            else:
+                raise OSError("Server closed the connection!")
+
+        lines = data.decode("utf-8", errors="replace").splitlines()
+        buffer.extend(lines)
+
+    return buffer.popleft()
+
+
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
@@ -133,7 +153,7 @@ class IrcCore:
         self._autojoin = autojoin
         self._running = True
 
-        self._sock: ssl.SSLSocket | None = None  # see connect()
+        self._sock: ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
 
@@ -150,25 +170,6 @@ class IrcCore:
 
     def _send_soon(self, *parts: str, done_event: _IrcEvent | None = None) -> None:
         self._send_queue.put((" ".join(parts).encode("utf-8") + b"\r\n", done_event))
-
-    def _recv_line(self) -> str:
-        if not self._recv_buffer:
-            data = bytearray()
-
-            # this accepts both \r\n and \n because b'blah blah\r\n' ends
-            # with b'\n'
-            while not data.endswith(b"\n"):
-                assert self._sock is not None
-                chunk = self._sock.recv(4096)
-                if chunk:
-                    data += chunk
-                else:
-                    raise RuntimeError("Server closed the connection!")
-
-            lines = data.decode("utf-8", errors="replace").splitlines()
-            self._recv_buffer.extend(lines)
-
-        return self._recv_buffer.popleft()
 
     def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
         if msg.command == "PRIVMSG":
@@ -207,11 +208,7 @@ class IrcCore:
         elif msg.command == "QUIT":
             assert msg.sender is not None
             reason = msg.args[0] if msg.args else None
-            if msg.sender == self.nick:
-                self.event_queue.put(SelfQuit())
-                self._running = False
-            else:
-                self.event_queue.put(UserQuit(msg.sender, reason))
+            self.event_queue.put(UserQuit(msg.sender, reason))
 
         elif msg.sender_is_server:
             if msg.command == _RPL_NAMREPLY:
@@ -269,35 +266,51 @@ class IrcCore:
         return _ReceivedAndParsedMessage(sender, sender_is_server, command, args)
 
     def _recv_loop(self) -> None:
-        try:
-            # TODO: does quitting work in all cases, even during connecting?
-            while self._running:
-                line = self._recv_line()
-                if not line:
-                    # "Empty messages are silently ignored"
-                    # https://tools.ietf.org/html/rfc2812#section-2.3.1
-                    continue
-                if line.startswith("PING"):
-                    self._send_soon(line.replace("PING", "PONG", 1))
-                    continue
+        # while self._sock is not None:  --> race condition
+        while True:
+            sock = self._sock
+            if sock is None:
+                break
 
-                message = self._split_line(line)
-                try:
-                    self._handle_received_message(message)
-                except Exception:
-                    traceback.print_exc()
-        finally:
-            assert self._sock is not None
-            self._sock.close()
-            self._sock = None
+            try:
+                line = _recv_line(sock, self._recv_buffer)
+            except OSError as e:
+                if self._sock is None:
+                    # socket closed while receiving
+                    break
+                raise e
+
+            if not line:
+                # "Empty messages are silently ignored"
+                # https://tools.ietf.org/html/rfc2812#section-2.3.1
+                continue
+            if line.startswith("PING"):
+                self._send_soon(line.replace("PING", "PONG", 1))
+                continue
+
+            message = self._split_line(line)
+            try:
+                self._handle_received_message(message)
+            except Exception:
+                traceback.print_exc()
 
     def _send_loop(self) -> None:
-        while self._running:
-            bytez, done_event = self._send_queue.get()
-            assert self._sock is not None
-            self._sock.sendall(bytez)
-            if done_event is not None:
-                self.event_queue.put(done_event)
+        try:
+            while True:
+                bytez, done_event = self._send_queue.get()
+                assert self._sock is not None
+                self._sock.sendall(bytez)
+                if done_event is not None:
+                    self.event_queue.put(done_event)
+                    if isinstance(done_event, SelfQuit):
+                        break
+        finally:
+            # recv loop assumes: if self._sock is not None, then it is not closed
+            sock = self._sock
+            self._sock = None
+            assert sock is not None
+            sock.shutdown(socket.SHUT_RDWR)  # stops currently running recv()
+            sock.close()
 
     # if an exception occurs while connecting, it's raised right away
     # run this in a thread if you don't want blocking
@@ -311,15 +324,14 @@ class IrcCore:
             context = ssl.create_default_context()
             self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
             self._sock.connect((self.host, self.port))
+            print("connected")
 
             # TODO: what if nick or user are in use? use alternatives?
             self._send_soon("NICK", self.nick)
             self._send_soon("USER", self.username, "0", "*", ":" + self.realname)
-            print("connected")
-        except OSError as e:
+        except (OSError, ssl.SSLError) as e:
             print("connect failed", e)
-            # _recv_loop() knows how to close the
-            # socket, but we didn't get to actually run it
+            # usually _send_loop() closes socket, but it didn't run yet
             if self._sock is not None:
                 self._sock.close()
             self._sock = None
@@ -353,5 +365,4 @@ class IrcCore:
 
     # part all channels before calling this
     def quit(self) -> None:
-        self._send_soon("QUIT")
-        self._running = False
+        self._send_soon("QUIT", done_event=SelfQuit())

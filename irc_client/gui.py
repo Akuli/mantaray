@@ -518,7 +518,7 @@ class IrcWidget(ttk.PanedWindow):
                 self.remove_channel_like(self._channel_likes[event.channel])
 
             elif isinstance(event, backend.SelfQuit):
-                print("got a self_quit event from core")
+                print("gui got SelfQuit event from core")
                 self._on_quit()
                 self.after_cancel(next_call_id)
                 return  # don't run self.handle_events again
@@ -637,12 +637,8 @@ class IrcWidget(ttk.PanedWindow):
 
     def part_all_channels_and_quit(self) -> None:
         """Call this to get out of IRC."""
-        # the channel is not parted right away, self.core just puts a thing to
-        # a queue and does the actual parting later
-        # that's why there's no need to copy the items
         for name, channel_like in self._channel_likes.items():
             if channel_like.is_channel():
                 # TODO: add a reason here?
                 self.core.part_channel(name)
-        print("calling self.core.quit()")
         self.core.quit()
