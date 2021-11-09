@@ -143,7 +143,6 @@ class ChannelLikeView:
     def __init__(self, ircwidget: IrcWidget, name: str, users: list[str] | None = None):
         # if someone changes nick, IrcWidget takes care of updating .name
         self.name = name
-        self.core = ircwidget.core
 
         # width and height are minimums
         # IrcWidget packs this and lets this stretch
