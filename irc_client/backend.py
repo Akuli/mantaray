@@ -10,7 +10,14 @@ import ssl
 import re
 import socket
 import threading
-from typing import Sequence, Any
+import sys
+from typing import Sequence, Any, Union, TYPE_CHECKING, Tuple, List, Optional, NewType
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
 
 log = logging.getLogger(__name__)
 
@@ -41,33 +48,74 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
-# The comments represent the parameters that the events come with.
-# Notes:
-#    [1] IrcCore.nick is updated before this event is generated.
-#    [2] reason can be None.
-#    [3] If you want to handle these, add the code to this file, not so that
-#        this creates unknown_messages that are parsed elsewhere.
-#        Currently AT LEAST these things cause unknown messages:
-#            * KICK
-#            * MODE (ban, op, voice etc)
-#            * INVITE
-IrcEvent = enum.Enum(
-    "IrcEvent",
-    [
-        "self_joined",  # (channel, nicklist)
-        "self_changed_nick",  # (old_nick, new_nick)  [1]
-        "self_parted",  # (channel)
-        "self_quit",  # ()
-        "user_joined",  # (nick, channel)
-        "user_changed_nick",  # (old_nick, new_nick)
-        "user_parted",  # (sender_nick, channel, reason)  [2]
-        "user_quit",  # (sender_nick, reason)           [2]
-        "sent_privmsg",  # (recipient, text)
-        "received_privmsg",  # (sender, recipient, text)
-        "server_message",  # (sender_server, command, args)
-        "unknown_message",  # (sender_nick, command, args)  [3]
-    ],
-)
+# fmt: off
+@dataclasses.dataclass
+class SelfJoined:
+    channel: str
+    nicklist: list[str]
+@dataclasses.dataclass
+class SelfChangedNick:
+    old: str
+    new: str
+@dataclasses.dataclass
+class SelfParted:
+    channel: str
+@dataclasses.dataclass
+class SelfQuit:
+    pass
+@dataclasses.dataclass
+class UserJoined:
+    nick: str
+    channel: str
+@dataclasses.dataclass
+class UserChangedNick:
+    old: str
+    new: str
+@dataclasses.dataclass
+class UserParted:
+    nick: str
+    channel: str
+    reason: str | None
+@dataclasses.dataclass
+class UserQuit:
+    nick: str
+    reason: str | None
+@dataclasses.dataclass
+class SentPrivmsg:
+    recipient: str  # channel or nick (PM)
+    text: str
+@dataclasses.dataclass
+class ReceivedPrivmsg:
+    sender: str  # channel or nick (PM)
+    recipient: str  # channel or user's nick
+    text: str
+@dataclasses.dataclass
+class ServerMessage:
+    sender: str  # I think this is a hostname. Not sure.
+    # TODO: figure out meaning of command and args
+    command: str
+    args: list[str]
+@dataclasses.dataclass
+class UnknownMessage:
+    sender: str
+    command: str
+    args: list[str]
+# fmt: on
+
+IrcEvent = Union[
+    SelfJoined,
+    SelfChangedNick,
+    SelfParted,
+    SelfQuit,
+    UserJoined,
+    UserChangedNick,
+    UserParted,
+    UserQuit,
+    SentPrivmsg,
+    ReceivedPrivmsg,
+    ServerMessage,
+    UnknownMessage,
+]
 
 _IrcInternalEvent = enum.Enum(
     "_IrcInternalEvent",
@@ -106,9 +154,8 @@ class IrcCore:
         self._sock: ssl.SSLSocket | None = None  # see connect()
         self._linebuffer: collections.deque[str] = collections.deque()
 
-        # TODO: improve types
         self._internal_queue: queue.Queue[tuple[Any, ...]] = queue.Queue()
-        self.event_queue: queue.Queue[tuple[Any, ...]] = queue.Queue()
+        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
 
         # TODO: is automagic RPL_NAMREPLY in an rfc??
         # TODO: what do the rfc's say about huge NAMES replies with more nicks
@@ -197,12 +244,12 @@ class IrcCore:
             log.debug("got an internal %r event", event)
 
             if event == _IrcInternalEvent.got_message:
+                msg: _Message
                 [msg] = args
                 if msg.command == "PRIVMSG":
                     recipient, text = msg.args
                     self.event_queue.put(
-                        (IrcEvent.received_privmsg, msg.sender, recipient, text)
-                    )
+                        ReceivedPrivmsg(msg.sender, recipient, text))
 
                 elif msg.command == "JOIN":
                     [channel] = msg.args
@@ -211,36 +258,32 @@ class IrcCore:
                         # _names_replys code
                         self._names_replys[channel] = []
                     else:
-                        self.event_queue.put(
-                            (IrcEvent.user_joined, msg.sender, channel)
-                        )
+                        self.event_queue.put(UserJoined(msg.sender, channel))
 
                 elif msg.command == "PART":
                     channel = msg.args[0]
                     reason = msg.args[1] if len(msg.args) >= 2 else None
                     if msg.sender == self.nick:
-                        self.event_queue.put((IrcEvent.self_parted, channel))
+                        self.event_queue.put(SelfParted(channel))
                     else:
-                        self.event_queue.put(
-                            (IrcEvent.user_parted, msg.sender, channel, reason)
-                        )
+                        self.event_queue.put(UserParted(msg.sender, channel, reason))
 
                 elif msg.command == "NICK":
                     old = msg.sender
                     [new] = msg.args
                     if old == self.nick:
                         self.nick = new
-                        self.event_queue.put((IrcEvent.self_changed_nick, old, new))
+                        self.event_queue.put(SelfChangedNick(old, new))
                     else:
-                        self.event_queue.put((IrcEvent.user_changed_nick, old, new))
+                        self.event_queue.put(UserChangedNick(old, new))
 
                 elif msg.command == "QUIT":
                     reason = msg.args[0] if msg.args else None
                     if msg.sender == self.nick:
-                        self.event_queue.put((IrcEvent.self_quit,))
+                        self.event_queue.put(SelfQuit())
                         self._running = False
                     else:
-                        self.event_queue.put((IrcEvent.user_quit, msg.sender, reason))
+                        self.event_queue.put(UserQuit(msg.sender, reason))
 
                 elif msg.sender_is_server:
                     if msg.command == _RPL_NAMREPLY:
@@ -258,7 +301,7 @@ class IrcCore:
                         # joining a channel finished
                         channel, human_readable_message = msg.args[-2:]
                         nicks = self._names_replys.pop(channel)
-                        self.event_queue.put((IrcEvent.self_joined, channel, nicks))
+                        self.event_queue.put(SelfJoined(channel, nicks))
 
                     else:
                         # TODO: there must be a better way than relying on MOTD
@@ -266,14 +309,10 @@ class IrcCore:
                             for channel in self._autojoin:
                                 self.join_channel(channel)
 
-                        self.event_queue.put(
-                            (IrcEvent.server_message, msg.sender, msg.command, msg.args)
-                        )
+                        self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
 
                 else:
-                    self.event_queue.put(
-                        (IrcEvent.unknown_message, msg.sender, msg.command, msg.args)
-                    )
+                    self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
 
             elif event == _IrcInternalEvent.should_join:
                 [channel] = args
@@ -295,7 +334,7 @@ class IrcCore:
             elif event == _IrcInternalEvent.should_send_privmsg:
                 recipient, text = args
                 self._send("PRIVMSG", recipient, ":" + text)
-                self.event_queue.put((IrcEvent.sent_privmsg, recipient, text))
+                self.event_queue.put(SentPrivmsg(recipient, text))
 
             elif event == _IrcInternalEvent.should_change_nick:
                 [new_nick] = args
@@ -306,7 +345,7 @@ class IrcCore:
 
             self._internal_queue.task_done()
 
-        self.event_queue.put((IrcEvent.self_quit,))
+        self.event_queue.put(SelfQuit())
 
     # if an exception occurs while connecting, it's raised right away
     # run this in a thread if you don't want blocking

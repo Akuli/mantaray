@@ -220,18 +220,18 @@ class ChannelLikeView:
 
         self.add_message("*", "%s joined %s." % (colors.color_nick(nick), self.name))
 
-    def on_part(self, nick: str, reason: str) -> None:
+    def on_part(self, nick: str, reason: str | None) -> None:
         """Called when another user leaves this channel."""
         assert self.is_channel()
         assert self.userlist is not None
         self.userlist.remove(nick)
 
-        msg = "%s left %s." % (colors.color_nick(nick), self.name)
+        msg = f"{colors.color_nick(nick)} left {self.name}."
         if reason is not None:
-            msg = "%s (%s)" % (msg, reason)
+            msg += f" ({reason})"
         self.add_message("*", msg)
 
-    def on_quit(self, nick: str, reason: str) -> None:
+    def on_quit(self, nick: str, reason: str | None) -> None:
         """Called when a user that was on this channel quits the whole IRC.
 
         This is also called if the channel-like is not a channel, but it
@@ -245,9 +245,9 @@ class ChannelLikeView:
                 # this conversation is between the user and someone else
                 return
 
-        msg = "%s quit." % colors.color_nick(nick)
+        msg = f"{colors.color_nick(nick)} quit."
         if reason is not None:
-            msg = "%s (%s)" % (msg, reason)
+            msg += f" ({reason})"
         self.add_message("*", msg)
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
@@ -500,110 +500,91 @@ class IrcWidget(ttk.PanedWindow):
 
         while True:
             try:
-                event, *event_args = self.core.event_queue.get(block=False)
+                event = self.core.event_queue.get(block=False)
             except queue.Empty:
                 break
 
-            if event == backend.IrcEvent.self_joined:
-                channel, nicklist = event_args
-                self.add_channel_like(ChannelLikeView(self, channel, nicklist))
+            if isinstance(event, backend.SelfJoined):
+                self.add_channel_like(ChannelLikeView(self, event.channel, event.nicklist))
 
-            elif event == backend.IrcEvent.self_changed_nick:
-                old, new = event_args
-                self._nickbutton["text"] = new
+            elif isinstance(event, backend.SelfChangedNick):
+                self._nickbutton["text"] = event.new
                 for channel_like in self._channel_likes.values():
-                    channel_like.on_self_changed_nick(old, new)
+                    channel_like.on_self_changed_nick(event.old, event.new)
 
-            elif event == backend.IrcEvent.self_parted:
-                [channel] = event_args
-                self.remove_channel_like(self._channel_likes[channel])
+            elif isinstance(event, backend.SelfParted):
+                self.remove_channel_like(self._channel_likes[event.channel])
 
-            elif event == backend.IrcEvent.self_quit:
+            elif isinstance(event, backend.SelfQuit):
                 print("got a self_quit event from core")
                 self._on_quit()
                 self.after_cancel(next_call_id)
                 return  # don't run self.handle_events again
 
-            elif event == backend.IrcEvent.user_joined:
-                nick, channel = event_args
-                self._channel_likes[channel].on_join(nick)
+            elif isinstance(event, backend.UserJoined):
+                self._channel_likes[event.channel].on_join(event.nick)
 
-            elif event == backend.IrcEvent.user_changed_nick:
-                old, new = event_args
-                if old in self._channel_likes:  # a PM conversation
-                    self.rename_channel_like(old, new)
+            elif isinstance(event, backend.UserChangedNick):
+                if event.old in self._channel_likes:  # a PM conversation
+                    self.rename_channel_like(event.old, event.new)
 
                 for channel_like in self._channel_likes.values():
-                    channel_like.on_user_changed_nick(old, new)
+                    channel_like.on_user_changed_nick(event.old, event.new)
 
-            elif event == backend.IrcEvent.user_parted:
-                nick, channel, reason = event_args
-                self._channel_likes[channel].on_part(nick, reason)
+            elif isinstance(event, backend.UserParted):
+                self._channel_likes[event.channel].on_part(event.nick, event.reason)
 
-            elif event == backend.IrcEvent.user_quit:
-                nick, reason = event_args
-
+            elif isinstance(event, backend.UserQuit):
                 for channel_like in self._channel_likes.values():
                     if channel_like.name == _SERVER_VIEW_ID:
                         continue
 
                     # show a quit message if the user was on this channel
                     # or if this is a PM conversation with that user
-                    if nick == channel_like.name or (
+                    if event.nick == channel_like.name or (
                         channel_like.userlist is not None
-                        and nick in channel_like.userlist
+                        and event.nick in channel_like.userlist
                     ):
-                        channel_like.on_quit(nick, reason)
+                        channel_like.on_quit(event.nick, event.reason)
 
-            elif event == backend.IrcEvent.sent_privmsg:
-                recipient, msg = event_args
-                if recipient not in self._channel_likes:
+            elif isinstance(event, backend.SentPrivmsg):
+                if event.recipient not in self._channel_likes:
                     # start of a new PM conversation with a nick
-                    assert not re.fullmatch(backend.CHANNEL_REGEX, recipient)
-                    self.add_channel_like(ChannelLikeView(self, recipient))
+                    assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
+                    self.add_channel_like(ChannelLikeView(self, event.recipient))
 
-                self._channel_likes[recipient].on_privmsg(self.core.nick, msg)
+                self._channel_likes[event.recipient].on_privmsg(self.core.nick, event.text)
 
-            elif event == backend.IrcEvent.received_privmsg:
+            elif isinstance(event, backend.ReceivedPrivmsg):
                 # sender and recipient are channels or nicks
-                sender, recipient, msg = event_args
-
-                if recipient == self.core.nick:  # PM
+                if event.recipient == self.core.nick:  # PM
                     pinged = True
-                    if sender not in self._channel_likes:
+                    if event.sender not in self._channel_likes:
                         # create a new channel-like for the conversation
-                        self.add_channel_like(ChannelLikeView(self, sender))
-                    channel_like_name = sender
-                    msg_with_sender = msg
+                        self.add_channel_like(ChannelLikeView(self, event.sender))
+                    channel_like_name = event.sender
+                    msg_with_sender = event.text
 
                 else:  # the message has been sent to an entire channel
-                    assert re.fullmatch(backend.CHANNEL_REGEX, recipient)
-                    channel_like_name = recipient
+                    assert re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
+                    channel_like_name = event.recipient
 
                     mentioned = [
-                        nick.lower() for nick in re.findall(backend.NICK_REGEX, msg)
+                        nick.lower() for nick in re.findall(backend.NICK_REGEX, event.text)
                     ]
                     pinged = self.core.nick.lower() in mentioned
-                    msg_with_sender = f"<{sender}> {msg}"
+                    msg_with_sender = f"<{event.sender}> {event.text}"
 
                 self._channel_likes[channel_like_name].on_privmsg(
-                    sender, msg, pinged=pinged
+                    event.sender, event.text, pinged=pinged
                 )
                 if pinged:
                     self._new_message_notify(channel_like_name, msg_with_sender)
 
             # TODO: do something to unknown messages!! maybe log in backend?
-            elif event in {
-                backend.IrcEvent.server_message,
-                backend.IrcEvent.unknown_message,
-            }:
-                server, command, args = event_args
-                if server is None:
-                    # TODO: when does this happen?
-                    server = "???"
-
+            elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 # not strictly a privmsg, but handled the same way
-                self._channel_likes[_SERVER_VIEW_ID].on_privmsg(server, " ".join(args))
+                self._channel_likes[_SERVER_VIEW_ID].on_privmsg(event.sender, " ".join(event.args))
 
             else:
                 raise ValueError("unknown event type " + repr(event))
