@@ -505,7 +505,9 @@ class IrcWidget(ttk.PanedWindow):
                 break
 
             if isinstance(event, backend.SelfJoined):
-                self.add_channel_like(ChannelLikeView(self, event.channel, event.nicklist))
+                self.add_channel_like(
+                    ChannelLikeView(self, event.channel, event.nicklist)
+                )
 
             elif isinstance(event, backend.SelfChangedNick):
                 self._nickbutton["text"] = event.new
@@ -553,7 +555,9 @@ class IrcWidget(ttk.PanedWindow):
                     assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
                     self.add_channel_like(ChannelLikeView(self, event.recipient))
 
-                self._channel_likes[event.recipient].on_privmsg(self.core.nick, event.text)
+                self._channel_likes[event.recipient].on_privmsg(
+                    self.core.nick, event.text
+                )
 
             elif isinstance(event, backend.ReceivedPrivmsg):
                 # sender and recipient are channels or nicks
@@ -570,7 +574,8 @@ class IrcWidget(ttk.PanedWindow):
                     channel_like_name = event.recipient
 
                     mentioned = [
-                        nick.lower() for nick in re.findall(backend.NICK_REGEX, event.text)
+                        nick.lower()
+                        for nick in re.findall(backend.NICK_REGEX, event.text)
                     ]
                     pinged = self.core.nick.lower() in mentioned
                     msg_with_sender = f"<{event.sender}> {event.text}"
@@ -584,7 +589,9 @@ class IrcWidget(ttk.PanedWindow):
             # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 # not strictly a privmsg, but handled the same way
-                self._channel_likes[_SERVER_VIEW_ID].on_privmsg(event.sender, " ".join(event.args))
+                self._channel_likes[_SERVER_VIEW_ID].on_privmsg(
+                    event.sender or "???", " ".join(event.args)
+                )
 
             else:
                 raise ValueError("unknown event type " + repr(event))
