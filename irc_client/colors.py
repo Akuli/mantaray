@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 import tkinter
 import tkinter.font as tkfont
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterator
 
 from . import backend
 
