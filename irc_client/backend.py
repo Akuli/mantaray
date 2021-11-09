@@ -358,20 +358,3 @@ class IrcCore:
     # part all channels before calling this
     def quit(self) -> None:
         self._internal_queue.put((_IrcInternalEvent.should_quit,))
-
-
-# if __name__ == '__main__':
-#    core = IrcCore('chat.freenode.net', 6667, 'testieeeeeeeeeee')
-#    core.connect()
-#    while True:
-#        event = core.event_queue.get()
-#        print(event)
-#        if event[0] == IrcEvent.self_quit:
-#            break
-#        if event[0] == IrcEvent.received_privmsg and event[-1] == 'asd':
-#            core.part_channel('##testingggggg', 'bye')
-#            core.quit()
-#        if event[0] == IrcEvent.server_message:
-#            server, command, args = event[1:]
-#            if command == _RPL_ENDOFMOTD:
-#                core.join_channel('##testingggggg')

@@ -118,9 +118,7 @@ class TreeviewWrapper(_base):
         if was_selected:
             self.widget.selection_set(new_value)
 
-    def select_something_else(
-        self, than_this_item: str
-    ) -> None:  # https://xkcd.com/1960/
+    def select_something_else(self, than_this_item: str) -> None:
         if than_this_item in self.widget.selection():
             if than_this_item == self[-1]:
                 self.widget.selection_set(self[-2])
@@ -395,6 +393,7 @@ class IrcWidget(ttk.PanedWindow):
         if response is not None:
             self._current_channel_like.add_message("*", response)
 
+    # TODO: shift+tab = backwards ?
     def _autocomplete(self, event: object) -> None:
         channel_like = self._current_channel_like
         assert channel_like is not None
@@ -408,9 +407,7 @@ class IrcWidget(ttk.PanedWindow):
 
         if last_word in channel_like.userlist:
             index = channel_like.userlist.index(last_word)
-            index = (index + 1) % len(
-                channel_like.userlist
-            )  # TODO: shift+tab = backwards ?
+            index = (index + 1) % len(channel_like.userlist)
             completion = channel_like.userlist[index]
         else:
             try:
