@@ -37,7 +37,8 @@ _MIRC_COLORS = {
 _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 
 # avoid dark colors, black, white and grays
-_NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 14, 15})
+# 9 is green, would conflict with pinged tag
+_NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 9, 14, 15})
 
 
 def _parse_styles(
@@ -126,15 +127,20 @@ class ColoredText(tkinter.Text):
 
         self.tag_configure("underline", underline=True)
         self.tag_configure("bold", font=self._bold_font)
+        self.tag_configure("pinged", foreground=_MIRC_COLORS[9])
         for number, hexcolor in _MIRC_COLORS.items():
             self.tag_configure("foreground-%d" % number, foreground=hexcolor)
             self.tag_configure("background-%d" % number, background=hexcolor)
+            self.tag_raise("foreground-%d" % number, "pinged")
+            self.tag_raise("background-%d" % number, "pinged")
 
-    def colored_insert(self, index: str, text: str) -> None:
+    def colored_insert(self, index: str, text: str, pinged: bool) -> None:
         """Like insert(), but interprets special color sequences correctly."""
+        print(repr(text))
         for substring, fg, bg, bold, underline in _parse_styles(text):
-            print("  ", [substring, fg, bg, bold, underline])
             tags = []
+            if pinged:
+                tags.append("pinged")
             if fg is not None:
                 tags.append("foreground-%d" % fg)
             if bg is not None:
@@ -145,7 +151,9 @@ class ColoredText(tkinter.Text):
                 tags.append("underline")
             self.insert(index, substring, tags)
 
-    def nicky_insert(self, index: str, text: str, known_nicks: list[str]) -> None:
+    def nicky_insert(
+        self, index: str, text: str, known_nicks: list[str], pinged: bool
+    ) -> None:
         """Like colored_insert(), but colors nicks in known_nicks."""
         result_chars = list(text)
         matches = [
@@ -160,4 +168,4 @@ class ColoredText(tkinter.Text):
             if nick in known_nicks:
                 result_chars[match.start() : match.end()] = color_nick(nick)
 
-        self.colored_insert(index, "".join(result_chars))
+        self.colored_insert(index, "".join(result_chars), pinged)
