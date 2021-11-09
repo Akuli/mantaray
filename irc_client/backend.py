@@ -290,7 +290,6 @@ class IrcCore:
             assert self._sock is not None
             self._sock.close()
             self._sock = None
-            self.event_queue.put(SelfQuit())
 
     def _send_loop(self) -> None:
         while self._running:
