@@ -585,7 +585,6 @@ class IrcWidget(ttk.PanedWindow):
                     assert re.fullmatch(backend.CHANNEL_REGEX, recipient)
                     channel_like_name = recipient
 
-                    # FIXME: case insensitive
                     mentioned = [nick.lower() for nick in re.findall(backend.NICK_REGEX, msg)]
                     pinged = self.core.nick.lower() in mentioned
                     msg_with_sender = f"<{sender}> {msg}"
