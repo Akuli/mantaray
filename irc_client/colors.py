@@ -151,7 +151,9 @@ class ColoredText(tkinter.Text):
                 tags.append("underline")
             self.insert(index, substring, tags)
 
-    def nicky_insert(self, index: str, text: str, known_nicks: list[str], pinged: bool) -> None:
+    def nicky_insert(
+        self, index: str, text: str, known_nicks: list[str], pinged: bool
+    ) -> None:
         """Like colored_insert(), but colors nicks in known_nicks."""
         result_chars = list(text)
         matches = [

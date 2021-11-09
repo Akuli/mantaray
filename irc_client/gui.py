@@ -583,11 +583,15 @@ class IrcWidget(ttk.PanedWindow):
                     assert re.fullmatch(backend.CHANNEL_REGEX, recipient)
                     channel_like_name = recipient
 
-                    mentioned = [nick.lower() for nick in re.findall(backend.NICK_REGEX, msg)]
+                    mentioned = [
+                        nick.lower() for nick in re.findall(backend.NICK_REGEX, msg)
+                    ]
                     pinged = self.core.nick.lower() in mentioned
                     msg_with_sender = f"<{sender}> {msg}"
 
-                self._channel_likes[channel_like_name].on_privmsg(sender, msg, pinged=pinged)
+                self._channel_likes[channel_like_name].on_privmsg(
+                    sender, msg, pinged=pinged
+                )
                 if pinged:
                     self._new_message_notify(channel_like_name, msg_with_sender)
 
