@@ -96,7 +96,7 @@ class UnknownMessage:
     args: list[str]
 # fmt: on
 
-IrcEvent = Union[
+_IrcEvent = Union[
     SelfJoined,
     SelfChangedNick,
     SelfParted,
@@ -134,10 +134,10 @@ class IrcCore:
         self._running = True
 
         self._sock: ssl.SSLSocket | None = None  # see connect()
-        self._send_queue: queue.Queue[tuple[bytes, IrcEvent | None]] = queue.Queue()
+        self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
 
-        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
+        self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
 
         # TODO: is automagic RPL_NAMREPLY in an rfc??
         # TODO: what do the rfc's say about huge NAMES replies with more nicks
@@ -148,7 +148,7 @@ class IrcCore:
         # the replies are collected here before emitting a self_joined event
         self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
 
-    def _send_soon(self, *parts: str, done_event: IrcEvent | None = None) -> None:
+    def _send_soon(self, *parts: str, done_event: _IrcEvent | None = None) -> None:
         self._send_queue.put((" ".join(parts).encode("utf-8") + b"\r\n", done_event))
 
     def _recv_line(self) -> str:
