@@ -188,7 +188,6 @@ class IrcCore:
             try:
                 self._recv_loop()
             except (OSError, ssl.SSLError) as e:
-                print("recv loop error:", e)
                 self.event_queue.put(
                     ConnectivityMessage(f"Error while receiving, reconnecting: {e}")
                 )
