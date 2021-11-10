@@ -18,7 +18,7 @@ else:
 class ServerConfig(TypedDict):
     host: str
     port: int
-    nick: str  # TODO: multiple choices, in case one goes bad
+    nick: str  # TODO: multiple choices, in case already in use
     username: str
     realname: str
     join_channels: list[str]

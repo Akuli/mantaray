@@ -17,7 +17,7 @@ def update_title(
 
 # TODO: current_channel_like_notify and mark_seen()
 def main() -> None:
-    # tkinter must have one global window, but server configging creates dialog
+    # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
     root = tkinter.Tk()
     root.withdraw()
