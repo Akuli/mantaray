@@ -39,7 +39,6 @@ def main() -> None:
             return
     else:
         # TODO: support multiple servers
-        print(file_config)
         [server_config] = file_config["servers"]
 
     irc_widget = gui.IrcWidget(root, server_config, root.destroy)
