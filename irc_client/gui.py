@@ -17,7 +17,7 @@ import traceback
 from tkinter import ttk
 from typing import Callable, TYPE_CHECKING, overload, Iterable, Any
 
-from . import backend, colors, commands
+from . import backend, colors, commands, config
 
 
 def _show_popup(title: str, text: str) -> None:
@@ -170,8 +170,8 @@ class ChannelLikeView:
         self,
         sender: str,
         message: str,
-        automagic_nick_coloring: bool = False,
         *,
+        automagic_nick_coloring: bool = False,
         pinged: bool = False,
     ) -> None:
         """Add a message to self.textwidget."""
@@ -199,12 +199,10 @@ class ChannelLikeView:
             self.textwidget.see("end")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        self.add_message(
-            sender,
-            message,
-            automagic_nick_coloring=True,
-            pinged=pinged,
-        )
+        self.add_message(sender, message, automagic_nick_coloring=True, pinged=pinged)
+
+    def on_connectivity_message(self, message: str) -> None:
+        self.add_message("", message)
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
@@ -332,12 +330,14 @@ class IrcWidget(ttk.PanedWindow):
     def __init__(
         self,
         master: tkinter.Misc,
-        irc_core: backend.IrcCore,
+        server_config: config.ServerConfig,
         on_quit: Callable[[], object],
     ):
         super().__init__(master, orient="horizontal")
-        self.core = irc_core
-        self._command_handler = commands.CommandHandler(irc_core)
+        self.core = backend.IrcCore(server_config)
+        self.core.start()
+
+        self._command_handler = commands.CommandHandler(self.core)
         self._on_quit = on_quit
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
@@ -362,7 +362,9 @@ class IrcWidget(ttk.PanedWindow):
         entryframe.pack(side="bottom", fill="x")
         # TODO: add a tooltip to the button, it's not very obvious
         self._nickbutton = ttk.Button(
-            entryframe, text=irc_core.nick, command=self._show_change_nick_dialog
+            entryframe,
+            text=server_config["nick"],
+            command=self._show_change_nick_dialog,
         )
         self._nickbutton.pack(side="left")
         self._entry = ttk.Entry(entryframe)
@@ -593,8 +595,15 @@ class IrcWidget(ttk.PanedWindow):
                     event.sender or "???", " ".join(event.args)
                 )
 
+            elif isinstance(event, backend.ConnectivityMessage):
+                self._channel_likes[_SERVER_VIEW_ID].on_connectivity_message(
+                    event.message
+                )
+
             else:
-                raise ValueError("unknown event type " + repr(event))
+                # If mypy says 'error: unused "type: ignore" comment', you
+                # forgot to check for some class
+                print("can't happen")  # type: ignore
 
     # TODO: /me's and stuff should also call this when they are supported
     def _new_message_notify(

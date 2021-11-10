@@ -1,7 +1,8 @@
 import functools
 import tkinter
+from getpass import getuser
 
-from . import connectdialog, gui
+from . import gui, config
 
 
 def update_title(
@@ -16,21 +17,26 @@ def update_title(
 
 # TODO: current_channel_like_notify and mark_seen()
 def main() -> None:
-    # connectdialog wants an existing root window, but i don't want to show it
+    # tkinter must have one global root window, but server configging creates dialog
+    # solution: hide root window temporarily
     root = tkinter.Tk()
-    root.withdraw()  # hide it
+    root.withdraw()
 
-    # i know, it doesn't look like we pass in the root window
-    # but tkinter has 1 global root window
-    # if we hadn't created root before, it would be created automatically
-    # and then it wouldn't be hidden
-    irc_core = connectdialog.run()
-    if irc_core is None:  # cancelled
-        root.destroy()
+    server_config = config.show_server_config_dialog(
+        transient_to=None,
+        initial_config={
+            "host": "irc.libera.chat",
+            "port": 6697,
+            "nick": getuser(),
+            "username": getuser(),
+            "realname": getuser(),
+            "join_channels": ["##learnpython"],
+        },
+    )
+    if server_config is None:
         return
-    root.deiconify()  # unhide
 
-    irc_widget = gui.IrcWidget(root, irc_core, root.destroy)
+    irc_widget = gui.IrcWidget(root, server_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
     root.bind("<FocusIn>", (lambda junk_event: irc_widget.focus_the_entry()))
     root.protocol("WM_DELETE_WINDOW", irc_widget.part_all_channels_and_quit)
@@ -40,6 +46,7 @@ def main() -> None:
     irc_widget.bind("<<NotSeenCountChanged>>", update_the_title)
 
     irc_widget.handle_events()  # doesn't block
+    root.deiconify()  # unhide
     root.mainloop()
 
 
