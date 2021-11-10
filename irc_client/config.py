@@ -36,6 +36,8 @@ class _EntryWithVar(ttk.Entry):
         self.var = var
 
 
+# TODO: this is ok for connecting the first time, but the defaults should go
+#       to a config file or something
 class _ServerConfigurer(ttk.Frame):
     def __init__(self, master: tkinter.Misc, initial_config: ServerConfig):
         super().__init__(master)

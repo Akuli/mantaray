@@ -298,13 +298,16 @@ class IrcCore:
 
     def _recv_loop(self) -> None:
         while True:
-            assert self._sock is not None
+            sock = self._sock
+            if sock is None:
+                break
+
             try:
-                line = _recv_line(self._sock, self._recv_buffer)
+                line = _recv_line(sock, self._recv_buffer)
             except (OSError, ssl.SSLError) as e:
                 # socket can be closed while receiving
                 if self._sock is None:
-                    break  # type: ignore
+                    break
                 raise e
 
             if not line:
