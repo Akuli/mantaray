@@ -55,7 +55,7 @@ def main() -> None:
     root.deiconify()  # unhide
     root.mainloop()
 
-    new_config = irc_widget.core.get_current_config(irc_widget.get_joined_channels())
+    new_config = irc_widget.core.get_current_config()
     config.save_to_file({"servers": [new_config]})
 
 

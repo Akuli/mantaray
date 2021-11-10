@@ -148,7 +148,7 @@ class IrcCore:
         self.nick = server_config["nick"]
         self.username = server_config["username"]
         self.realname = server_config["realname"]
-        self._autojoin = server_config["joined_channels"]
+        self.autojoin = server_config["joined_channels"].copy()
 
         self._sock: ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
@@ -165,14 +165,14 @@ class IrcCore:
         # the replies are collected here before emitting a self_joined event
         self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
 
-    def get_current_config(self, channels: list[str]) -> config.ServerConfig:
+    def get_current_config(self) -> config.ServerConfig:
         return {
             "host": self.host,
             "port": self.port,
             "nick": self.nick,
             "username": self.username,
             "realname": self.realname,
-            "joined_channels": channels,
+            "joined_channels": self.autojoin.copy(),
         }
 
     def start(self) -> None:
@@ -271,7 +271,7 @@ class IrcCore:
             else:
                 # TODO: there must be a better way than relying on MOTD
                 if msg.command == _RPL_ENDOFMOTD:
-                    for channel in self._autojoin:
+                    for channel in self.autojoin:
                         self.join_channel(channel)
 
                 self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
