@@ -1,40 +1,46 @@
 from __future__ import annotations
 import functools
-import getpass  # for getting the user name
-import logging
 import re
-import threading
 import tkinter
 from tkinter import ttk
-import traceback
-from typing import Callable, Any
+import sys
+from typing import Any, TYPE_CHECKING
 
-from . import backend
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    if TYPE_CHECKING:
+        from typing_extensions import TypedDict
+    else:
+        TypedDict = object
 
-log = logging.getLogger(__name__)
+
+class ServerConfig(TypedDict):
+    host: str
+    port: int
+    nick: str  # TODO: multiple choices, in case one goes bad
+    username: str
+    realname: str
+    join_channels: list[str]
+
+
+class Config:
+    servers: list[ServerConfig]  # TODO: support multiple servers in gui
 
 
 # TODO: get rid of this?
-class EntryWithVar(ttk.Entry):
+class _EntryWithVar(ttk.Entry):
     def __init__(self, master: tkinter.Misc, **kwargs: Any):
         var = tkinter.StringVar()
         super().__init__(master, textvariable=var, **kwargs)
         self.var = var
 
 
-# TODO: this is ok for connecting the first time, but the defaults should go
-#       to a config file or something
-class ConnectDialogContent(ttk.Frame):
-    def __init__(
-        self,
-        master: tkinter.Misc,
-        on_cancel_or_after_connect: Callable[[], None],
-        **kwargs: Any
-    ):
-        super().__init__(master, **kwargs)
-        self._on_cancel_or_after_connect = on_cancel_or_after_connect
+class _ServerConfigurer(ttk.Frame):
+    def __init__(self, master: tkinter.Misc, initial_config: ServerConfig):
+        super().__init__(master)
 
-        self.result: backend.IrcCore | None = None
+        self.result: ServerConfig | None = None
 
         self._rownumber = 0
         self.grid_columnconfigure(0, minsize=60)
@@ -45,14 +51,13 @@ class ConnectDialogContent(ttk.Frame):
 
         self._channel_entry = self._create_entry()
         self._add_row("Channel:", self._channel_entry)
-        self._channel_entry.var.set("##learnpython")
 
         self._nick_entry = self._create_entry()
         self._nick_entry.var.trace("w", self._on_nick_changed)
         self._add_row("Nickname:", self._nick_entry)
 
         button = ttk.Button(self, text="More options...")
-        button["command"] = functools.partial(self._show_more, button)
+        button.config(command=functools.partial(self._show_more, button))
         button.grid(
             row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
         )
@@ -81,16 +86,18 @@ class ConnectDialogContent(ttk.Frame):
             side="right"
         )
         self._connectbutton = ttk.Button(
-            self._bottomframe, text="Connect!", command=self.connect
+            self._bottomframe, text="Connect!", command=self.connect_clicked
         )
         self._connectbutton.pack(side="right")
 
         # now everything's ready for _validate()
         # all of these call validate()
-        self._server_entry.var.set("irc.libera.chat")
-        self._nick_entry.var.set(getpass.getuser())
-        self._port_entry.var.set("6697")
-        self._on_nick_changed()
+        self._server_entry.var.set(initial_config["host"])
+        self._port_entry.var.set(str(initial_config["port"]))
+        self._nick_entry.var.set(initial_config["nick"])
+        self._username_entry.var.set(initial_config["username"])
+        self._realname_entry.var.set(initial_config["realname"])
+        self._channel_entry.var.set(" ".join(initial_config["join_channels"]))
 
     # TODO: 2nd alternative for nicknames
     # rest of the code should also handle nickname errors better
@@ -117,16 +124,15 @@ class ConnectDialogContent(ttk.Frame):
             row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
         )
         self._rownumber += 1
-
         self.event_generate("<<MoreOptions>>")
 
-    def _create_entry(self, **kwargs: Any) -> EntryWithVar:
-        entry = EntryWithVar(self, **kwargs)
+    def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
+        entry = _EntryWithVar(self, **kwargs)
         entry.var.trace("w", self._validate)
         return entry
 
     def _setup_entry_bindings(self, entry: ttk.Entry) -> None:
-        entry.bind("<Return>", self.connect, add=True)
+        entry.bind("<Return>", self.connect_clicked, add=True)
         entry.bind("<Escape>", self.cancel, add=True)
 
     def _add_row(self, label: str, widget: ttk.Entry) -> None:
@@ -141,7 +147,7 @@ class ConnectDialogContent(ttk.Frame):
         self._realname_entry.var.set(self._nick_entry.get())
 
     def cancel(self, junk_event: object = None) -> None:
-        self._on_cancel_or_after_connect()
+        self.winfo_toplevel().destroy()
 
     def _validate(self, *junk: object) -> bool:
         # this will be re-enabled if everything's ok
@@ -158,7 +164,9 @@ class ConnectDialogContent(ttk.Frame):
             return False
         # TODO: can realname be empty?
 
-        if not re.search("^" + backend.NICK_REGEX + "$", self._nick_entry.get()):
+        from .backend import NICK_REGEX, CHANNEL_REGEX
+
+        if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
             self._statuslabel["text"] = (
                 "'%s' is not a valid nickname." % self._nick_entry.get()
             )
@@ -167,7 +175,7 @@ class ConnectDialogContent(ttk.Frame):
         # if the channel entry is empty, no channels are joined
         channels = self._channel_entry.get().split()
         for channel in channels:
-            if not re.fullmatch(backend.CHANNEL_REGEX, channel):
+            if not re.fullmatch(CHANNEL_REGEX, channel):
                 self._statuslabel["text"] = (
                     "'%s' is not a valid channel name." % channel
                 )
@@ -192,85 +200,26 @@ class ConnectDialogContent(ttk.Frame):
         self._connectbutton["state"] = "normal"
         return True
 
-    def _connect_with_thread(
-        self, core: backend.IrcCore, done_callback: Callable[[str | None], object]
-    ) -> None:
-        error: str | None = None
-
-        def this_runs_in_thread() -> None:
-            nonlocal error
-            try:
-                core.connect()
-            except Exception:
-                error = traceback.format_exc()
-
-        thread = threading.Thread(target=this_runs_in_thread)
-        thread.start()
-
-        def this_runs_in_tk_mainloop() -> None:
-            if thread.is_alive():
-                done_callback(error)
-            else:
-                self.after(100, this_runs_in_tk_mainloop)
-
-        this_runs_in_tk_mainloop()
-
-    def connect(self, junk_event: object = None) -> None:
-        """Create an IrcCore.
-
-        On success, this sets self.result to the connected core and
-        calls on_cancel_or_after_connect(), and on error this shows an
-        error message instead.
-        """
+    def connect_clicked(self, junk_event: object = None) -> None:
         assert self._validate()
-        disabled = self.winfo_children() + self._bottomframe.winfo_children()
-        disabled.remove(self._bottomframe)
-        disabled.remove(self._statuslabel)
-        for widget in disabled:
-            widget["state"] = "disabled"
-
-        progressbar = ttk.Progressbar(self._bottomframe, mode="indeterminate")
-        progressbar.pack(side="left", fill="both", expand=True)
-        progressbar.start()
-        self._statuslabel["text"] = "Connecting..."
-
-        # creating an IrcCore creates a socket, but that shouldn't block
-        # toooo much
-        core = backend.IrcCore(
-            self._server_entry.get(),
-            int(self._port_entry.get()),
-            self._nick_entry.get(),
-            self._username_entry.get(),
-            self._realname_entry.get(),
-            autojoin=self._channel_entry.get().split(),
-        )
-
-        def on_connected(error: str | None) -> None:
-            # this stuff must be ran from tk's event loop
-            for widget in disabled:
-                widget["state"] = "normal"
-            progressbar.destroy()
-
-            if error is None:
-                self.result = core
-                self._on_cancel_or_after_connect()
-            else:
-                # error is a traceback string
-                log.error("connecting to %s:%d failed\n%s", core.host, core.port, error)
-
-                last_line = error.splitlines()[-1]
-                self._statuslabel["text"] = "Connecting to %s failed!\n%s" % (
-                    core.host,
-                    last_line,
-                )
-
-        self._connect_with_thread(core, on_connected)
+        self.result = {
+            "host": self._server_entry.get(),
+            "port": int(self._port_entry.get()),
+            "nick": self._nick_entry.get(),
+            "username": self._username_entry.get(),
+            "realname": self._realname_entry.get(),
+            "join_channels": self._channel_entry.get().split(),
+        }
+        self.winfo_toplevel().destroy()
 
 
-def run(transient_to: tkinter.Tk | None = None) -> backend.IrcCore | None:
-    """Returns a connected IrcCore, or None if the user cancelled."""
+# returns None if user cancel
+def show_server_config_dialog(
+    transient_to: tkinter.Tk | None, initial_config: ServerConfig
+) -> ServerConfig | None:
+
     dialog = tkinter.Toplevel()
-    content = ConnectDialogContent(dialog, dialog.destroy)
+    content = _ServerConfigurer(dialog, initial_config)
     content.pack(fill="both", expand=True)
 
     dialog.minsize(350, 200)
