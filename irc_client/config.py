@@ -1,10 +1,14 @@
 from __future__ import annotations
 import functools
+import json
 import re
+from pathlib import Path
 import tkinter
 from tkinter import ttk
 import sys
 from typing import Any, TYPE_CHECKING
+
+import appdirs
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -21,11 +25,29 @@ class ServerConfig(TypedDict):
     nick: str  # TODO: multiple choices, in case already in use
     username: str
     realname: str
-    join_channels: list[str]
+    joined_channels: list[str]
 
 
-class Config:
+class Config(TypedDict):
     servers: list[ServerConfig]  # TODO: support multiple servers in gui
+
+
+_config_json_path = Path(appdirs.user_config_dir("irc-client", "Akuli")) / "config.json"
+
+
+def load_from_file() -> Config | None:
+    try:
+        with _config_json_path.open("r", encoding="utf-8") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return None
+
+
+def save_to_file(config: Config) -> None:
+    _config_json_path.parent.mkdir(parents=True, exist_ok=True)
+    with _config_json_path.open("w", encoding="utf-8") as file:
+        json.dump(config, file, indent=2)
+        file.write("\n")
 
 
 # TODO: get rid of this?
@@ -99,7 +121,7 @@ class _ServerConfigurer(ttk.Frame):
         self._nick_entry.var.set(initial_config["nick"])
         self._username_entry.var.set(initial_config["username"])
         self._realname_entry.var.set(initial_config["realname"])
-        self._channel_entry.var.set(" ".join(initial_config["join_channels"]))
+        self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
 
     # TODO: 2nd alternative for nicknames
     # rest of the code should also handle nickname errors better
@@ -210,7 +232,7 @@ class _ServerConfigurer(ttk.Frame):
             "nick": self._nick_entry.get(),
             "username": self._username_entry.get(),
             "realname": self._realname_entry.get(),
-            "join_channels": self._channel_entry.get().split(),
+            "joined_channels": self._channel_entry.get().split(),
         }
         self.winfo_toplevel().destroy()
 

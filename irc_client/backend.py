@@ -148,7 +148,7 @@ class IrcCore:
         self.nick = server_config["nick"]
         self.username = server_config["username"]
         self.realname = server_config["realname"]
-        self._autojoin = server_config["join_channels"]
+        self._autojoin = server_config["joined_channels"]
 
         self._sock: ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
@@ -164,6 +164,16 @@ class IrcCore:
         # client connects
         # the replies are collected here before emitting a self_joined event
         self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
+
+    def get_current_config(self, channels: list[str]) -> config.ServerConfig:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "nick": self.nick,
+            "username": self.username,
+            "realname": self.realname,
+            "joined_channels": channels,
+        }
 
     def start(self) -> None:
         threading.Thread(target=self._send_loop).start()
