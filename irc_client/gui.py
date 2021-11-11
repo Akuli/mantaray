@@ -372,11 +372,12 @@ class IrcWidget(ttk.PanedWindow):
         self._entry.bind("<Return>", self._on_enter_pressed)
         self._entry.bind("<Tab>", self._autocomplete)
 
-        self._channel_likes: dict[
-            str, ChannelLikeView
-        ] = {}  # {channel_like.name: channel_like}
+        # {channel_like.name: channel_like}
+        self._channel_likes: dict[str, ChannelLikeView] = {}
         self._current_channel_like: ChannelLikeView | None = None
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
+
+        self._quitting = False
 
     def focus_the_entry(self) -> None:
         self._entry.focus()
@@ -510,14 +511,18 @@ class IrcWidget(ttk.PanedWindow):
                 self.add_channel_like(
                     ChannelLikeView(self, event.channel, event.nicklist)
                 )
+                if event.channel not in self.core.autojoin:
+                    self.core.autojoin.append(event.channel)
+
+            elif isinstance(event, backend.SelfParted):
+                self.remove_channel_like(self._channel_likes[event.channel])
+                if event.channel in self.core.autojoin and not self._quitting:
+                    self.core.autojoin.remove(event.channel)
 
             elif isinstance(event, backend.SelfChangedNick):
                 self._nickbutton["text"] = event.new
                 for channel_like in self._channel_likes.values():
                     channel_like.on_self_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SelfParted):
-                self.remove_channel_like(self._channel_likes[event.channel])
 
             elif isinstance(event, backend.SelfQuit):
                 print("gui got SelfQuit event from core")
@@ -646,6 +651,7 @@ class IrcWidget(ttk.PanedWindow):
 
     def part_all_channels_and_quit(self) -> None:
         """Call this to get out of IRC."""
+        self._quitting = True
         for name, channel_like in self._channel_likes.items():
             if channel_like.is_channel():
                 # TODO: add a reason here?

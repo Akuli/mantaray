@@ -22,19 +22,24 @@ def main() -> None:
     root = tkinter.Tk()
     root.withdraw()
 
-    server_config = config.show_server_config_dialog(
-        transient_to=None,
-        initial_config={
-            "host": "irc.libera.chat",
-            "port": 6697,
-            "nick": getuser(),
-            "username": getuser(),
-            "realname": getuser(),
-            "join_channels": ["##learnpython"],
-        },
-    )
-    if server_config is None:
-        return
+    file_config = config.load_from_file()
+    if file_config is None:
+        server_config = config.show_server_config_dialog(
+            transient_to=None,
+            initial_config={
+                "host": "irc.libera.chat",
+                "port": 6697,
+                "nick": getuser(),
+                "username": getuser(),
+                "realname": getuser(),
+                "joined_channels": ["##learnpython"],
+            },
+        )
+        if server_config is None:
+            return
+    else:
+        # TODO: support multiple servers
+        [server_config] = file_config["servers"]
 
     irc_widget = gui.IrcWidget(root, server_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
@@ -48,6 +53,9 @@ def main() -> None:
     irc_widget.handle_events()  # doesn't block
     root.deiconify()  # unhide
     root.mainloop()
+
+    new_config = irc_widget.core.get_current_config()
+    config.save_to_file({"servers": [new_config]})
 
 
 if __name__ == "__main__":
