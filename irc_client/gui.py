@@ -584,7 +584,7 @@ class IrcWidget(ttk.PanedWindow):
         messages in the channel-like.
         """
         view = self.get_current_view()
-        if not isinstance(view, ServerView):
+        if isinstance(view, (ChannelView, PMView)):
             # TODO: don't erase all tags if there will be other tags later
             self.view_selector.item(view.view_id, tags="")
             self.event_generate("<<NotSeenCountChanged>>")
