@@ -93,6 +93,9 @@ class View:
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
+    def get_relevant_nicks(self) -> Sequence[str]:
+        return []
+
     def add_message(
         self,
         sender: str,
@@ -135,13 +138,13 @@ class View:
         # notify about the nick change everywhere, by putting this to base class
         self.add_message("*", "You are now known as %s." % colors.color_nick(new))
 
-    def on_user_quit(self, nick: str, reason: str | None) -> None:
+    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
         msg = f"{colors.color_nick(nick)} quit."
         if reason is not None:
             msg += f" ({reason})"
         self.add_message("*", msg)
 
-    def on_user_changed_nick(self, old: str, new: str) -> None:
+    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
             "*",
             "%s is now known as %s."
@@ -154,15 +157,6 @@ class ServerView(View):
         super().__init__(irc_widget)
         irc_widget.view_selector.item(self.view_id, text=hostname)
 
-    def on_part(self, nick: str, reason: str | None) -> None:
-        pass
-
-    def on_user_quit(self, nick: str, reason: str | None) -> None:
-        pass
-
-    def on_user_changed_nick(self, old: str, new: str) -> None:
-        pass
-
 
 class ChannelView(View):
     def __init__(self, irc_widget: IrcWidget, name: str, nicks: list[str]):
@@ -174,6 +168,9 @@ class ChannelView(View):
             ttk.Treeview(irc_widget, show="tree", selectmode="extended")
         )
         self.userlist.set_nicks(nicks)
+
+    def get_relevant_nicks(self) -> tuple[str, ...]:
+        return self.userlist.get_nicks()
 
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
@@ -198,21 +195,19 @@ class ChannelView(View):
             msg += f" ({reason})"
         self.add_message("*", msg)
 
-    def on_user_quit(self, nick: str, reason: str | None) -> None:
-        if nick in self.userlist.get_nicks():
-            super().on_user_quit(nick, reason)
-            self.userlist.remove_user(nick)
+    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
+        super().on_relevant_user_quit(nick, reason)
+        self.userlist.remove_user(nick)
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         super().on_self_changed_nick(old, new)
         self.userlist.remove_user(old)
         self.userlist.add_user(new)
 
-    def on_user_changed_nick(self, old: str, new: str) -> None:
-        if old in self.userlist.get_nicks():
-            self.userlist.remove_user(old)
-            self.userlist.add_user(new)
-            super().on_user_changed_nick(old, new)
+    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
+        super().on_relevant_user_changed_nick(old, new)
+        self.userlist.remove_user(old)
+        self.userlist.add_user(new)
 
 
 # PM = private messages, also known as DM = direct messages
@@ -227,15 +222,14 @@ class PMView(View):
     def nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
-    # Not perfect, no way to notice a person quitting if not joined to same channel
-    def on_user_quit(self, nick: str, reason: str | None) -> None:
-        if self.nick == nick:
-            super().on_user_quit(nick, reason)
+    # quit isn't perfect: no way to notice a person quitting if not on a same
+    # channel with the user
+    def get_relevant_nicks(self) -> list[str]:
+        return [self.nick]
 
-    def on_user_changed_nick(self, old: str, new: str) -> None:
-        if self.nick == old:
-            super().on_user_changed_nick(old, new)
-            self.irc_widget.view_selector.item(self.view_id, text=new)
+    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
+        super().on_relevant_user_changed_nick(old, new)
+        self.irc_widget.view_selector.item(self.view_id, text=new)
 
 
 def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
@@ -504,11 +498,13 @@ class IrcWidget(ttk.PanedWindow):
 
             elif isinstance(event, backend.UserQuit):
                 for view in self.views_by_id.values():
-                    view.on_user_quit(event.nick, event.reason)
+                    if event.nick in view.get_relevant_nicks():
+                        view.on_relevant_user_quit(event.nick, event.reason)
 
             elif isinstance(event, backend.UserChangedNick):
                 for view in self.views_by_id.values():
-                    view.on_user_changed_nick(event.old, event.new)
+                    if event.old in view.get_relevant_nicks():
+                        view.on_relevant_user_changed_nick(event.old, event.new)
 
             elif isinstance(event, backend.SentPrivmsg):
                 channel_view = self.find_channel(event.recipient)
