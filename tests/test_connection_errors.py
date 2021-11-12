@@ -1,7 +1,6 @@
 import time
 
 
-# If running this test freezes or is slow, it means it doesn't work
 def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     hircd.stop()
     wait_until(lambda: "Error while receiving: Server closed the connection!" in alice.channel_likes["#autojoin"].textwidget.get("1.0", "end"))
