@@ -45,7 +45,7 @@ def main() -> None:
     irc_widget = gui.IrcWidget(root, server_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
     root.bind("<FocusIn>", (lambda junk_event: irc_widget.focus_the_entry()))
-    root.protocol("WM_DELETE_WINDOW", irc_widget.part_all_channels_and_quit)
+    root.protocol("WM_DELETE_WINDOW", irc_widget.core.quit)
 
     update_the_title = functools.partial(update_title, root, irc_widget)
     update_the_title()
