@@ -348,6 +348,12 @@ class IrcWidget(ttk.PanedWindow):
             file=os.path.join(images_dir, "face-20x20.png")
         )
 
+        # Help Python's GC (tkinter images rely on gc and it sucks)
+        self.bind(
+            "<Destroy>", (lambda e: setattr(self, "_channel_image", None)), add=True
+        )
+        self.bind("<Destroy>", (lambda e: setattr(self, "_pm_image", None)), add=True)
+
         _fix_tag_coloring_bug()
         treeview = ttk.Treeview(self, show="tree", selectmode="browse")
         treeview.tag_configure("new_message", foreground="red")
@@ -376,8 +382,6 @@ class IrcWidget(ttk.PanedWindow):
         self.channel_likes: dict[str, ChannelLikeView] = {}
         self._current_channel_like: ChannelLikeView | None = None
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
-
-        self._quitting = False
 
     def focus_the_entry(self) -> None:
         self.entry.focus()
@@ -477,6 +481,7 @@ class IrcWidget(ttk.PanedWindow):
         self._channel_selector.select_something_else(channel_like.name)
         self._channel_selector.remove(channel_like.name)
         channel_like.destroy_widgets()
+        del self.channel_likes[channel_like.name]
 
     # this must be called when someone that the user PM's with changes nick
     # channels and the special server channel-like can't be renamed
@@ -516,7 +521,7 @@ class IrcWidget(ttk.PanedWindow):
 
             elif isinstance(event, backend.SelfParted):
                 self.remove_channel_like(self.channel_likes[event.channel])
-                if event.channel in self.core.autojoin and not self._quitting:
+                if event.channel in self.core.autojoin:
                     self.core.autojoin.remove(event.channel)
 
             elif isinstance(event, backend.SelfChangedNick):
@@ -525,7 +530,6 @@ class IrcWidget(ttk.PanedWindow):
                     channel_like.on_self_changed_nick(event.old, event.new)
 
             elif isinstance(event, backend.SelfQuit):
-                print("gui got SelfQuit event from core")
                 if self._on_quit is None:
                     self.destroy()
                 else:
@@ -651,12 +655,3 @@ class IrcWidget(ttk.PanedWindow):
             if "new_message" in tags:
                 result += 1
         return result
-
-    def part_all_channels_and_quit(self) -> None:
-        """Call this to get out of IRC."""
-        self._quitting = True
-        for name, channel_like in self.channel_likes.items():
-            if channel_like.is_channel():
-                # TODO: add a reason here?
-                self.core.part_channel(name)
-        self.core.quit()

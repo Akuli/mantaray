@@ -63,6 +63,11 @@ def hircd():
     yield {"host": "localhost", "port": port, "ssl": False}
     process.kill()
 
+    output = process.stderr.read()
+    if b"ERROR" in output:
+        print(output.decode("utf-8", errors="replace"))
+        raise RuntimeError
+
 
 @pytest.fixture
 def alice(hircd, root_window, wait_until):
@@ -76,11 +81,11 @@ def alice(hircd, root_window, wait_until):
             "joined_channels": ["#autojoin"],
         },
     )
-    widget.pack()
+    widget.pack(fill="both", expand=True)
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
     yield widget
-    widget.part_all_channels_and_quit()
+    widget.core.quit()
     widget.core.wait_until_stopped()
 
 
@@ -96,9 +101,9 @@ def bob(hircd, root_window, wait_until):
             "joined_channels": ["#autojoin"],
         },
     )
-    widget.pack()
+    widget.pack(fill="both", expand=True)
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
     yield widget
-    widget.part_all_channels_and_quit()
+    widget.core.quit()
     widget.core.wait_until_stopped()
