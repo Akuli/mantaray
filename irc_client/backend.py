@@ -183,7 +183,7 @@ class IrcCore:
         assert not self._threads
         self._threads.append(threading.Thread(target=self._send_loop))
         self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
-        for thread in self.threads:
+        for thread in self._threads:
             thread.start()
 
     def wait_until_stopped(self) -> None:
