@@ -2,8 +2,9 @@ def test_basic(alice, bob, wait_until):
     alice.entry.insert("end", "Hello there")
     alice.on_enter_pressed()
     wait_until(
-        lambda: "Hello there"
-        in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+        lambda: (
+            "Hello there" in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+        )
     )
 
 
