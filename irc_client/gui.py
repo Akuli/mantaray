@@ -458,9 +458,7 @@ class IrcWidget(ttk.PanedWindow):
         self.mark_seen()
 
     def add_channel_like(self, channel_like: ChannelLikeView) -> None:
-        if channel_like.name in self.channel_likes:
-            # Happens when disconnected from server, and reconnecting
-            self.remove_channel_like(self.channel_likes[channel_like.name])
+        assert channel_like.name not in self.channel_likes
         self.channel_likes[channel_like.name] = channel_like
 
         self._channel_selector.append(channel_like.name)
