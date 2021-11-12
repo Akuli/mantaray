@@ -119,12 +119,11 @@ _IrcEvent = Union[
 ]
 
 
-def _recv_line(sock: ssl.SSLSocket, buffer: collections.deque[str]) -> str:
+def _recv_line(sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]) -> str:
     if not buffer:
         data = bytearray()
 
-        # this accepts both \r\n and \n because b'blah blah\r\n' ends
-        # with b'\n'
+        # accepts both \r\n and \n
         while not data.endswith(b"\n"):
             assert sock is not None
             chunk = sock.recv(4096)
@@ -145,12 +144,13 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig):
         self.host = server_config["host"]
         self.port = server_config["port"]
+        self._ssl = server_config["ssl"]
         self.nick = server_config["nick"]
         self.username = server_config["username"]
         self.realname = server_config["realname"]
         self.autojoin = server_config["joined_channels"].copy()
 
-        self._sock: ssl.SSLSocket | None = None
+        self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
 
@@ -169,6 +169,7 @@ class IrcCore:
         return {
             "host": self.host,
             "port": self.port,
+            "ssl": self._ssl,
             "nick": self.nick,
             "username": self.username,
             "realname": self.realname,
@@ -359,8 +360,12 @@ class IrcCore:
         assert self._sock is None
 
         try:
-            context = ssl.create_default_context()
-            self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+            if self._ssl:
+                context = ssl.create_default_context()
+                self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+            else:
+                self._sock = socket.socket()
+
             self._sock.connect((self.host, self.port))
 
             # TODO: what if nick or user are in use? use alternatives?
