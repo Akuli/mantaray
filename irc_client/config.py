@@ -22,6 +22,7 @@ else:
 class ServerConfig(TypedDict):
     host: str
     port: int
+    ssl: bool
     nick: str  # TODO: multiple choices, in case already in use
     username: str
     realname: str
@@ -38,7 +39,11 @@ _config_json_path = Path(appdirs.user_config_dir("irc-client", "Akuli")) / "conf
 def load_from_file() -> Config | None:
     try:
         with _config_json_path.open("r", encoding="utf-8") as file:
-            return json.load(file)
+            result = json.load(file)
+            # Backwards compatibility with older config.json files
+            for server in result["servers"]:
+                server.setdefault("ssl", True)
+            return result
     except FileNotFoundError:
         return None
 
@@ -72,6 +77,7 @@ class _ServerConfigurer(ttk.Frame):
 
         self._server_entry = self._create_entry()
         self._add_row("Server:", self._server_entry)
+        self._rownumber += 1  # room for port and ssl checkbox
 
         self._channel_entry = self._create_entry()
         self._add_row("Channel:", self._channel_entry)
@@ -83,7 +89,7 @@ class _ServerConfigurer(ttk.Frame):
         button = ttk.Button(self, text="More options...")
         button.config(command=functools.partial(self._show_more, button))
         button.grid(
-            row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
+            row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
         )
         # leave self._rownumber untouched
 
@@ -91,10 +97,15 @@ class _ServerConfigurer(ttk.Frame):
         self._username_entry = self._create_entry()
         self._realname_entry = self._create_entry()
         self._port_entry = self._create_entry(width=8)
+        self._ssl_var = tkinter.BooleanVar(value=True)
+        self._ssl_var.trace("w", self._guess_port_based_on_ssl)
+        self._ssl_checkbox = ttk.Checkbutton(
+            self, text="Use SSL", variable=self._ssl_var
+        )
 
         # big row makes sure that this is always below everything
         self._statuslabel = ttk.Label(self)
-        self._statuslabel.grid(row=30, column=0, columnspan=4, pady=5, sticky="swe")
+        self._statuslabel.grid(row=30, column=0, columnspan=3, pady=5, sticky="swe")
         self._statuslabel.bind(
             "<Configure>",
             lambda event: self._statuslabel.config(wraplength=event.width),
@@ -103,7 +114,7 @@ class _ServerConfigurer(ttk.Frame):
 
         self._bottomframe = ttk.Frame(self)
         self._bottomframe.grid(
-            row=31, column=0, columnspan=4, padx=5, pady=5, sticky="we"
+            row=31, column=0, columnspan=3, padx=5, pady=5, sticky="we"
         )
 
         ttk.Button(self._bottomframe, text="Cancel", command=self.cancel).pack(
@@ -116,6 +127,7 @@ class _ServerConfigurer(ttk.Frame):
 
         # now everything's ready for _validate()
         # all of these call validate()
+        self._ssl_var.set(initial_config["ssl"])
         self._server_entry.var.set(initial_config["host"])
         self._port_entry.var.set(str(initial_config["port"]))
         self._nick_entry.var.set(initial_config["nick"])
@@ -129,9 +141,9 @@ class _ServerConfigurer(ttk.Frame):
     def _show_more(self, show_more_button: ttk.Button) -> None:
         show_more_button.destroy()
 
-        self._server_entry.grid_configure(columnspan=1)
-        ttk.Label(self, text="Port:").grid(row=0, column=2)
-        self._port_entry.grid(row=0, column=3)
+        ttk.Label(self, text="Port:").grid(row=1, column=0, sticky="w")
+        self._port_entry.grid(row=1, column=1, sticky="we")
+        self._ssl_checkbox.grid(row=1, column=2)
         self._setup_entry_bindings(self._port_entry)
 
         self._add_row("Username:", self._username_entry)
@@ -145,7 +157,7 @@ class _ServerConfigurer(ttk.Frame):
             ),
         )
         infolabel.grid(
-            row=self._rownumber, column=0, columnspan=4, sticky="w", padx=5, pady=5
+            row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
         )
         self._rownumber += 1
         self.event_generate("<<MoreOptions>>")
@@ -161,7 +173,7 @@ class _ServerConfigurer(ttk.Frame):
 
     def _add_row(self, label: str, widget: ttk.Entry) -> None:
         ttk.Label(self, text=label).grid(row=self._rownumber, column=0, sticky="w")
-        widget.grid(row=self._rownumber, column=1, columnspan=3, sticky="we")
+        widget.grid(row=self._rownumber, column=1, columnspan=2, sticky="we")
         self._setup_entry_bindings(widget)
         self._rownumber += 1
 
@@ -169,6 +181,10 @@ class _ServerConfigurer(ttk.Frame):
         # these call self._validate()
         self._username_entry.var.set(self._nick_entry.get())
         self._realname_entry.var.set(self._nick_entry.get())
+
+    def _guess_port_based_on_ssl(self, *junk: object) -> None:
+        self._port_entry.delete(0, "end")
+        self._port_entry.insert(0, "6697" if self._ssl_var.get() else "6667")
 
     def cancel(self, junk_event: object = None) -> None:
         self.winfo_toplevel().destroy()
@@ -229,6 +245,7 @@ class _ServerConfigurer(ttk.Frame):
         self.result = {
             "host": self._server_entry.get(),
             "port": int(self._port_entry.get()),
+            "ssl": self._ssl_var.get(),
             "nick": self._nick_entry.get(),
             "username": self._username_entry.get(),
             "realname": self._realname_entry.get(),

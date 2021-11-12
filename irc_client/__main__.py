@@ -29,6 +29,7 @@ def main() -> None:
             initial_config={
                 "host": "irc.libera.chat",
                 "port": 6697,
+                "ssl": True,
                 "nick": getuser(),
                 "username": getuser(),
                 "realname": getuser(),
