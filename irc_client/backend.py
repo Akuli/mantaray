@@ -186,7 +186,7 @@ class IrcCore:
             thread.start()
 
     def wait_until_stopped(self) -> None:
-        for thread in self.threads:
+        for thread in self._threads:
             thread.join()
 
     def _connect_and_recv_loop(self) -> None:
