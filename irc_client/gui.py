@@ -154,7 +154,19 @@ class ChannelLikeView:
             # bigpanedw adds the treeview to itself when needed
             treeview = ttk.Treeview(ircwidget, show="tree", selectmode="extended")
             self.userlist = TreeviewWrapper(treeview)
-            self.userlist.extend(sorted(users, key=str.casefold))
+            self.set_users(users)
+
+    def set_users(self, users: list[str]) -> None:
+        assert self.userlist is not None
+        self.userlist.clear()
+        self.userlist.extend(sorted(users, key=str.casefold))
+
+    def add_user(self, nick: str) -> None:
+        assert self.userlist is not None
+        nicks = list(self.userlist)
+        nicks.append(nick)
+        nicks.sort(key=str.casefold)
+        self.userlist.insert(nicks.index(nick), nick)
 
     # 'wat.is_channel()' is way more readable than 'wat.userlist is not None'
     def is_channel(self) -> bool:
@@ -209,16 +221,7 @@ class ChannelLikeView:
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
-        assert self.is_channel()
-        assert self.userlist is not None
-
-        # TODO: a better algorithm?
-        #       timsort is good, but maybe sorting every time is not?
-        nicks = list(self.userlist)
-        nicks.append(nick)
-        nicks.sort(key=str.casefold)
-        self.userlist.insert(nicks.index(nick), nick)
-
+        self.add_user(nick)
         self.add_message("*", "%s joined %s." % (colors.color_nick(nick), self.name))
 
     def on_part(self, nick: str, reason: str | None) -> None:
@@ -518,8 +521,7 @@ class IrcWidget(ttk.PanedWindow):
             if isinstance(event, backend.SelfJoined):
                 # Can exist already, when has been disconnected from server
                 if event.channel in self.channel_likes:
-                    self.channel_likes[event.channel].userlist.clear()
-                    self.channel_likes[event.channel].userlist.extend(event.nicklist)
+                    self.channel_likes[event.channel].set_users(event.nicklist)
                 else:
                     self.add_channel_like(
                         ChannelLikeView(self, event.channel, event.nicklist)

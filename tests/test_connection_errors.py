@@ -13,7 +13,7 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
-def test_server_dies(alice, bob, hircd, monkeypatch, wait_until):
+def test_server_dies(alice, hircd, monkeypatch, wait_until):
     monkeypatch.setattr("irc_client.backend.RECONNECT_SECONDS", 2)
     def text():
         return alice.channel_likes["#autojoin"].textwidget.get("1.0", "end")
@@ -29,3 +29,4 @@ def test_server_dies(alice, bob, hircd, monkeypatch, wait_until):
 
     hircd.start()
     # TODO: Wait until connection is back, check that Alice notices (#35)
+    # TODO: verify that after all that waiting, userlist contains alice and bob in correct order
