@@ -180,8 +180,9 @@ class IrcCore:
         }
 
     def start(self) -> None:
-        self.threads.append(threading.Thread(target=self._send_loop))
-        self.threads.append(threading.Thread(target=self._connect_and_recv_loop))
+        assert not self._threads
+        self._threads.append(threading.Thread(target=self._send_loop))
+        self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
         for thread in self.threads:
             thread.start()
 
