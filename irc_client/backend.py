@@ -119,7 +119,9 @@ _IrcEvent = Union[
 ]
 
 
-def _recv_line(sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]) -> str:
+def _recv_line(
+    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]
+) -> str:
     if not buffer:
         data = bytearray()
 
@@ -362,7 +364,9 @@ class IrcCore:
         try:
             if self._ssl:
                 context = ssl.create_default_context()
-                self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+                self._sock = context.wrap_socket(
+                    socket.socket(), server_hostname=self.host
+                )
             else:
                 self._sock = socket.socket()
 

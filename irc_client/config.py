@@ -99,7 +99,9 @@ class _ServerConfigurer(ttk.Frame):
         self._port_entry = self._create_entry(width=8)
         self._ssl_var = tkinter.BooleanVar(value=True)
         self._ssl_var.trace("w", self._guess_port_based_on_ssl)
-        self._ssl_checkbox = ttk.Checkbutton(self, text="Use SSL", variable=self._ssl_var)
+        self._ssl_checkbox = ttk.Checkbutton(
+            self, text="Use SSL", variable=self._ssl_var
+        )
 
         # big row makes sure that this is always below everything
         self._statuslabel = ttk.Label(self)
