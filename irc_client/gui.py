@@ -93,9 +93,6 @@ class View:
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
-    def get_relevant_nicks(self) -> Sequence[str]:
-        return []
-
     def add_message(
         self,
         sender: str,
@@ -138,6 +135,9 @@ class View:
         # notify about the nick change everywhere, by putting this to base class
         self.add_message("*", "You are now known as %s." % colors.color_nick(new))
 
+    def get_relevant_nicks(self) -> Sequence[str]:
+        return []
+
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
             "*",
@@ -169,9 +169,6 @@ class ChannelView(View):
         )
         self.userlist.set_nicks(nicks)
 
-    def get_relevant_nicks(self) -> tuple[str, ...]:
-        return self.userlist.get_nicks()
-
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()
@@ -200,6 +197,9 @@ class ChannelView(View):
         super().on_self_changed_nick(old, new)
         self.userlist.remove_user(old)
         self.userlist.add_user(new)
+
+    def get_relevant_nicks(self) -> tuple[str, ...]:
+        return self.userlist.get_nicks()
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
