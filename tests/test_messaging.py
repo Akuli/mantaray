@@ -4,7 +4,7 @@ def test_basic(alice, bob, wait_until):
     wait_until(
         lambda: (
             "Hello there\n"
-            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+            in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
 
@@ -22,14 +22,14 @@ def test_escaped_slash(alice, bob, wait_until):
     wait_until(
         lambda: (
             " /home/alice/codes\n"
-            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+            in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
 
 
 def test_enter_press_with_no_text(alice, bob, wait_until):
     alice.on_enter_pressed()
-    assert "Alice" not in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+    assert "Alice" not in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
 
 
 def test_private_messages(alice, bob, wait_until):
@@ -40,20 +40,15 @@ def test_private_messages(alice, bob, wait_until):
 
     alice.entry.insert("end", "/msg Bob hello there")
     alice.on_enter_pressed()
-    wait_until(lambda: bob._current_channel_like.name == "Alice")
-    wait_until(lambda: alice._current_channel_like.name == "Bob")
-    wait_until(
-        lambda: "hello there" in alice.channel_likes["Bob"].textwidget.get("1.0", "end")
-    )
-    wait_until(
-        lambda: "hello there" in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
-    )
+    wait_until(lambda: alice.find_pm("Bob"))
+    wait_until(lambda: bob.find_pm("Alice"))
+
+    assert alice.get_current_view() == alice.find_pm("Bob")
+    assert bob.get_current_view() == bob.find_pm("Alice")
+    assert "hello there" in alice.find_pm("Bob").textwidget.get("1.0", "end")
+    assert "hello there" in bob.find_pm("Alice").textwidget.get("1.0", "end")
 
     bob.entry.insert("end", "Hey Alice")
     bob.on_enter_pressed()
-    wait_until(
-        lambda: "Hey Alice" in alice.channel_likes["Bob"].textwidget.get("1.0", "end")
-    )
-    wait_until(
-        lambda: "Hey Alice" in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
-    )
+    wait_until(lambda: "Hey Alice" in alice.find_pm("Bob").textwidget.get("1.0", "end"))
+    wait_until(lambda: "Hey Alice" in bob.find_pm("Alice").textwidget.get("1.0", "end"))
