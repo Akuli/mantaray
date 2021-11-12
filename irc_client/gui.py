@@ -154,7 +154,19 @@ class ChannelLikeView:
             # bigpanedw adds the treeview to itself when needed
             treeview = ttk.Treeview(ircwidget, show="tree", selectmode="extended")
             self.userlist = TreeviewWrapper(treeview)
-            self.userlist.extend(sorted(users, key=str.casefold))
+            self.set_users(users)
+
+    def set_users(self, users: list[str]) -> None:
+        assert self.userlist is not None
+        self.userlist.clear()
+        self.userlist.extend(sorted(users, key=str.casefold))
+
+    def add_user(self, nick: str) -> None:
+        assert self.userlist is not None
+        nicks = list(self.userlist)
+        nicks.append(nick)
+        nicks.sort(key=str.casefold)
+        self.userlist.insert(nicks.index(nick), nick)
 
     # 'wat.is_channel()' is way more readable than 'wat.userlist is not None'
     def is_channel(self) -> bool:
@@ -201,21 +213,15 @@ class ChannelLikeView:
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
         self.add_message(sender, message, automagic_nick_coloring=True, pinged=pinged)
 
-    def on_connectivity_message(self, message: str) -> None:
-        self.add_message("", message)
+    def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
+        if error:
+            self.add_message("", colors.ERROR_PREFIX + message)
+        else:
+            self.add_message("", colors.INFO_PREFIX + message)
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
-        assert self.is_channel()
-        assert self.userlist is not None
-
-        # TODO: a better algorithm?
-        #       timsort is good, but maybe sorting every time is not?
-        nicks = list(self.userlist)
-        nicks.append(nick)
-        nicks.sort(key=str.casefold)
-        self.userlist.insert(nicks.index(nick), nick)
-
+        self.add_user(nick)
         self.add_message("*", "%s joined %s." % (colors.color_nick(nick), self.name))
 
     def on_part(self, nick: str, reason: str | None) -> None:
@@ -513,9 +519,13 @@ class IrcWidget(ttk.PanedWindow):
                 break
 
             if isinstance(event, backend.SelfJoined):
-                self.add_channel_like(
-                    ChannelLikeView(self, event.channel, event.nicklist)
-                )
+                # Can exist already, when has been disconnected from server
+                if event.channel in self.channel_likes:
+                    self.channel_likes[event.channel].set_users(event.nicklist)
+                else:
+                    self.add_channel_like(
+                        ChannelLikeView(self, event.channel, event.nicklist)
+                    )
                 if event.channel not in self.core.autojoin:
                     self.core.autojoin.append(event.channel)
 
@@ -608,9 +618,10 @@ class IrcWidget(ttk.PanedWindow):
                 )
 
             elif isinstance(event, backend.ConnectivityMessage):
-                self.channel_likes[_SERVER_VIEW_ID].on_connectivity_message(
-                    event.message
-                )
+                for channel_like in self.channel_likes.values():
+                    channel_like.on_connectivity_message(
+                        event.message, error=event.is_error
+                    )
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you

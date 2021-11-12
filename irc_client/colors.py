@@ -40,11 +40,13 @@ _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 # 9 is green, would conflict with pinged tag
 _NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 9, 14, 15})
 
+INFO_PREFIX = _COLOR + "11"
+ERROR_PREFIX = _COLOR + "4"
+
 
 def _parse_styles(
     text: str,
 ) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
-    # ^ and $ are included to make the next step easier
     style_regex = r"\x02|\x1f|\x03[0-9]{1,2}(?:,[0-9]{1,2})?|\x0f"
 
     # parts contains matched parts of the regex followed by texts

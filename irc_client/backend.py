@@ -3,20 +3,15 @@
 from __future__ import annotations
 import collections
 import dataclasses
-import logging
 import queue
 import ssl
 import re
-import time
 import socket
 import threading
 import traceback
 from typing import Union
 
 from . import config
-
-
-log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -100,6 +95,7 @@ class UnknownMessage:
 @dataclasses.dataclass
 class ConnectivityMessage:
     message: str  # one line
+    is_error: bool
 # fmt: on
 
 _IrcEvent = Union[
@@ -117,6 +113,8 @@ _IrcEvent = Union[
     UnknownMessage,
     ConnectivityMessage,
 ]
+
+RECONNECT_SECONDS = 10
 
 
 def _recv_line(
@@ -168,6 +166,8 @@ class IrcCore:
         # the replies are collected here before emitting a self_joined event
         self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
 
+        self._quit_event = threading.Event()
+
     def get_current_config(self) -> config.ServerConfig:
         return {
             "host": self.host,
@@ -191,33 +191,33 @@ class IrcCore:
             thread.join()
 
     def _connect_and_recv_loop(self) -> None:
-        while True:
+        while not self._quit_event.is_set():
             try:
                 self.event_queue.put(
                     ConnectivityMessage(
-                        f"Connecting to {self.host} port {self.port}..."
+                        f"Connecting to {self.host} port {self.port}...", is_error=False
                     )
                 )
                 self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Cannot connect (reconnecting in 10sec): {e}")
+                    ConnectivityMessage(
+                        f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}",
+                        is_error=True,
+                    )
                 )
-                time.sleep(10)
+                self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
 
             try:
+                # If this succeeds, it stops when connection is closed
                 self._recv_loop()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Error while receiving, reconnecting: {e}")
+                    ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
                 )
+                # get ready to connect again
                 self._disconnect()
-                continue
-
-            # user quit
-            self._disconnect()
-            break
 
     def _send_soon(self, *parts: str, done_event: _IrcEvent | None = None) -> None:
         self._send_queue.put((" ".join(parts).encode("utf-8") + b"\r\n", done_event))
@@ -345,8 +345,13 @@ class IrcCore:
                 traceback.print_exc()
 
     def _send_loop(self) -> None:
-        while True:
-            bytez, done_event = self._send_queue.get()
+        # Ideally it would be posible to wait until quit_event is set OR queue has something
+        while not self._quit_event.is_set():
+            try:
+                bytez, done_event = self._send_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+
             sock = self._sock
             if sock is None:
                 # ignore events silently when not connected
@@ -363,8 +368,8 @@ class IrcCore:
             if done_event is not None:
                 self.event_queue.put(done_event)
                 if isinstance(done_event, SelfQuit):
-                    self._disconnect()
-                    break
+                    self._quit_event.set()
+                    self._disconnect()  # stop recv loop
 
     def _connect(self) -> None:
         assert self._sock is None
@@ -372,22 +377,19 @@ class IrcCore:
         try:
             if self._ssl:
                 context = ssl.create_default_context()
-                self._sock = context.wrap_socket(
+                sock: socket.socket | ssl.SSLSocket = context.wrap_socket(
                     socket.socket(), server_hostname=self.host
                 )
             else:
-                self._sock = socket.socket()
-
-            self._sock.connect((self.host, self.port))
-
-            # TODO: what if nick or user are in use? use alternatives?
-            self._send_soon("NICK", self.nick)
-            self._send_soon("USER", self.username, "0", "*", ":" + self.realname)
+                sock = socket.socket()
+            sock.connect((self.host, self.port))
         except (OSError, ssl.SSLError) as e:
-            if self._sock is not None:
-                self._sock.close()
-            self._sock = None
             raise e
+
+        self._sock = sock
+        # TODO: what if nick or user are in use? use alternatives?
+        self._send_soon("NICK", self.nick)
+        self._send_soon("USER", self.username, "0", "*", ":" + self.realname)
 
     def _disconnect(self) -> None:
         # If at any time self._sock is set, it shouldn't be closed yet
@@ -419,6 +421,10 @@ class IrcCore:
     def change_nick(self, new_nick: str) -> None:
         self._send_soon("NICK", new_nick)
 
-    # part all channels before calling this
     def quit(self) -> None:
-        self._send_soon("QUIT", done_event=SelfQuit())
+        if self._sock is None:
+            self._quit_event.set()
+            self.event_queue.put(SelfQuit())
+        else:
+            # TODO: client can freeze, if it is connected but sending blocks forever
+            self._send_soon("QUIT", done_event=SelfQuit())
