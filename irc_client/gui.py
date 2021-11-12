@@ -458,7 +458,9 @@ class IrcWidget(ttk.PanedWindow):
         self.mark_seen()
 
     def add_channel_like(self, channel_like: ChannelLikeView) -> None:
-        assert channel_like.name not in self.channel_likes
+        if channel_like.name in self.channel_likes:
+            # Happens when disconnected from server, and reconnecting
+            self.remove_channel_like(self.channel_likes[channel_like.name])
         self.channel_likes[channel_like.name] = channel_like
 
         self._channel_selector.append(channel_like.name)
@@ -516,9 +518,14 @@ class IrcWidget(ttk.PanedWindow):
                 break
 
             if isinstance(event, backend.SelfJoined):
-                self.add_channel_like(
-                    ChannelLikeView(self, event.channel, event.nicklist)
-                )
+                # Can exist already, when has been disconnected from server
+                if event.channel in self.channel_likes:
+                    self.channel_likes[event.channel].userlist.clear()
+                    self.channel_likes[event.channel].userlist.extend(event.nicklist)
+                else:
+                    self.add_channel_like(
+                        ChannelLikeView(self, event.channel, event.nicklist)
+                    )
                 if event.channel not in self.core.autojoin:
                     self.core.autojoin.append(event.channel)
 
@@ -610,15 +617,9 @@ class IrcWidget(ttk.PanedWindow):
                     event.sender or "???", " ".join(event.args)
                 )
 
-            elif isinstance(event, backend.Connecting):
+            elif isinstance(event, backend.ConnectivityMessage):
                 for channel_like in self.channel_likes.values():
-                    channel_like.on_connectivity_message(
-                    f"Connecting to {event.host} port {event.port}..."
-                )
-
-            elif isinstance(event, backend.ConnectivityError):
-                for channel_like in self.channel_likes.values():
-                    channel_like.on_connectivity_message(event.message, error=True)
+                    channel_like.on_connectivity_message(event.message, error=event.is_error)
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you
