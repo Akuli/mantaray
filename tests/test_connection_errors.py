@@ -6,7 +6,7 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     wait_until(
         lambda: (
             "Error while receiving: Server closed the connection!"
-            in alice.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+            in alice.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
 
@@ -21,7 +21,7 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
     monkeypatch.setattr("irc_client.backend.RECONNECT_SECONDS", 2)
 
     def text():
-        return alice.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+        return alice.find_channel("#autojoin").textwidget.get("1.0", "end")
 
     hircd.stop()
     wait_until(lambda: "reconnecting in 2sec" in text())

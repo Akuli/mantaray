@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 import tkinter
 import tkinter.font as tkfont
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
 from . import backend
 
@@ -153,7 +153,7 @@ class ColoredText(tkinter.Text):
             self.insert(index, substring, tags)
 
     def nicky_insert(
-        self, index: str, text: str, known_nicks: list[str], pinged: bool
+        self, index: str, text: str, known_nicks: Sequence[str], pinged: bool
     ) -> None:
         """Like colored_insert(), but colors nicks in known_nicks."""
         result_chars = list(text)

@@ -100,7 +100,7 @@ def alice_and_bob(hircd, root_window, wait_until):
         )
         widgets[name].pack(fill="both", expand=True)
         widgets[name].handle_events()
-        wait_until(lambda: "#autojoin" in widgets[name].channel_likes)
+        wait_until(lambda: widgets[name].find_channel("#autojoin"))
 
     yield widgets
 
