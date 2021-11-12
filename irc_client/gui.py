@@ -278,8 +278,6 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     return result
 
 
-# TODO:
-#   - select newly added views
 class IrcWidget(ttk.PanedWindow):
     def __init__(
         self,
