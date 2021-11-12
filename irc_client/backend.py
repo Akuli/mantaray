@@ -98,7 +98,10 @@ class UnknownMessage:
     command: str
     args: list[str]
 @dataclasses.dataclass
-class ConnectivityMessage:
+class ConnectivityInfo:
+    message: str  # one line
+@dataclasses.dataclass
+class ConnectivityError:
     message: str  # one line
 # fmt: on
 
@@ -115,7 +118,8 @@ _IrcEvent = Union[
     ReceivedPrivmsg,
     ServerMessage,
     UnknownMessage,
-    ConnectivityMessage,
+    Connecting,
+    ConnectivityError,
 ]
 
 
@@ -193,15 +197,12 @@ class IrcCore:
     def _connect_and_recv_loop(self) -> None:
         while True:
             try:
-                self.event_queue.put(
-                    ConnectivityMessage(
-                        f"Connecting to {self.host} port {self.port}..."
-                    )
-                )
+                self.event_queue.put(ConnectivityInfo(f"Connecting to {self.host} port {self.port}..."
+))
                 self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Cannot connect (reconnecting in 10sec): {e}")
+                    ConnectivityError(f"Cannot connect (reconnecting in 10sec): {e}")
                 )
                 time.sleep(10)
                 continue
@@ -210,7 +211,7 @@ class IrcCore:
                 self._recv_loop()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Error while receiving, reconnecting: {e}")
+                    ConnectivityError(f"Error while receiving: {e}")
                 )
                 self._disconnect()
                 continue

@@ -201,8 +201,11 @@ class ChannelLikeView:
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
         self.add_message(sender, message, automagic_nick_coloring=True, pinged=pinged)
 
-    def on_connectivity_message(self, message: str) -> None:
-        self.add_message("", message)
+    def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
+        if error:
+            self.add_message("", colors.ERROR_PREFIX + message)
+        else:
+            self.add_message("", colors.INFO_PREFIX +message)
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
@@ -607,10 +610,15 @@ class IrcWidget(ttk.PanedWindow):
                     event.sender or "???", " ".join(event.args)
                 )
 
-            elif isinstance(event, backend.ConnectivityMessage):
-                self.channel_likes[_SERVER_VIEW_ID].on_connectivity_message(
-                    event.message
+            elif isinstance(event, backend.Connecting):
+                for channel_like in self.channel_likes.values():
+                    channel_like.on_connectivity_message(
+                    f"Connecting to {event.host} port {event.port}..."
                 )
+
+            elif isinstance(event, backend.ConnectivityError):
+                for channel_like in self.channel_likes.values():
+                    channel_like.on_connectivity_message(event.message, error=True)
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you
