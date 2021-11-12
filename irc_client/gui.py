@@ -58,8 +58,8 @@ def _fix_tag_coloring_bug() -> None:
 
 
 class UserList:
-    def __init__(self, treeview: ttk.Treeview):
-        self.treeview = treeview
+    def __init__(self, irc_widget: IrcWidget):
+        self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -138,8 +138,7 @@ class View:
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
             "*",
-            "%s is now known as %s."
-            % (colors.color_nick(old), colors.color_nick(new)),
+            "%s is now known as %s." % (colors.color_nick(old), colors.color_nick(new)),
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
@@ -161,9 +160,7 @@ class ChannelView(View):
         self.irc_widget.view_selector.item(
             self.view_id, text=name, image=irc_widget.channel_image
         )
-        self.userlist = UserList(
-            ttk.Treeview(irc_widget, show="tree", selectmode="extended")
-        )
+        self.userlist = UserList(irc_widget)
         self.userlist.set_nicks(nicks)
 
     def destroy_widgets(self) -> None:
@@ -207,7 +204,6 @@ class ChannelView(View):
         super().on_relevant_user_quit(nick, reason)
         self.userlist.remove_user(nick)
 
-    
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
@@ -548,7 +544,9 @@ class IrcWidget(ttk.PanedWindow):
 
             # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
-                self.server_view.add_message(event.sender or "???", " ".join(event.args))
+                self.server_view.add_message(
+                    event.sender or "???", " ".join(event.args)
+                )
 
             elif isinstance(event, backend.ConnectivityMessage):
                 for view in self.views_by_id.values():
