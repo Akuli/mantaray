@@ -3,7 +3,8 @@ def test_basic(alice, bob, wait_until):
     alice.on_enter_pressed()
     wait_until(
         lambda: (
-            "Hello there\n" in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+            "Hello there\n"
+            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
         )
     )
 
@@ -20,7 +21,8 @@ def test_escaped_slash(alice, bob, wait_until):
     alice.on_enter_pressed()
     wait_until(
         lambda: (
-            " /home/alice/codes\n" in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+            " /home/alice/codes\n"
+            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
         )
     )
 
@@ -40,10 +42,18 @@ def test_private_messages(alice, bob, wait_until):
     alice.on_enter_pressed()
     wait_until(lambda: bob._current_channel_like.name == "Alice")
     wait_until(lambda: alice._current_channel_like.name == "Bob")
-    wait_until(lambda: "hello there" in alice.channel_likes["Bob"].textwidget.get("1.0", "end"))
-    wait_until(lambda: "hello there" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+    wait_until(
+        lambda: "hello there" in alice.channel_likes["Bob"].textwidget.get("1.0", "end")
+    )
+    wait_until(
+        lambda: "hello there" in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
+    )
 
     bob.entry.insert("end", "Hey Alice")
     bob.on_enter_pressed()
-    wait_until(lambda: "Hey Alice" in alice.channel_likes["Bob"].textwidget.get("1.0", "end"))
-    wait_until(lambda: "Hey Alice" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+    wait_until(
+        lambda: "Hey Alice" in alice.channel_likes["Bob"].textwidget.get("1.0", "end")
+    )
+    wait_until(
+        lambda: "Hey Alice" in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
+    )

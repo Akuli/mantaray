@@ -19,7 +19,8 @@ def test_join_and_part(alice, bob, wait_until):
     wait_until(lambda: "#lol" not in bob.channel_likes)
     wait_until(
         lambda: (
-            "Bob left #lol.\n" in alice.channel_likes["#lol"].textwidget.get("1.0", "end")
+            "Bob left #lol.\n"
+            in alice.channel_likes["#lol"].textwidget.get("1.0", "end")
         )
     )
     assert bob.core.get_current_config()["joined_channels"] == ["#autojoin"]
@@ -95,7 +96,12 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     alice.entry.insert("end", "/ns identify Alice hunter2")
     alice.on_enter_pressed()
     wait_until(lambda: "Alice" in bob.channel_likes)
-    wait_until(lambda: "identify Alice hunter2\n" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+    wait_until(
+        lambda: (
+            "identify Alice hunter2\n"
+            in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
+        )
+    )
 
     bob.core.change_nick("MemoServ")
     wait_until(
@@ -108,7 +114,12 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     # FIXME: show password with *** in Alice's client?
     alice.entry.insert("end", "/ms send Bob hello there")
     alice.on_enter_pressed()
-    wait_until(lambda: "send Bob hello there\n" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+    wait_until(
+        lambda: (
+            "send Bob hello there\n"
+            in bob.channel_likes["Alice"].textwidget.get("1.0", "end")
+        )
+    )
 
 
 def test_incorrect_usage(alice, wait_until):
@@ -123,4 +134,10 @@ def test_incorrect_usage(alice, wait_until):
         command, outcome = line.split("#")[0].strip().split(" --> ")
         alice.entry.insert("end", command)
         alice.on_enter_pressed()
-        wait_until(lambda: alice.channel_likes["#autojoin"].textwidget.get("end - 1 char - 1 line", "end - 1 char").endswith(outcome + "\n"))
+        wait_until(
+            lambda: (
+                alice.channel_likes["#autojoin"]
+                .textwidget.get("end - 1 char - 1 line", "end - 1 char")
+                .endswith(outcome + "\n")
+            )
+        )

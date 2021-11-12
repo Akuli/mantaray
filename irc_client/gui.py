@@ -349,7 +349,9 @@ class IrcWidget(ttk.PanedWindow):
         )
 
         # Help Python's GC (tkinter images rely on gc and it sucks)
-        self.bind("<Destroy>", (lambda e: setattr(self, "_channel_image", None)), add=True)
+        self.bind(
+            "<Destroy>", (lambda e: setattr(self, "_channel_image", None)), add=True
+        )
         self.bind("<Destroy>", (lambda e: setattr(self, "_pm_image", None)), add=True)
 
         _fix_tag_coloring_bug()
