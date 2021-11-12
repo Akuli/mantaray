@@ -44,7 +44,6 @@ def hircd():
         .decode("ascii")
     )
     if actual_commit != correct_commit:
-        print((actual_commit, correct_commit))
         subprocess.check_call(["git", "fetch"], cwd=hircd_repo)
         subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
 
