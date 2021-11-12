@@ -157,6 +157,7 @@ class IrcCore:
         self._recv_buffer: collections.deque[str] = collections.deque()
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
+        self.threads: list[threading.Thread] = []
 
         # TODO: is automagic RPL_NAMREPLY in an rfc??
         # TODO: what do the rfc's say about huge NAMES replies with more nicks
@@ -179,8 +180,14 @@ class IrcCore:
         }
 
     def start(self) -> None:
-        threading.Thread(target=self._send_loop).start()
-        threading.Thread(target=self._connect_and_recv_loop).start()
+        self.threads.append(threading.Thread(target=self._send_loop))
+        self.threads.append(threading.Thread(target=self._connect_and_recv_loop))
+        for thread in self.threads:
+            thread.start()
+
+    def wait_until_stopped(self) -> None:
+        for thread in self.threads:
+            thread.join()
 
     def _connect_and_recv_loop(self) -> None:
         while True:
