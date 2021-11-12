@@ -157,7 +157,7 @@ class IrcCore:
         self._recv_buffer: collections.deque[str] = collections.deque()
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
-        self.threads: list[threading.Thread] = []
+        self._threads: list[threading.Thread] = []
 
         # TODO: is automagic RPL_NAMREPLY in an rfc??
         # TODO: what do the rfc's say about huge NAMES replies with more nicks
