@@ -3,11 +3,9 @@
 from __future__ import annotations
 import collections
 import dataclasses
-import logging
 import queue
 import ssl
 import re
-import time
 import socket
 import threading
 import traceback
