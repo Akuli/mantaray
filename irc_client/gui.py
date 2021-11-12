@@ -138,18 +138,18 @@ class View:
         # notify about the nick change everywhere, by putting this to base class
         self.add_message("*", "You are now known as %s." % colors.color_nick(new))
 
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        msg = f"{colors.color_nick(nick)} quit."
-        if reason is not None:
-            msg += f" ({reason})"
-        self.add_message("*", msg)
-
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
             "*",
             "%s is now known as %s."
             % (colors.color_nick(old), colors.color_nick(new)),
         )
+
+    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
+        msg = f"{colors.color_nick(nick)} quit."
+        if reason is not None:
+            msg += f" ({reason})"
+        self.add_message("*", msg)
 
 
 class ServerView(View):
@@ -187,17 +187,14 @@ class ChannelView(View):
 
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
-        self.add_message("*", "%s joined %s." % (colors.color_nick(nick), self.name))
+        self.add_message("*", f"{colors.color_nick(nick)} joined {self.name}.")
 
     def on_part(self, nick: str, reason: str | None) -> None:
+        self.userlist.remove_user(nick)
         msg = f"{colors.color_nick(nick)} left {self.name}."
         if reason is not None:
             msg += f" ({reason})"
         self.add_message("*", msg)
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        super().on_relevant_user_quit(nick, reason)
-        self.userlist.remove_user(nick)
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         super().on_self_changed_nick(old, new)
@@ -209,6 +206,11 @@ class ChannelView(View):
         self.userlist.remove_user(old)
         self.userlist.add_user(new)
 
+    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
+        super().on_relevant_user_quit(nick, reason)
+        self.userlist.remove_user(nick)
+
+    
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
