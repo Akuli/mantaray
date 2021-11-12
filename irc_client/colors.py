@@ -136,7 +136,6 @@ class ColoredText(tkinter.Text):
 
     def colored_insert(self, index: str, text: str, pinged: bool) -> None:
         """Like insert(), but interprets special color sequences correctly."""
-        print(repr(text))
         for substring, fg, bg, bold, underline in _parse_styles(text):
             tags = []
             if pinged:

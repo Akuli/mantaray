@@ -6,7 +6,6 @@ from irc_client.backend import IrcCore
 _CommandT = TypeVar("_CommandT", bound=Callable[[str], Optional[str]])
 
 
-# TODO: this stuff needs tests and seems easy enough to test
 class CommandHandler:
     def __init__(self, core: IrcCore):
         self.irc_core = core
@@ -44,11 +43,7 @@ class CommandHandler:
 
         The return value can also be ``None`` to show no message.
         """
-        if not name.startswith("/"):
-            raise ValueError(
-                "%r is an invalid command name because command "
-                "names must start with '/'" % name
-            )
+        assert name.startswith("/")
 
         def do_it(func: _CommandT) -> _CommandT:
             self._commands[name] = func
@@ -56,7 +51,6 @@ class CommandHandler:
 
         return do_it
 
-    # TODO: something for adding more commands?
     def _add_default_commands(self) -> None:
         @self.add_command("/join")
         def join(channel: str) -> str | None:

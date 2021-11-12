@@ -377,8 +377,6 @@ class IrcWidget(ttk.PanedWindow):
         self._current_channel_like: ChannelLikeView | None = None
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
 
-        self._quitting = False
-
     def focus_the_entry(self) -> None:
         self.entry.focus()
 
@@ -517,7 +515,7 @@ class IrcWidget(ttk.PanedWindow):
 
             elif isinstance(event, backend.SelfParted):
                 self.remove_channel_like(self.channel_likes[event.channel])
-                if event.channel in self.core.autojoin and not self._quitting:
+                if event.channel in self.core.autojoin:
                     self.core.autojoin.remove(event.channel)
 
             elif isinstance(event, backend.SelfChangedNick):
@@ -651,12 +649,3 @@ class IrcWidget(ttk.PanedWindow):
             if "new_message" in tags:
                 result += 1
         return result
-
-    def part_all_channels_and_quit(self) -> None:
-        """Call this to get out of IRC."""
-        self._quitting = True
-        for name, channel_like in self.channel_likes.items():
-            if channel_like.is_channel():
-                # TODO: add a reason here?
-                self.core.part_channel(name)
-        self.core.quit()

@@ -259,7 +259,7 @@ class IrcCore:
         elif msg.command == "QUIT":
             assert msg.sender is not None
             reason = msg.args[0] if msg.args else None
-            self.event_queue.put(UserQuit(msg.sender, reason))
+            self.event_queue.put(UserQuit(msg.sender, reason or None))
 
         elif msg.sender_is_server:
             if msg.command == _RPL_NAMREPLY:
