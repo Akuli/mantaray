@@ -47,7 +47,7 @@ ERROR_PREFIX = _COLOR + "4"
 def _parse_styles(
     text: str,
 ) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
-    style_regex = r"\x02|\x1f|\x03\d{1,2}(?:,\d{1,2})?|\x0f"
+    style_regex = r"\x02|\x1f|\x03[0-9]{1,2}(?:,[0-9]{1,2})?|\x0f"
 
     # parts contains matched parts of the regex followed by texts
     # between those matched parts
@@ -69,7 +69,7 @@ def _parse_styles(
             underline = True
         elif style_spec.startswith(_COLOR):
             # _COLOR == '\x03'
-            match = re.fullmatch(r"\x03(\d{1,2})(,\d{1,2})?", style_spec)
+            match = re.fullmatch(r"\x03([0-9]{1,2})(,[0-9]{1,2})?", style_spec)
             assert match is not None
             fg_spec, bg_spec = match.groups()
 
