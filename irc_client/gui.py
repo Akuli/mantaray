@@ -122,9 +122,6 @@ class View:
         if do_the_scroll:
             self.textwidget.see("end")
 
-    def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        self.add_message(sender, message, pinged=pinged)
-
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         if error:
             self.add_message("", colors.ERROR_PREFIX + message)
@@ -223,6 +220,9 @@ class PMView(View):
     @property
     def nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
+
+    def on_privmsg(self, sender: str, message: str) -> None:
+        self.add_message(sender, message)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user
@@ -508,9 +508,7 @@ class IrcWidget(ttk.PanedWindow):
 
             elif isinstance(event, backend.SentPrivmsg):
                 channel_view = self.find_channel(event.recipient)
-                if channel_view is not None:
-                    channel_view.on_privmsg(self.core.nick, event.text)
-                else:
+                if channel_view is None:
                     assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
                     pm_view = self.find_pm(event.recipient)
                     if pm_view is None:
@@ -518,6 +516,8 @@ class IrcWidget(ttk.PanedWindow):
                         pm_view = PMView(self, event.recipient)
                         self.add_view(pm_view)
                     pm_view.on_privmsg(self.core.nick, event.text)
+                else:
+                    channel_view.on_privmsg(self.core.nick, event.text)
 
             elif isinstance(event, backend.ReceivedPrivmsg):
                 # sender and recipient are channels or nicks
@@ -548,8 +548,7 @@ class IrcWidget(ttk.PanedWindow):
 
             # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
-                # not strictly a privmsg, but handled the same way
-                self.server_view.on_privmsg(event.sender or "???", " ".join(event.args))
+                self.server_view.add_message(event.sender or "???", " ".join(event.args))
 
             elif isinstance(event, backend.ConnectivityMessage):
                 for view in self.views_by_id.values():
