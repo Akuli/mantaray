@@ -79,3 +79,48 @@ def test_invalid_command(alice, wait_until):
             in alice.channel_likes["#autojoin"].textwidget.get("1.0", "end")
         )
     )
+
+
+def test_nickserv_and_memoserv(alice, bob, wait_until):
+    # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
+    bob.core.change_nick("NickServ")
+    wait_until(
+        lambda: (
+            "You are now known as NickServ.\n"
+            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+        )
+    )
+
+    # FIXME: show password with *** in Alice's client?
+    alice.entry.insert("end", "/ns identify Alice hunter2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "Alice" in bob.channel_likes)
+    wait_until(lambda: "identify Alice hunter2\n" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+
+    bob.core.change_nick("MemoServ")
+    wait_until(
+        lambda: (
+            "You are now known as MemoServ.\n"
+            in bob.channel_likes["#autojoin"].textwidget.get("1.0", "end")
+        )
+    )
+
+    # FIXME: show password with *** in Alice's client?
+    alice.entry.insert("end", "/ms send Bob hello there")
+    alice.on_enter_pressed()
+    wait_until(lambda: "send Bob hello there\n" in bob.channel_likes["Alice"].textwidget.get("1.0", "end"))
+
+
+def test_incorrect_usage(alice, wait_until):
+    test_cases = """\
+/join --> Usage: /join <channel>
+/part --> Usage: /part <channel>
+/nick --> Usage: /nick <new_nick>
+/msg --> Usage: /msg <nick> <message>
+/msg Bob --> Usage: /msg <nick> <message>  # TODO: maybe should be supported?
+"""
+    for line in test_cases.splitlines():
+        command, outcome = line.split("#")[0].strip().split(" --> ")
+        alice.entry.insert("end", command)
+        alice.on_enter_pressed()
+        wait_until(lambda: alice.channel_likes["#autojoin"].textwidget.get("end - 1 char - 1 line", "end - 1 char").endswith(outcome + "\n"))

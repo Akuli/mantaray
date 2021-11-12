@@ -348,6 +348,10 @@ class IrcWidget(ttk.PanedWindow):
             file=os.path.join(images_dir, "face-20x20.png")
         )
 
+        # Help Python's GC (tkinter images rely on gc and it sucks)
+        self.bind("<Destroy>", (lambda e: setattr(self, "_channel_image", None)), add=True)
+        self.bind("<Destroy>", (lambda e: setattr(self, "_pm_image", None)), add=True)
+
         _fix_tag_coloring_bug()
         treeview = ttk.Treeview(self, show="tree", selectmode="browse")
         treeview.tag_configure("new_message", foreground="red")
