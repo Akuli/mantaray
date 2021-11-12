@@ -76,7 +76,7 @@ def alice(hircd, root_window, wait_until):
             "joined_channels": ["#autojoin"],
         },
     )
-    widget.pack()
+    widget.pack(fill="both", expand=True)
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
     yield widget
@@ -96,7 +96,7 @@ def bob(hircd, root_window, wait_until):
             "joined_channels": ["#autojoin"],
         },
     )
-    widget.pack()
+    widget.pack(fill="both", expand=True)
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
     yield widget

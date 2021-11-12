@@ -477,6 +477,7 @@ class IrcWidget(ttk.PanedWindow):
         self._channel_selector.select_something_else(channel_like.name)
         self._channel_selector.remove(channel_like.name)
         channel_like.destroy_widgets()
+        del self.channel_likes[channel_like.name]
 
     # this must be called when someone that the user PM's with changes nick
     # channels and the special server channel-like can't be renamed
@@ -525,7 +526,6 @@ class IrcWidget(ttk.PanedWindow):
                     channel_like.on_self_changed_nick(event.old, event.new)
 
             elif isinstance(event, backend.SelfQuit):
-                print("gui got SelfQuit event from core")
                 if self._on_quit is None:
                     self.destroy()
                 else:
