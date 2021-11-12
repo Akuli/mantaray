@@ -2,3 +2,4 @@ black==21.10b0
 pyflakes==2.4.0
 mypy==0.910
 types-appdirs==1.4.1
+pytest==6.2.5

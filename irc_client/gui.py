@@ -331,7 +331,7 @@ class IrcWidget(ttk.PanedWindow):
         self,
         master: tkinter.Misc,
         server_config: config.ServerConfig,
-        on_quit: Callable[[], object],
+        on_quit: Callable[[], object] | None = None,
     ):
         super().__init__(master, orient="horizontal")
         self.core = backend.IrcCore(server_config)
@@ -367,43 +367,43 @@ class IrcWidget(ttk.PanedWindow):
             command=self._show_change_nick_dialog,
         )
         self._nickbutton.pack(side="left")
-        self._entry = ttk.Entry(entryframe)
-        self._entry.pack(side="left", fill="both", expand=True)
-        self._entry.bind("<Return>", self._on_enter_pressed)
-        self._entry.bind("<Tab>", self._autocomplete)
+        self.entry = ttk.Entry(entryframe)
+        self.entry.pack(side="left", fill="both", expand=True)
+        self.entry.bind("<Return>", self.on_enter_pressed)
+        self.entry.bind("<Tab>", self.autocomplete)
 
         # {channel_like.name: channel_like}
-        self._channel_likes: dict[str, ChannelLikeView] = {}
+        self.channel_likes: dict[str, ChannelLikeView] = {}
         self._current_channel_like: ChannelLikeView | None = None
         self.add_channel_like(ChannelLikeView(self, _SERVER_VIEW_ID))
 
         self._quitting = False
 
     def focus_the_entry(self) -> None:
-        self._entry.focus()
+        self.entry.focus()
 
     def _show_change_nick_dialog(self) -> None:
         new_nick = ask_new_nick(self.winfo_toplevel(), self.core.nick)
         if new_nick != self.core.nick:
             self.core.change_nick(new_nick)
 
-    def _on_enter_pressed(self, event: object) -> None:
+    def on_enter_pressed(self, junk_event: object = None) -> None:
         assert self._current_channel_like is not None
         response = self._command_handler.handle_command(
-            self._current_channel_like.name, self._entry.get()
+            self._current_channel_like.name, self.entry.get()
         )
-        self._entry.delete(0, "end")
+        self.entry.delete(0, "end")
         if response is not None:
             self._current_channel_like.add_message("*", response)
 
     # TODO: shift+tab = backwards ?
-    def _autocomplete(self, event: object) -> None:
+    def autocomplete(self, junk_event: object = None) -> None:
         channel_like = self._current_channel_like
         assert channel_like is not None
         if channel_like.userlist is None:
             return
 
-        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self._entry.get())
+        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self.entry.get())
         if match is None:
             return
         preceding_text, last_word = match.groups()  # preceding_text can be None
@@ -426,13 +426,13 @@ class IrcWidget(ttk.PanedWindow):
             new_text = preceding_text + completion + " "
         else:
             new_text = completion + ": "
-        self._entry.delete(0, "end")
-        self._entry.insert(0, new_text)
-        self._entry.icursor("end")
+        self.entry.delete(0, "end")
+        self.entry.insert(0, new_text)
+        self.entry.icursor("end")
 
     def _on_selection(self, event: object) -> None:
         (name,) = self._channel_selector.widget.selection()
-        new_channel_like = self._channel_likes[name]
+        new_channel_like = self.channel_likes[name]
         if self._current_channel_like is not None:
             # not running for the first time
             if self._current_channel_like is new_channel_like:
@@ -451,14 +451,14 @@ class IrcWidget(ttk.PanedWindow):
         self.mark_seen()
 
     def add_channel_like(self, channel_like: ChannelLikeView) -> None:
-        assert channel_like.name not in self._channel_likes
-        self._channel_likes[channel_like.name] = channel_like
+        assert channel_like.name not in self.channel_likes
+        self.channel_likes[channel_like.name] = channel_like
 
         self._channel_selector.append(channel_like.name)
         self._channel_selector.widget.selection_set(channel_like.name)
 
         if channel_like.name == _SERVER_VIEW_ID:
-            assert len(self._channel_likes) == 1
+            assert len(self.channel_likes) == 1
             self._channel_selector.widget.item(channel_like.name, text=self.core.host)
         elif channel_like.is_channel():
             self._channel_selector.widget.item(
@@ -485,13 +485,13 @@ class IrcWidget(ttk.PanedWindow):
             old_name != _SERVER_VIEW_ID and new_name != _SERVER_VIEW_ID
         ), "cannot rename the server channel-like"
 
-        if new_name in self._channel_likes:
+        if new_name in self.channel_likes:
             # unlikely to ever happen, but possible with a funny
             # combination of nick changes... lol
-            self.remove_channel_like(self._channel_likes[new_name])
+            self.remove_channel_like(self.channel_likes[new_name])
 
-        self._channel_likes[new_name] = self._channel_likes.pop(old_name)
-        self._channel_likes[new_name].name = new_name
+        self.channel_likes[new_name] = self.channel_likes.pop(old_name)
+        self.channel_likes[new_name].name = new_name
         index = self._channel_selector.index(old_name)
         self._channel_selector[index] = new_name
 
@@ -515,36 +515,39 @@ class IrcWidget(ttk.PanedWindow):
                     self.core.autojoin.append(event.channel)
 
             elif isinstance(event, backend.SelfParted):
-                self.remove_channel_like(self._channel_likes[event.channel])
+                self.remove_channel_like(self.channel_likes[event.channel])
                 if event.channel in self.core.autojoin and not self._quitting:
                     self.core.autojoin.remove(event.channel)
 
             elif isinstance(event, backend.SelfChangedNick):
                 self._nickbutton["text"] = event.new
-                for channel_like in self._channel_likes.values():
+                for channel_like in self.channel_likes.values():
                     channel_like.on_self_changed_nick(event.old, event.new)
 
             elif isinstance(event, backend.SelfQuit):
                 print("gui got SelfQuit event from core")
-                self._on_quit()
+                if self._on_quit is None:
+                    self.destroy()
+                else:
+                    self._on_quit()
                 self.after_cancel(next_call_id)
                 return  # don't run self.handle_events again
 
             elif isinstance(event, backend.UserJoined):
-                self._channel_likes[event.channel].on_join(event.nick)
+                self.channel_likes[event.channel].on_join(event.nick)
 
             elif isinstance(event, backend.UserChangedNick):
-                if event.old in self._channel_likes:  # a PM conversation
+                if event.old in self.channel_likes:  # a PM conversation
                     self.rename_channel_like(event.old, event.new)
 
-                for channel_like in self._channel_likes.values():
+                for channel_like in self.channel_likes.values():
                     channel_like.on_user_changed_nick(event.old, event.new)
 
             elif isinstance(event, backend.UserParted):
-                self._channel_likes[event.channel].on_part(event.nick, event.reason)
+                self.channel_likes[event.channel].on_part(event.nick, event.reason)
 
             elif isinstance(event, backend.UserQuit):
-                for channel_like in self._channel_likes.values():
+                for channel_like in self.channel_likes.values():
                     if channel_like.name == _SERVER_VIEW_ID:
                         continue
 
@@ -557,12 +560,12 @@ class IrcWidget(ttk.PanedWindow):
                         channel_like.on_quit(event.nick, event.reason)
 
             elif isinstance(event, backend.SentPrivmsg):
-                if event.recipient not in self._channel_likes:
+                if event.recipient not in self.channel_likes:
                     # start of a new PM conversation with a nick
                     assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
                     self.add_channel_like(ChannelLikeView(self, event.recipient))
 
-                self._channel_likes[event.recipient].on_privmsg(
+                self.channel_likes[event.recipient].on_privmsg(
                     self.core.nick, event.text
                 )
 
@@ -570,7 +573,7 @@ class IrcWidget(ttk.PanedWindow):
                 # sender and recipient are channels or nicks
                 if event.recipient == self.core.nick:  # PM
                     pinged = True
-                    if event.sender not in self._channel_likes:
+                    if event.sender not in self.channel_likes:
                         # create a new channel-like for the conversation
                         self.add_channel_like(ChannelLikeView(self, event.sender))
                     channel_like_name = event.sender
@@ -587,7 +590,7 @@ class IrcWidget(ttk.PanedWindow):
                     pinged = self.core.nick.lower() in mentioned
                     msg_with_sender = f"<{event.sender}> {event.text}"
 
-                self._channel_likes[channel_like_name].on_privmsg(
+                self.channel_likes[channel_like_name].on_privmsg(
                     event.sender, event.text, pinged=pinged
                 )
                 if pinged:
@@ -596,12 +599,12 @@ class IrcWidget(ttk.PanedWindow):
             # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 # not strictly a privmsg, but handled the same way
-                self._channel_likes[_SERVER_VIEW_ID].on_privmsg(
+                self.channel_likes[_SERVER_VIEW_ID].on_privmsg(
                     event.sender or "???", " ".join(event.args)
                 )
 
             elif isinstance(event, backend.ConnectivityMessage):
-                self._channel_likes[_SERVER_VIEW_ID].on_connectivity_message(
+                self.channel_likes[_SERVER_VIEW_ID].on_connectivity_message(
                     event.message
                 )
 
@@ -643,7 +646,7 @@ class IrcWidget(ttk.PanedWindow):
         have changed.
         """
         result = 0
-        for name in self._channel_likes.keys() - {_SERVER_VIEW_ID}:
+        for name in self.channel_likes.keys() - {_SERVER_VIEW_ID}:
             tags = self._channel_selector.widget.item(name, "tags")
             if "new_message" in tags:
                 result += 1
@@ -652,7 +655,7 @@ class IrcWidget(ttk.PanedWindow):
     def part_all_channels_and_quit(self) -> None:
         """Call this to get out of IRC."""
         self._quitting = True
-        for name, channel_like in self._channel_likes.items():
+        for name, channel_like in self.channel_likes.items():
             if channel_like.is_channel():
                 # TODO: add a reason here?
                 self.core.part_channel(name)
