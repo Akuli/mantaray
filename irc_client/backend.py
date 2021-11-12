@@ -116,7 +116,7 @@ _IrcEvent = Union[
     ConnectivityMessage,
 ]
 
-RECONNECT_SECONDS = 1
+RECONNECT_SECONDS = 10
 
 
 def _recv_line(
