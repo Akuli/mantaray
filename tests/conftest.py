@@ -38,14 +38,20 @@ def hircd():
         )
 
     correct_commit = "d1ab8a40e0921626fef276431ee0dcd4d3e53403"  # on py3 branch
-    actual_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo).strip().decode("ascii")
+    actual_commit = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
+        .strip()
+        .decode("ascii")
+    )
     if actual_commit != correct_commit:
         print((actual_commit, correct_commit))
         subprocess.check_call(["git", "fetch"], cwd=hircd_repo)
         subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
 
     process = subprocess.Popen(
-        [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"], stderr=subprocess.PIPE, cwd=hircd_repo
+        [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
+        stderr=subprocess.PIPE,
+        cwd=hircd_repo,
     )
 
     # Wait for hircd to start
@@ -61,13 +67,16 @@ def hircd():
 
 @pytest.fixture
 def alice(hircd, root_window, wait_until):
-    widget = gui.IrcWidget(root_window, {
-        **hircd,
-        "nick": "Alice",
-        "username": "alice",
-        "realname": "Alice's real name",
-        "joined_channels": ["#autojoin"],
-    })
+    widget = gui.IrcWidget(
+        root_window,
+        {
+            **hircd,
+            "nick": "Alice",
+            "username": "alice",
+            "realname": "Alice's real name",
+            "joined_channels": ["#autojoin"],
+        },
+    )
     widget.pack()
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
@@ -78,13 +87,16 @@ def alice(hircd, root_window, wait_until):
 
 @pytest.fixture
 def bob(hircd, root_window, wait_until):
-    widget = gui.IrcWidget(root_window, {
-        **hircd,
-        "nick": "Bob",
-        "username": "bob",
-        "realname": "Bob's real name",
-        "joined_channels": ["#autojoin"],
-    })
+    widget = gui.IrcWidget(
+        root_window,
+        {
+            **hircd,
+            "nick": "Bob",
+            "username": "bob",
+            "realname": "Bob's real name",
+            "joined_channels": ["#autojoin"],
+        },
+    )
     widget.pack()
     widget.handle_events()
     wait_until(lambda: "#autojoin" in widget.channel_likes)
