@@ -217,7 +217,7 @@ class ChannelLikeView:
         if error:
             self.add_message("", colors.ERROR_PREFIX + message)
         else:
-            self.add_message("", colors.INFO_PREFIX +message)
+            self.add_message("", colors.INFO_PREFIX + message)
 
     def on_join(self, nick: str) -> None:
         """Called when another user joins this channel."""
@@ -619,7 +619,9 @@ class IrcWidget(ttk.PanedWindow):
 
             elif isinstance(event, backend.ConnectivityMessage):
                 for channel_like in self.channel_likes.values():
-                    channel_like.on_connectivity_message(event.message, error=event.is_error)
+                    channel_like.on_connectivity_message(
+                        event.message, error=event.is_error
+                    )
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you

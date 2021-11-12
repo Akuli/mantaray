@@ -89,7 +89,7 @@ def alice_and_bob(hircd, root_window, wait_until):
         widgets[name] = gui.IrcWidget(
             root_window,
             {
-                "host": 'localhost',
+                "host": "localhost",
                 "port": 6667,
                 "ssl": False,
                 "nick": name,

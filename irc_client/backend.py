@@ -195,11 +195,18 @@ class IrcCore:
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
             try:
-                self.event_queue.put(ConnectivityMessage(f"Connecting to {self.host} port {self.port}...", is_error=False))
+                self.event_queue.put(
+                    ConnectivityMessage(
+                        f"Connecting to {self.host} port {self.port}...", is_error=False
+                    )
+                )
                 self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}", is_error=True)
+                    ConnectivityMessage(
+                        f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}",
+                        is_error=True,
+                    )
                 )
                 self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
