@@ -27,7 +27,7 @@ class ServerConfig(TypedDict):
     username: str
     realname: str
     joined_channels: list[str]
-    extra_notifications: list[str]  # notify for all messages
+    extra_notifications: list[str]  # channels to notify for all messages
 
 
 class Config(TypedDict):
