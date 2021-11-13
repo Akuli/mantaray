@@ -559,6 +559,9 @@ class IrcWidget(ttk.PanedWindow):
                 # forgot to check for some class
                 print("can't happen")  # type: ignore
 
+    def _window_has_focus(self) -> bool:
+        return bool(self.tk.eval("focus"))
+
     # TODO: /me's and stuff should also call this when they are supported
     def _new_message_notify(
         self, view: ChannelView | PMView, message_with_sender: str
@@ -568,7 +571,7 @@ class IrcWidget(ttk.PanedWindow):
         else:
             channel_name_or_nick = view.nick
 
-        if not self.tk.eval("focus"):  # window not focused
+        if not self._window_has_focus():
             _show_popup(channel_name_or_nick, message_with_sender)
 
         if view != self.get_current_view():
