@@ -339,6 +339,8 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)
+        self.entry.bind("<Prior>", self._on_page_up)
+        self.entry.bind("<Next>", self._on_page_down)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -367,6 +369,12 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.delete(0, "end")
         if response is not None:
             view.add_message("*", response)
+
+    def _on_page_up(self, junk_event: object) -> None:
+        self.get_current_view().textwidget.yview_scroll(-1, "pages")
+
+    def _on_page_down(self, junk_event: object) -> None:
+        self.get_current_view().textwidget.yview_scroll(1, "pages")
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()
