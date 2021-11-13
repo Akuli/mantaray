@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 import tkinter
 import tkinter.font as tkfont
-from typing import Any, Iterator, Sequence
+from typing import Iterator, Sequence
 
 from . import backend
 
@@ -112,50 +112,43 @@ def color_nick(nick: str) -> str:
     return _BOLD + _COLOR + str(color) + nick + _BACK_TO_NORMAL
 
 
-class ColoredText(tkinter.Text):
-    def __init__(self, master: tkinter.Misc, **kwargs: Any):
-        kwargs.setdefault("fg", _MIRC_COLORS[0])
-        kwargs.setdefault("bg", _MIRC_COLORS[1])
-        super().__init__(master, **kwargs)
+def config_tags(textwidget: tkinter.Text) -> None:
+    textwidget.config(fg=_MIRC_COLORS[0], bg=_MIRC_COLORS[1])
 
-        # tags support underlining, but no bolding (lol)
-        # TODO: allow custom font families and sizes
-        this_font = tkfont.Font(name=self["font"], exists=True)
-        self._bold_font = tkfont.Font(weight="bold")
-        for key, value in this_font.actual().items():
-            if key != "weight":
-                self._bold_font[key] = value
+    # tags support underlining, but no bolding (lol)
+    # TODO: user can choose custom font?
+    font = tkfont.Font(name=textwidget["font"], exists=True)
+    textwidget.tag_configure("bold", font=(font["family"], font["size"], "bold"))
 
-        self.tag_configure("underline", underline=True)
-        self.tag_configure("bold", font=self._bold_font)
-        self.tag_configure("pinged", foreground=_MIRC_COLORS[9])
-        for number, hexcolor in _MIRC_COLORS.items():
-            self.tag_configure("foreground-%d" % number, foreground=hexcolor)
-            self.tag_configure("background-%d" % number, background=hexcolor)
-            self.tag_raise("foreground-%d" % number, "pinged")
-            self.tag_raise("background-%d" % number, "pinged")
+    textwidget.tag_configure("underline", underline=True)
+    textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
+    for number, hexcolor in _MIRC_COLORS.items():
+        textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
+        textwidget.tag_configure(f"background-{number}", background=hexcolor)
+        textwidget.tag_raise(f"foreground-{number}", "pinged")
+        textwidget.tag_raise(f"background-{number}", "pinged")
 
-    def colored_insert(self, index: str, text: str, pinged: bool) -> None:
-        """Like insert(), but interprets special color sequences correctly."""
-        for substring, fg, bg, bold, underline in _parse_styles(text):
-            tags = []
-            if pinged:
-                tags.append("pinged")
-            if fg is not None:
-                tags.append("foreground-%d" % fg)
-            if bg is not None:
-                tags.append("background-%d" % bg)
-            if bold:
-                tags.append("bold")
-            if underline:
-                tags.append("underline")
-            self.insert(index, substring, tags)
 
-    def nicky_insert(
-        self, index: str, text: str, known_nicks: Sequence[str], pinged: bool
-    ) -> None:
-        for match in reversed(backend.find_nicks(text, known_nicks)):
-            text = (
-                text[: match.start()] + color_nick(match.group(0)) + text[match.end() :]
-            )
-        self.colored_insert(index, text, pinged)
+def add_text(
+    textwidget: tkinter.Text,
+    text: str,
+    *,
+    known_nicks: Sequence[str] = [],
+    pinged: bool = False,
+) -> None:
+    for match in reversed(backend.find_nicks(text, known_nicks)):
+        text = text[: match.start()] + color_nick(match.group(0)) + text[match.end() :]
+
+    for substring, fg, bg, bold, underline in _parse_styles(text):
+        tags = []
+        if pinged:
+            tags.append("pinged")
+        if fg is not None:
+            tags.append("foreground-%d" % fg)
+        if bg is not None:
+            tags.append("background-%d" % bg)
+        if bold:
+            tags.append("bold")
+        if underline:
+            tags.append("underline")
+        textwidget.insert("end", substring, tags)
