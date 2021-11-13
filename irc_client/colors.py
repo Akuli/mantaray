@@ -156,7 +156,7 @@ class ColoredText(tkinter.Text):
         self, index: str, text: str, known_nicks: Sequence[str], pinged: bool
     ) -> None:
         """Like colored_insert(), but colors nicks in known_nicks."""
-        # FIXME: case insensitivity
+        # FIXME: case insensitivity (#45)
         result_chars = list(text)
         matches = [
             match
