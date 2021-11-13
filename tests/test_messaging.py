@@ -88,4 +88,6 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
             in bob.find_channel("#bobnotify").textwidget.get("1.0", "end")
         )
     )
-    gui._show_popup.assert_called_once_with("#bobnotify", "<Alice> this should cause notification")
+    gui._show_popup.assert_called_once_with(
+        "#bobnotify", "<Alice> this should cause notification"
+    )

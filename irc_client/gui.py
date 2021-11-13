@@ -313,11 +313,17 @@ class IrcWidget(ttk.PanedWindow):
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
-        if sys.platform == "darwin" :
-            self.view_selector.bind("<Button-2>", self._view_selector_right_click, add=True)
-            self.view_selector.bind("<Control-Button-1>", self._view_selector_right_click, add=True)
+        if sys.platform == "darwin":
+            self.view_selector.bind(
+                "<Button-2>", self._view_selector_right_click, add=True
+            )
+            self.view_selector.bind(
+                "<Control-Button-1>", self._view_selector_right_click, add=True
+            )
         else:
-            self.view_selector.bind("<Button-3>", self._view_selector_right_click, add=True)
+            self.view_selector.bind(
+                "<Button-3>", self._view_selector_right_click, add=True
+            )
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)  # always stretch
@@ -452,7 +458,9 @@ class IrcWidget(ttk.PanedWindow):
                 return view
         return None
 
-    def _view_selector_right_click(self, event: tkinter.Event[tkinter.ttk.Treeview]) -> None:
+    def _view_selector_right_click(
+        self, event: tkinter.Event[tkinter.ttk.Treeview]
+    ) -> None:
         item_id = self.view_selector.identify_row(event.y)
         if not item_id:
             return
@@ -476,7 +484,9 @@ class IrcWidget(ttk.PanedWindow):
         self._garbage_collection_is_lol = var
 
         self._contextmenu.delete(0, "end")
-        self._contextmenu.add_checkbutton(label="Show notifications for all messages", variable=var)
+        self._contextmenu.add_checkbutton(
+            label="Show notifications for all messages", variable=var
+        )
         self._contextmenu.tk_popup(event.x_root, event.y_root)
 
     def handle_events(self) -> None:
