@@ -59,6 +59,7 @@ def test_private_messages(alice, bob, wait_until):
 
 def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch):
     monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
+
     alice.entry.insert("end", "hey bob")  # bob vs Bob shouldn't matter
     alice.on_enter_pressed()
     alice.entry.insert("end", "this unrelated message shouldn't cause notifications")
@@ -69,3 +70,24 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
         )
     )
     gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
+
+
+def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
+    monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
+
+    alice.core.join_channel("#bobnotify")
+    bob.core.join_channel("#bobnotify")
+    wait_until(lambda: alice.find_channel("#bobnotify"))
+    wait_until(lambda: bob.find_channel("#bobnotify"))
+
+    alice.entry.insert("end", "this should cause notification")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            "this should cause notification"
+            in bob.find_channel("#bobnotify").textwidget.get("1.0", "end")
+        )
+    )
+    gui._show_popup.assert_called_once_with(
+        "#bobnotify", "<Alice> this should cause notification"
+    )

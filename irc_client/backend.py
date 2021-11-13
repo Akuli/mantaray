@@ -144,7 +144,7 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig):
         self.host = server_config["host"]
         self.port = server_config["port"]
-        self._ssl = server_config["ssl"]
+        self.ssl = server_config["ssl"]
         self.nick = server_config["nick"]
         self.username = server_config["username"]
         self.realname = server_config["realname"]
@@ -167,17 +167,6 @@ class IrcCore:
         self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
 
         self._quit_event = threading.Event()
-
-    def get_current_config(self) -> config.ServerConfig:
-        return {
-            "host": self.host,
-            "port": self.port,
-            "ssl": self._ssl,
-            "nick": self.nick,
-            "username": self.username,
-            "realname": self.realname,
-            "joined_channels": self.autojoin.copy(),
-        }
 
     def start(self) -> None:
         assert not self._threads
@@ -375,7 +364,7 @@ class IrcCore:
         assert self._sock is None
 
         try:
-            if self._ssl:
+            if self.ssl:
                 context = ssl.create_default_context()
                 sock: socket.socket | ssl.SSLSocket = context.wrap_socket(
                     socket.socket(), server_hostname=self.host

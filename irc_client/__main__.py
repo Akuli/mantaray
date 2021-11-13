@@ -16,7 +16,6 @@ def update_title(
     root.title(title)
 
 
-# TODO: current_channel_like_notify and mark_seen()
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -41,6 +40,7 @@ def main() -> None:
                 "username": getuser(),
                 "realname": getuser(),
                 "joined_channels": ["##learnpython"],
+                "extra_notifications": [],
             },
         )
         if server_config is None:
@@ -63,7 +63,7 @@ def main() -> None:
     root.mainloop()
 
     if not args.no_config:
-        new_config = irc_widget.core.get_current_config()
+        new_config = irc_widget.get_current_config()
         config.save_to_file({"servers": [new_config]})
 
 
