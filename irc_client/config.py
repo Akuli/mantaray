@@ -206,8 +206,6 @@ class _ServerConfigurer(ttk.Frame):
             return False
         # TODO: can realname be empty?
 
-        from .backend import NICK_REGEX, CHANNEL_REGEX
-
         if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
             self._statuslabel.config(
                 text=f"'{self._nick_entry.get()}' is not a valid nickname."

@@ -567,12 +567,7 @@ class IrcWidget(ttk.PanedWindow):
                     channel_view = self.find_channel(event.recipient)
                     assert channel_view is not None
 
-                    mentioned = [
-                        nick.lower()
-                        for nick in re.findall(backend.NICK_REGEX, event.text)
-                    ]
-                    pinged = self.core.nick.lower() in mentioned
-
+                    pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
                     if pinged or (channel_view.name in self._extra_notifications):
                         self._new_message_notify(
