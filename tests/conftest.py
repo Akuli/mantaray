@@ -60,20 +60,19 @@ class _Hircd:
 
 @pytest.fixture
 def hircd():
+    clone_url = "https://github.com/fboender/hircd"
     hircd_repo = Path(__file__).absolute().parent / "hircd"
     if not hircd_repo.is_dir():
-        subprocess.check_call(
-            ["git", "clone", "https://github.com/Akuli/hircd"], cwd=hircd_repo.parent
-        )
+        subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
 
-    correct_commit = "d1ab8a40e0921626fef276431ee0dcd4d3e53403"  # on py3 branch
+    correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
     actual_commit = (
         subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
         .strip()
         .decode("ascii")
     )
     if actual_commit != correct_commit:
-        subprocess.check_call(["git", "fetch"], cwd=hircd_repo)
+        subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
         subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
 
     hircd = _Hircd(hircd_repo)
