@@ -81,10 +81,11 @@ class View:
         self.view_id = irc_widget.view_selector.insert("", "end")
 
         # width and height are minimums, can stretch bigger
-        self.textwidget = colors.ColoredText(
+        self.textwidget = tkinter.Text(
             irc_widget, width=1, height=1, state="disabled", takefocus=True
         )
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
+        colors.config_tags(self.textwidget)
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
@@ -109,9 +110,11 @@ class View:
 
         self.textwidget.config(state="normal")
         self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-        self.textwidget.colored_insert("end", colors.color_nick(sender), pinged=False)
+        colors.add_text(self.textwidget, colors.color_nick(sender))
         self.textwidget.insert("end", " | ")
-        self.textwidget.nicky_insert("end", message, nicks_to_highlight, pinged)
+        colors.add_text(
+            self.textwidget, message, known_nicks=nicks_to_highlight, pinged=pinged
+        )
         self.textwidget.insert("end", "\n")
         self.textwidget.config(state="disabled")
 
