@@ -1,3 +1,6 @@
+from irc_client import gui
+
+
 def test_basic(alice, bob, wait_until):
     alice.entry.insert("end", "Hello there")
     alice.on_enter_pressed()
@@ -52,3 +55,17 @@ def test_private_messages(alice, bob, wait_until):
     bob.on_enter_pressed()
     wait_until(lambda: "Hey Alice" in alice.find_pm("Bob").textwidget.get("1.0", "end"))
     wait_until(lambda: "Hey Alice" in bob.find_pm("Alice").textwidget.get("1.0", "end"))
+
+
+def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch):
+    monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
+    alice.entry.insert("end", "hey bob")  # bob vs Bob shouldn't matter
+    alice.on_enter_pressed()
+    alice.entry.insert("end", "this unrelated message shouldn't cause notifications")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            "unrelated" in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
+        )
+    )
+    gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
