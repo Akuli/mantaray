@@ -59,7 +59,6 @@ def test_private_messages(alice, bob, wait_until):
 
 def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch):
     monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
-    show_popup = mocker.patch("irc_client.gui._show_popup")
     alice.entry.insert("end", "hey bob")  # bob vs Bob shouldn't matter
     alice.on_enter_pressed()
     alice.entry.insert("end", "this unrelated message shouldn't cause notifications")
