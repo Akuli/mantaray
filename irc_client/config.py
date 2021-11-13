@@ -18,6 +18,8 @@ else:
     else:
         TypedDict = object
 
+from . import backend
+
 
 class ServerConfig(TypedDict):
     host: str
@@ -206,7 +208,7 @@ class _ServerConfigurer(ttk.Frame):
             return False
         # TODO: can realname be empty?
 
-        if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
+        if not re.fullmatch(backend.NICK_REGEX, self._nick_entry.get()):
             self._statuslabel.config(
                 text=f"'{self._nick_entry.get()}' is not a valid nickname."
             )
@@ -215,7 +217,7 @@ class _ServerConfigurer(ttk.Frame):
         # channel entry can be empty, no channels joined
         channels = self._channel_entry.get().split()
         for channel in channels:
-            if not re.fullmatch(CHANNEL_REGEX, channel):
+            if not re.fullmatch(backend.CHANNEL_REGEX, channel):
                 text = f"'{channel}' is not a valid channel name."
                 if not channel.startswith(("&", "#", "+", "!")):
                     text += " Usually channel names start with a # character."

@@ -4,7 +4,7 @@ import tkinter
 import tkinter.font as tkfont
 from typing import Any, Iterator, Sequence
 
-from . import config, backend
+from . import backend
 
 # (he)xchat supports these
 _BOLD = "\x02"
