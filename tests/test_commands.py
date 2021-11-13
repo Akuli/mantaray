@@ -12,7 +12,7 @@ def test_join_and_part(alice, bob, wait_until):
             in alice.find_channel("#lol").textwidget.get("1.0", "end")
         )
     )
-    assert bob.core.get_current_config()["joined_channels"] == ["#autojoin", "#lol"]
+    assert bob.get_current_config()["joined_channels"] == ["#autojoin", "#lol"]
 
     bob.entry.insert("end", "/part #lol")
     bob.on_enter_pressed()
@@ -23,7 +23,7 @@ def test_join_and_part(alice, bob, wait_until):
             in alice.find_channel("#lol").textwidget.get("1.0", "end")
         )
     )
-    assert bob.core.get_current_config()["joined_channels"] == ["#autojoin"]
+    assert bob.get_current_config()["joined_channels"] == ["#autojoin"]
 
 
 def test_nick_change(alice, bob, wait_until):
@@ -65,10 +65,12 @@ def test_quit(alice, bob, wait_until):
     alice.core.quit()
 
     wait_until(
-        lambda: "Alice quit.\n"
-        in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
+        lambda: (
+            "Alice quit.\n"
+            in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
+        )
     )
-    assert alice.core.get_current_config()["joined_channels"] == ["#autojoin"]
+    assert alice.get_current_config()["joined_channels"] == ["#autojoin"]
 
 
 def test_invalid_command(alice, wait_until):

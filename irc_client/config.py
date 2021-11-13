@@ -27,6 +27,7 @@ class ServerConfig(TypedDict):
     username: str
     realname: str
     joined_channels: list[str]
+    extra_notifications: list[str]  # notify for all messages
 
 
 class Config(TypedDict):
@@ -43,6 +44,7 @@ def load_from_file() -> Config | None:
             # Backwards compatibility with older config.json files
             for server in result["servers"]:
                 server.setdefault("ssl", True)
+                server.setdefault("extra_notifications", [])
             return result
     except FileNotFoundError:
         return None
@@ -134,6 +136,9 @@ class _ServerConfigurer(ttk.Frame):
         self._username_entry.var.set(initial_config["username"])
         self._realname_entry.var.set(initial_config["realname"])
         self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
+
+        # not shown in gui, but preserve value
+        self._extra_notifications = initial_config["extra_notifications"].copy()
 
     # TODO: 2nd alternative for nicknames
     # rest of the code should also handle nickname errors better
@@ -250,6 +255,7 @@ class _ServerConfigurer(ttk.Frame):
             "username": self._username_entry.get(),
             "realname": self._realname_entry.get(),
             "joined_channels": self._channel_entry.get().split(),
+            "extra_notifications": self._extra_notifications,
         }
         self.winfo_toplevel().destroy()
 

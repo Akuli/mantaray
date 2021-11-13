@@ -285,6 +285,8 @@ class IrcWidget(ttk.PanedWindow):
         self.core = backend.IrcCore(server_config)
         self.core.start()
 
+        self._extra_notifications = server_config["extra_notifications"]
+
         self._command_handler = commands.CommandHandler(self.core)
         self._on_quit = on_quit
 
@@ -599,3 +601,15 @@ class IrcWidget(ttk.PanedWindow):
                 if "new_message" in tags:
                     result += 1
         return result
+
+    def get_current_config(self) -> config.ServerConfig:
+        return {
+            "host": self.core.host,
+            "port": self.core.port,
+            "ssl": self.core.ssl,
+            "nick": self.core.nick,
+            "username": self.core.username,
+            "realname": self.core.realname,
+            "joined_channels": self.core.autojoin.copy(),
+            "extra_notifications": self._extra_notifications.copy(),
+        }
