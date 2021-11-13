@@ -31,10 +31,7 @@ def test_old_config_format_ssl(tmp_path, monkeypatch):
                 "username": "Akuli2",
                 "realname": "Akuli2",
                 "joined_channels": ["##learnpython"],
-<<<<<<< HEAD
                 "extra_notifications": [],  # added
-=======
->>>>>>> origin/master
             }
         ]
     }
