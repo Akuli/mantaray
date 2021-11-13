@@ -308,9 +308,16 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("new_message", foreground="red")
         self.add(self.view_selector, weight=0)  # don't stretch
+        self._contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
+
+        if sys.platform == "darwin" :
+            self.view_selector.bind("<Button-2>", self._view_selector_right_click, add=True)
+            self.view_selector.bind("<Control-Button-1>", self._view_selector_right_click, add=True)
+        else:
+            self.view_selector.bind("<Button-3>", self._view_selector_right_click, add=True)
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)  # always stretch
@@ -338,6 +345,7 @@ class IrcWidget(ttk.PanedWindow):
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
 
+    # TODO: delete this method
     def focus_the_entry(self) -> None:
         self.entry.focus()
 
@@ -443,6 +451,33 @@ class IrcWidget(ttk.PanedWindow):
             if isinstance(view, PMView) and view.nick == nick:
                 return view
         return None
+
+    def _view_selector_right_click(self, event: tkinter.Event[tkinter.ttk.Treeview]) -> None:
+        item_id = self.view_selector.identify_row(event.y)
+        if not item_id:
+            return
+        self.view_selector.selection_set(item_id)
+
+        channel = self.get_current_view()
+        if not isinstance(channel, ChannelView):
+            return
+
+        def on_change(*junk: object) -> None:
+            assert isinstance(channel, ChannelView)  # mypy awesomeness
+            if var.get():
+                assert channel.name not in self._extra_notifications
+                self._extra_notifications.append(channel.name)
+            else:
+                assert channel.name in self._extra_notifications
+                self._extra_notifications.remove(channel.name)
+
+        var = tkinter.BooleanVar(value=(channel.name in self._extra_notifications))
+        var.trace_add("write", on_change)
+        self._garbage_collection_is_lol = var
+
+        self._contextmenu.delete(0, "end")
+        self._contextmenu.add_checkbutton(label="Show notifications for all messages", variable=var)
+        self._contextmenu.tk_popup(event.x_root, event.y_root)
 
     def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
