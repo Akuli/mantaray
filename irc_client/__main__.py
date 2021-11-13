@@ -19,7 +19,9 @@ def update_title(
 # TODO: current_channel_like_notify and mark_seen()
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-config", action="store_true", help="do not read or write the config file")
+    parser.add_argument(
+        "--no-config", action="store_true", help="do not read or write the config file"
+    )
     args = parser.parse_args()
 
     # tkinter must have one global root window, but server configging creates dialog
