@@ -12,7 +12,6 @@ _UNDERLINE = "\x1f"
 _COLOR = "\x03"  # followed by N or N,M where N and M are 1 or 2 digit numbers
 _BACK_TO_NORMAL = "\x0f"
 
-
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
     0: "#000000",
@@ -155,19 +154,8 @@ class ColoredText(tkinter.Text):
     def nicky_insert(
         self, index: str, text: str, known_nicks: Sequence[str], pinged: bool
     ) -> None:
-        """Like colored_insert(), but colors nicks in known_nicks."""
-        # FIXME: case insensitivity (#45)
-        result_chars = list(text)
-        matches = [
-            match
-            for match in re.finditer(backend.NICK_REGEX, text)
-            if match.group(0) in known_nicks
-        ]
-
-        # do this backwards to prevent messing up indexes... you know
-        for match in reversed(matches):
-            nick = match.group(0)
-            if nick in known_nicks:
-                result_chars[match.start() : match.end()] = color_nick(nick)
-
-        self.colored_insert(index, "".join(result_chars), pinged)
+        for match in reversed(backend.find_nicks(text, known_nicks)):
+            text = (
+                text[: match.start()] + color_nick(match.group(0)) + text[match.end() :]
+            )
+        self.colored_insert(index, text, pinged)

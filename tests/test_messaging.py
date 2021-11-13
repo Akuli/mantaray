@@ -69,7 +69,24 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
             "unrelated" in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
+
+    assert (
+        bob.find_channel("#autojoin").textwidget.get("pinged.first", "pinged.last")
+        == "hey bob"
+    )
     gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
+
+    # "hey bob" should highlight "bob" with extra tags e.g. {'bold', 'foreground-3', 'pinged'}
+    hey_tags = bob.find_channel("#autojoin").textwidget.tag_names(
+        "pinged.first + 1 char"
+    )
+    bob_tags = bob.find_channel("#autojoin").textwidget.tag_names(
+        "pinged.last - 1 char"
+    )
+    assert hey_tags == ("pinged",)
+    assert "pinged" in bob_tags
+    assert "bold" in bob_tags
+    assert any(t.startswith("foreground") for t in bob_tags)
 
 
 def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
@@ -91,3 +108,4 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
     gui._show_popup.assert_called_once_with(
         "#bobnotify", "<Alice> this should cause notification"
     )
+    assert not bob.find_channel("#autojoin").textwidget.tag_ranges("pinged")

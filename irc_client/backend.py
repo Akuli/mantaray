@@ -9,7 +9,7 @@ import re
 import socket
 import threading
 import traceback
-from typing import Union
+from typing import Union, Sequence
 
 from . import config
 
@@ -41,6 +41,15 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 #    <siren.de.SpotChat.org> | toottootttt # Channel # is forbidden: Bad
 #                              Channel Name, exposes client bugs
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
+
+
+def find_nicks(text: str, nicks: Sequence[str]) -> list[re.Match[str]]:
+    nicks = [n.lower() for n in nicks]
+    return [
+        match
+        for match in re.finditer(NICK_REGEX, text)
+        if match.group(0).lower() in nicks
+    ]
 
 
 # fmt: off
