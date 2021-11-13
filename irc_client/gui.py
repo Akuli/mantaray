@@ -285,7 +285,7 @@ class IrcWidget(ttk.PanedWindow):
         self.core = backend.IrcCore(server_config)
         self.core.start()
 
-        self._extra_notifications = server_config["extra_notifications"]
+        self._extra_notifications = set(server_config["extra_notifications"])
 
         self._command_handler = commands.CommandHandler(self.core)
         self._on_quit = on_quit
@@ -472,12 +472,7 @@ class IrcWidget(ttk.PanedWindow):
 
         def on_change(*junk: object) -> None:
             assert isinstance(channel, ChannelView)  # mypy awesomeness
-            if var.get():
-                assert channel.name not in self._extra_notifications
-                self._extra_notifications.append(channel.name)
-            else:
-                assert channel.name in self._extra_notifications
-                self._extra_notifications.remove(channel.name)
+            self._extra_notifications ^= {channel.name}
 
         var = tkinter.BooleanVar(value=(channel.name in self._extra_notifications))
         var.trace_add("write", on_change)
@@ -659,5 +654,5 @@ class IrcWidget(ttk.PanedWindow):
             "username": self.core.username,
             "realname": self.core.realname,
             "joined_channels": self.core.autojoin.copy(),
-            "extra_notifications": self._extra_notifications.copy(),
+            "extra_notifications": list(self._extra_notifications),
         }
