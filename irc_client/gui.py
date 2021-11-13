@@ -82,8 +82,9 @@ class View:
 
         # width and height are minimums, can stretch bigger
         self.textwidget = colors.ColoredText(
-            irc_widget, width=1, height=1, state="disabled"
+            irc_widget, width=1, height=1, state="disabled", takefocus=True
         )
+        self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
@@ -334,7 +335,7 @@ class IrcWidget(ttk.PanedWindow):
         self.entry = ttk.Entry(entryframe)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
-        self.entry.bind("<Tab>", self.autocomplete)
+        self.entry.bind("<Tab>", self._tab_event_handler)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -364,8 +365,12 @@ class IrcWidget(ttk.PanedWindow):
         if response is not None:
             view.add_message("*", response)
 
+    def _tab_event_handler(self, junk_event: object) -> str:
+        self.autocomplete()
+        return "break"
+
     # TODO: shift+tab = backwards ?
-    def autocomplete(self, junk_event: object = None) -> None:
+    def autocomplete(self) -> None:
         view = self.get_current_view()
         if not isinstance(view, ChannelView):
             return

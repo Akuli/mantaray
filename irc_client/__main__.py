@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import functools
 import tkinter
@@ -49,9 +51,13 @@ def main() -> None:
         # TODO: support multiple servers
         [server_config] = file_config["servers"]
 
+    def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
+        if event.widget == root:
+            irc_widget.entry.focus()
+
     irc_widget = gui.IrcWidget(root, server_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
-    root.bind("<FocusIn>", (lambda junk_event: irc_widget.entry.focus()))
+    root.bind("<FocusIn>", on_any_widget_focused)
     root.protocol("WM_DELETE_WINDOW", irc_widget.core.quit)
 
     update_the_title = functools.partial(update_title, root, irc_widget)
