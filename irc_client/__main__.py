@@ -9,10 +9,10 @@ from . import gui, config
 def update_title(
     root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
 ) -> None:
-    title = "IRC: %s" % irc_widget.core.host
+    title = f"IRC: {irc_widget.core.host}"
     number = irc_widget.not_seen_count()
     if number != 0:
-        title = "(%d) %s" % (number, title)
+        title = f"({number}) " + title
     root.title(title)
 
 
@@ -51,7 +51,7 @@ def main() -> None:
 
     irc_widget = gui.IrcWidget(root, server_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
-    root.bind("<FocusIn>", (lambda junk_event: irc_widget.focus_the_entry()))
+    root.bind("<FocusIn>", (lambda junk_event: irc_widget.entry.focus()))
     root.protocol("WM_DELETE_WINDOW", irc_widget.core.quit)
 
     update_the_title = functools.partial(update_title, root, irc_widget)

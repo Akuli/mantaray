@@ -126,7 +126,7 @@ class CommandHandler:
 
             if command in self._commands:
                 return self._commands[command](args)
-            return "There's no '%s' command :(" % command
+            return f"There's no '{command}' command :("
 
         # not a special command
         if current_channel_or_nick is None:

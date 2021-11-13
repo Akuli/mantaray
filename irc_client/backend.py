@@ -34,6 +34,9 @@ _special = re.escape(r"[]\`_^{|}")
 NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 
 # https://tools.ietf.org/html/rfc2812#section-1.3
+#
+# channel names don't need to start with #
+#
 # at least freenode and spotchat disallow a channel named #
 #    <siren.de.SpotChat.org> | toottootttt # Channel # is forbidden: Bad
 #                              Channel Name, exposes client bugs
@@ -83,13 +86,13 @@ class ReceivedPrivmsg:
     text: str
 @dataclasses.dataclass
 class ServerMessage:
-    sender: str | None  # I think this is a hostname. Not sure.  TODO: can be None?
+    sender: str | None  # I think this is a hostname. Not sure.
     # TODO: figure out meaning of command and args
     command: str
     args: list[str]
 @dataclasses.dataclass
 class UnknownMessage:
-    sender: str | None  # TODO: can be None?
+    sender: str | None
     command: str
     args: list[str]
 @dataclasses.dataclass
