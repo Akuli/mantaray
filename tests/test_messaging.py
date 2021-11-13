@@ -68,3 +68,24 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
     )
 
     show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
+
+
+def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
+    monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
+    show_popup = mocker.patch("irc_client.gui._show_popup")
+
+    alice.core.join_channel("#bobnotify")
+    bob.core.join_channel("#bobnotify")
+    wait_until(lambda: alice.find_channel("#bobnotify"))
+    wait_until(lambda: bob.find_channel("#bobnotify"))
+
+    alice.entry.insert("end", "this should cause notification")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            "this should cause notification"
+            in bob.find_channel("#bobnotify").textwidget.get("1.0", "end")
+        )
+    )
+
+    show_popup.assert_called_once_with("#bobnotify", "<Alice> this should cause notification")

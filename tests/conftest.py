@@ -95,7 +95,7 @@ def alice_and_bob(hircd, root_window, wait_until):
                 "username": name,
                 "realname": f"{name}'s real name",
                 "joined_channels": ["#autojoin"],
-                "extra_notifications": [],
+                "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
             },
         )
         widgets[name].pack(fill="both", expand=True)

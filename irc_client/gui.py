@@ -539,7 +539,7 @@ class IrcWidget(ttk.PanedWindow):
                     pinged = self.core.nick.lower() in mentioned
 
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged:
+                    if pinged or (channel_view.name in self._extra_notifications):
                         self._new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
                         )
