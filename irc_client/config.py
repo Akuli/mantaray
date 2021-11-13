@@ -57,7 +57,6 @@ def save_to_file(config: Config) -> None:
         file.write("\n")
 
 
-# TODO: get rid of this?
 class _EntryWithVar(ttk.Entry):
     def __init__(self, master: tkinter.Misc, **kwargs: Any):
         var = tkinter.StringVar()
@@ -65,8 +64,6 @@ class _EntryWithVar(ttk.Entry):
         self.var = var
 
 
-# TODO: this is ok for connecting the first time, but the defaults should go
-#       to a config file or something
 class _ServerConfigurer(ttk.Frame):
     def __init__(self, master: tkinter.Misc, initial_config: ServerConfig):
         super().__init__(master)
@@ -196,41 +193,37 @@ class _ServerConfigurer(ttk.Frame):
 
     def _validate(self, *junk: object) -> bool:
         # this will be re-enabled if everything's ok
-        self._connectbutton["state"] = "disabled"
+        self._connectbutton.config(state="disabled")
 
         if not self._server_entry.get():
-            self._statuslabel["text"] = "Please specify a server."
+            self._statuslabel.config(text="Please specify a server.")
             return False
         if not self._nick_entry.get():
-            self._statuslabel["text"] = "Please specify a nickname."
+            self._statuslabel.config(text="Please specify a nickname.")
             return False
         if not self._username_entry.get():
-            self._statuslabel["text"] = "Please specify a username."
+            self._statuslabel.config(text="Please specify a username.")
             return False
         # TODO: can realname be empty?
 
         from .backend import NICK_REGEX, CHANNEL_REGEX
 
         if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
-            self._statuslabel["text"] = (
-                "'%s' is not a valid nickname." % self._nick_entry.get()
-            )
+            self._statuslabel.config(text=(
+                f"'{self._nick_entry.get()}' is not a valid nickname." 
+            ))
             return False
 
-        # if the channel entry is empty, no channels are joined
+        # channel entry can be empty, no channels joined
         channels = self._channel_entry.get().split()
         for channel in channels:
             if not re.fullmatch(CHANNEL_REGEX, channel):
-                self._statuslabel["text"] = (
-                    "'%s' is not a valid channel name." % channel
-                )
-
-                # see comments of backend.CHANNEL_REGEX
+                text= f"'{channel}' is not a valid channel name."
                 if not channel.startswith(("&", "#", "+", "!")):
-                    # the user probably doesn't know what (s)he's doing
-                    self._statuslabel[
-                        "text"
-                    ] += " Usually channel names start with a # character."
+                    text += " Usually channel names start with a # character."
+                self._statuslabel.config(
+                    text=text
+                )
                 return False
 
         try:
@@ -238,11 +231,11 @@ class _ServerConfigurer(ttk.Frame):
             if port <= 0:
                 raise ValueError
         except ValueError:
-            self._statuslabel["text"] = "The port must be a positive integer."
+            self._statuslabel.config(text="The port must be a positive integer.")
             return False
 
-        self._statuslabel["text"] = ""
-        self._connectbutton["state"] = "normal"
+        self._statuslabel.config(text="")
+        self._connectbutton.config(state = "normal")
         return True
 
     def connect_clicked(self, junk_event: object = None) -> None:

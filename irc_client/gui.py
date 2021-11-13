@@ -1,8 +1,6 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 #
-# TODO: seems like channel names don't need to start with #
-#       https://tools.ietf.org/html/rfc2812#section-2.3.1
 from __future__ import annotations
 import os
 import queue
@@ -21,11 +19,9 @@ from . import backend, colors, commands, config
 def _show_popup(title: str, text: str) -> None:
     try:
         if sys.platform == "win32":
-            # FIXME
-            print("Sorry, no popups on windows yet :(")
+            print("Sorry, no popups on windows yet :(")            # FIXME
         elif sys.platform == "darwin":
             # https://stackoverflow.com/a/41318195
-            # TODO: can this be indented too?
             command = (
                 "on run argv\n"
                 "  display notification (item 2 of argv) with title (item 1 of argv)\n"
@@ -112,7 +108,7 @@ class View:
         padding = " " * (16 - len(sender))
 
         self.textwidget.config(state="normal")
-        self.textwidget.insert("end", "[%s] %s" % (time.strftime("%H:%M"), padding))
+        self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
         self.textwidget.colored_insert("end", colors.color_nick(sender), pinged=False)
         self.textwidget.insert("end", " | ")
         self.textwidget.nicky_insert("end", message, nicks_to_highlight, pinged)
@@ -130,7 +126,7 @@ class View:
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         # notify about the nick change everywhere, by putting this to base class
-        self.add_message("*", "You are now known as %s." % colors.color_nick(new))
+        self.add_message("*", f"You are now known as {colors.color_nick(new)}.")
 
     def get_relevant_nicks(self) -> Sequence[str]:
         return []
@@ -138,7 +134,7 @@ class View:
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
             "*",
-            "%s is now known as %s." % (colors.color_nick(old), colors.color_nick(new)),
+            f"{colors.color_nick(old)} is now known as {colors.color_nick(new)}."
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
@@ -298,7 +294,7 @@ class IrcWidget(ttk.PanedWindow):
             file=os.path.join(images_dir, "face-20x20.png")
         )
 
-        # Help Python's GC (tkinter images rely on gc and it sucks)
+        # Help Python's GC (tkinter images rely on __del__ and it sucks)
         self.bind(
             "<Destroy>", (lambda e: setattr(self, "channel_image", None)), add=True
         )
@@ -350,10 +346,6 @@ class IrcWidget(ttk.PanedWindow):
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
-
-    # TODO: delete this method
-    def focus_the_entry(self) -> None:
-        self.entry.focus()
 
     def _show_change_nick_dialog(self) -> None:
         new_nick = ask_new_nick(self.winfo_toplevel(), self.core.nick)
@@ -429,7 +421,7 @@ class IrcWidget(ttk.PanedWindow):
         )
 
         self._previous_view = new_view
-        self.mark_seen()
+        self._mark_seen()
 
     def add_view(self, view: View) -> None:
         self.views_by_id[view.view_id] = view
@@ -619,12 +611,7 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.item(view.view_id, tags="new_message")
             self.event_generate("<<NotSeenCountChanged>>")
 
-    def mark_seen(self) -> None:
-        """Make the currently selected channel-like not red in the list.
-
-        This should be called when the user has a chance to read new
-        messages in the channel-like.
-        """
+    def _mark_seen(self) -> None:
         view = self.get_current_view()
         if isinstance(view, (ChannelView, PMView)):
             # TODO: don't erase all tags if there will be other tags later
