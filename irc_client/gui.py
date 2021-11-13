@@ -19,7 +19,7 @@ from . import backend, colors, commands, config
 def _show_popup(title: str, text: str) -> None:
     try:
         if sys.platform == "win32":
-            print("Sorry, no popups on windows yet :(")            # FIXME
+            print("Sorry, no popups on windows yet :(")  # FIXME
         elif sys.platform == "darwin":
             # https://stackoverflow.com/a/41318195
             command = (
@@ -133,8 +133,7 @@ class View:
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
-            "*",
-            f"{colors.color_nick(old)} is now known as {colors.color_nick(new)}."
+            "*", f"{colors.color_nick(old)} is now known as {colors.color_nick(new)}."
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:

@@ -209,21 +209,19 @@ class _ServerConfigurer(ttk.Frame):
         from .backend import NICK_REGEX, CHANNEL_REGEX
 
         if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
-            self._statuslabel.config(text=(
-                f"'{self._nick_entry.get()}' is not a valid nickname." 
-            ))
+            self._statuslabel.config(
+                text=f"'{self._nick_entry.get()}' is not a valid nickname."
+            )
             return False
 
         # channel entry can be empty, no channels joined
         channels = self._channel_entry.get().split()
         for channel in channels:
             if not re.fullmatch(CHANNEL_REGEX, channel):
-                text= f"'{channel}' is not a valid channel name."
+                text = f"'{channel}' is not a valid channel name."
                 if not channel.startswith(("&", "#", "+", "!")):
                     text += " Usually channel names start with a # character."
-                self._statuslabel.config(
-                    text=text
-                )
+                self._statuslabel.config(text=text)
                 return False
 
         try:
@@ -235,7 +233,7 @@ class _ServerConfigurer(ttk.Frame):
             return False
 
         self._statuslabel.config(text="")
-        self._connectbutton.config(state = "normal")
+        self._connectbutton.config(state="normal")
         return True
 
     def connect_clicked(self, junk_event: object = None) -> None:
