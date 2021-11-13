@@ -1,3 +1,4 @@
+import argparse
 import functools
 import tkinter
 from getpass import getuser
@@ -17,12 +18,18 @@ def update_title(
 
 # TODO: current_channel_like_notify and mark_seen()
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--no-config", action="store_true", help="do not read or write the config file"
+    )
+    args = parser.parse_args()
+
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
     root = tkinter.Tk()
     root.withdraw()
 
-    file_config = config.load_from_file()
+    file_config = None if args.no_config else config.load_from_file()
     if file_config is None:
         server_config = config.show_server_config_dialog(
             transient_to=None,
@@ -55,8 +62,9 @@ def main() -> None:
     root.deiconify()  # unhide
     root.mainloop()
 
-    new_config = irc_widget.core.get_current_config()
-    config.save_to_file({"servers": [new_config]})
+    if not args.no_config:
+        new_config = irc_widget.core.get_current_config()
+        config.save_to_file({"servers": [new_config]})
 
 
 if __name__ == "__main__":
