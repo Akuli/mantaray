@@ -1,4 +1,8 @@
-def test_join_and_part(alice, bob, wait_until):
+import pytest
+
+
+@pytest.mark.parametrize("part_command", ["/part", "/part #lol"])
+def test_join_and_part(alice, bob, wait_until, part_command):
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: alice.find_channel("#lol"))
@@ -14,7 +18,7 @@ def test_join_and_part(alice, bob, wait_until):
     )
     assert bob.get_current_config()["joined_channels"] == ["#autojoin", "#lol"]
 
-    bob.entry.insert("end", "/part #lol")
+    bob.entry.insert("end", part_command)
     bob.on_enter_pressed()
     wait_until(lambda: not bob.find_channel("#lol"))
     wait_until(
@@ -127,8 +131,7 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
 def test_incorrect_usage(alice, wait_until):
     test_cases = """\
 /join --> Usage: /join <channel>
-/part --> Usage: /part <channel>
-/nick --> Usage: /nick <new_nick>
+/nick --> Usage: /nick <new nick>
 /msg --> Usage: /msg <nick> <message>
 /msg Bob --> Usage: /msg <nick> <message>  # TODO: maybe should be supported?
 """

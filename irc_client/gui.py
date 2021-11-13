@@ -12,7 +12,7 @@ import traceback
 from tkinter import ttk
 from typing import Callable, Any, Sequence
 
-from . import backend, colors, commands, config
+from . import backend, colors, config
 
 
 def _show_popup(title: str, text: str) -> None:
@@ -285,7 +285,6 @@ class IrcWidget(ttk.PanedWindow):
 
         self._extra_notifications = set(server_config["extra_notifications"])
 
-        self._command_handler = commands.CommandHandler(self.core)
         self._on_quit = on_quit
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
@@ -357,18 +356,10 @@ class IrcWidget(ttk.PanedWindow):
             self.core.change_nick(new_nick)
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
-        view = self.get_current_view()
+        from irc_client.commands import handle_command  # import cycle
 
-        name: str | None = None
-        if isinstance(view, ChannelView):
-            name = view.name
-        if isinstance(view, PMView):
-            name = view.nick
-
-        response = self._command_handler.handle_command(name, self.entry.get())
+        handle_command(self.get_current_view(), self.core, self.entry.get())
         self.entry.delete(0, "end")
-        if response is not None:
-            view.add_message("*", response)
 
     def _on_page_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
