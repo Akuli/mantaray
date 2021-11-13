@@ -1,6 +1,5 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
-#
 from __future__ import annotations
 import os
 import queue
