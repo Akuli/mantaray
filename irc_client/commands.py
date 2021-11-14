@@ -71,10 +71,7 @@ def _add_default_commands() -> None:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
         # currently kicks are not handled yet anyway :(
-        if channel:
-            core.join_channel(channel)
-        else:
-            view.add_message("*", "Usage: /join <channel>")
+        core.join_channel(channel)
 
     @add_command("/part [<channel>]")
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
