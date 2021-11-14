@@ -94,6 +94,13 @@ def _add_default_commands() -> None:
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.change_nick(new_nick)
 
+    @add_command("/topic <new_topic>")
+    def topic(view: View, core: IrcCore, new_topic: str) -> None:
+        if isinstance(view, ChannelView):
+            core.change_topic(view.name, new_topic)
+        else:
+            view.add_message("*", "You must be on a channel to change its topic.")
+
     # TODO: /msg <nick>, should open up PMView
     @add_command("/msg <nick> <message>")
     def msg(view: View, core: IrcCore, nick: str, message: str) -> None:

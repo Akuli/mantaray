@@ -160,6 +160,14 @@ class ChannelView(View):
         super().on_relevant_user_quit(nick, reason)
         self.userlist.remove_user(nick)
 
+    def show_topic(self, topic: str) -> None:
+        self.add_message("*", f"The topic of {self.name} is: {topic}")
+
+    def on_topic_changed(self, nick: str, topic: str) -> None:
+        self.add_message(
+            "*", f"{colors.color_nick(nick)} changed the topic of {self.name}: {topic}"
+        )
+
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):

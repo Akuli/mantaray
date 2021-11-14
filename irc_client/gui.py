@@ -318,11 +318,13 @@ class IrcWidget(ttk.PanedWindow):
             if isinstance(event, backend.SelfJoined):
                 channel_view = self.find_channel(event.channel)
                 if channel_view is None:
-                    self.add_view(ChannelView(self, event.channel, event.nicklist))
+                    channel_view = ChannelView(self, event.channel, event.nicklist)
+                    self.add_view(channel_view)
                 else:
                     # Can exist already, when has been disconnected from server
                     channel_view.userlist.set_nicks(event.nicklist)
 
+                channel_view.show_topic(event.topic)
                 if event.channel not in self.core.autojoin:
                     self.core.autojoin.append(event.channel)
 
@@ -407,6 +409,11 @@ class IrcWidget(ttk.PanedWindow):
             elif isinstance(event, backend.ConnectivityMessage):
                 for view in self.views_by_id.values():
                     view.on_connectivity_message(event.message, error=event.is_error)
+
+            elif isinstance(event, backend.TopicChanged):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                channel_view.on_topic_changed(event.who_changed, event.topic)
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you
