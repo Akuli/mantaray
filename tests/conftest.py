@@ -90,6 +90,8 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
         widgets[name] = gui.IrcWidget(
             root_window,
             {
+                "servers": [
+            {
                 "host": "localhost",
                 "port": 6667,
                 "ssl": False,
@@ -98,17 +100,18 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
                 "realname": f"{name}'s real name",
                 "joined_channels": ["#autojoin"],
                 "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
-            },
+            }]},
         )
         widgets[name].pack(fill="both", expand=True)
-        widgets[name].handle_events()
-        wait_until(lambda: widgets[name].find_channel("#autojoin"))
+        wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
 
     yield widgets
 
-    for widget in widgets.values():
-        widget.core.quit()
-        widget.core.wait_until_stopped()
+    for irc_widget in widgets.values():
+        if irc_widget.winfo_exists():
+            for server_view in irc_widget.get_server_views():
+                server_view.core.quit()
+                server_view.core.wait_until_stopped()
 
 
 @pytest.fixture

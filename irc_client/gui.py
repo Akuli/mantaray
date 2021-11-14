@@ -163,15 +163,13 @@ class IrcWidget(ttk.PanedWindow):
         for server_config in file_config["servers"]:
             self.add_view(ServerView(self, server_config))
 
-    def remove_server(self, server_view: ServerView) -> None:
-        del self.views_by_id[server_view.view_id]
-        self.view_selector.delete(server_view.view_id)
-        if not self.view_selector.get_children(""):
-            (self._on_quit or self.destroy)()
-
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
+
+    # for tests
+    def text(self) -> None:
+        return self.get_current_view().textwidget.get("1.0", "end - 1 char")
 
     def get_server_views(self) -> list[ServerView]:
         result = []
@@ -277,6 +275,12 @@ class IrcWidget(ttk.PanedWindow):
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
+    def remove_server(self, server_view: ServerView) -> None:
+        del self.views_by_id[server_view.view_id]
+        self.view_selector.delete(server_view.view_id)
+        if not self.view_selector.get_children(""):
+            (self._on_quit or self.destroy)()
+
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
@@ -343,3 +347,11 @@ class IrcWidget(ttk.PanedWindow):
                 if "new_message" in tags:
                     result += 1
         return result
+
+
+    def get_current_config(self) -> config.Config:
+        return             {"servers":[
+                server_view.get_current_config()
+                for server_view in self.get_server_views()
+            ]
+}

@@ -52,13 +52,9 @@ def main() -> None:
             # If you click the widget twice, this won't steal the focus second time
             root.after_idle(irc_widget.entry.focus)
 
-    def quit_all_servers() -> None:
+    def save_config_and_quit_all_servers() -> None:
         if not args.no_config:
-            server_configs = [
-                server_view.get_current_config()
-                for server_view in irc_widget.get_server_views()
-            ]
-            config.save_to_file({"servers": server_configs})
+            config.save_to_file(irc_widget.get_current_config())
 
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
@@ -66,7 +62,7 @@ def main() -> None:
     irc_widget = gui.IrcWidget(root, file_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
     root.bind("<FocusIn>", on_any_widget_focused)
-    root.protocol("WM_DELETE_WINDOW", quit_all_servers)
+    root.protocol("WM_DELETE_WINDOW", save_config_and_quit_all_servers)
 
     update_the_title = functools.partial(update_title, root, irc_widget)
     update_the_title()
