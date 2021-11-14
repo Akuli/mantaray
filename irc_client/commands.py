@@ -91,6 +91,7 @@ def _add_default_commands() -> None:
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.change_nick(new_nick)
 
+    # TODO: /msg <nick>, should open up PMView
     @add_command("/msg <nick> <message>")
     def msg(view: View, core: IrcCore, nick: str, message: str) -> None:
         core.send_privmsg(nick, message)
