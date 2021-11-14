@@ -131,7 +131,7 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
 def test_incorrect_usage(alice, wait_until):
     test_cases = """\
 /join --> Usage: /join <channel>
-/nick --> Usage: /nick <new nick>
+/nick --> Usage: /nick <new_nick>
 /msg --> Usage: /msg <nick> <message>
 /msg Bob --> Usage: /msg <nick> <message>  # TODO: maybe should be supported?
 """
