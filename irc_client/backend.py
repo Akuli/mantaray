@@ -288,7 +288,9 @@ class IrcCore:
                 channel, human_readable_message = msg.args[-2:]
                 join = self._joining_in_progress.pop(channel)
                 # join.topic is None, when creating channel on libera
-                self.event_queue.put(SelfJoined(channel, join.topic or "(no topic)", join.nicks))
+                self.event_queue.put(
+                    SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+                )
 
             elif msg.command == _RPL_ENDOFMOTD:
                 # TODO: relying on MOTD good?

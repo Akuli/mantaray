@@ -99,8 +99,7 @@ def _add_default_commands() -> None:
         if isinstance(view, ChannelView):
             core.change_topic(view.name, new_topic)
         else:
-            view.add_message(
-                "*", "You must be on a channel to change its topic.")
+            view.add_message("*", "You must be on a channel to change its topic.")
 
     # TODO: /msg <nick>, should open up PMView
     @add_command("/msg <nick> <message>")

@@ -165,7 +165,9 @@ class ChannelView(View):
 
     # TODO: show who changed topic
     def on_topic_changed(self, nick: str, topic: str) -> None:
-        self.add_message("*", f"{colors.color_nick(nick)} changed the topic of {self.name}: {topic}")
+        self.add_message(
+            "*", f"{colors.color_nick(nick)} changed the topic of {self.name}: {topic}"
+        )
 
 
 # PM = private messages, also known as DM = direct messages
