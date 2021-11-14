@@ -166,7 +166,7 @@ class IrcWidget(ttk.PanedWindow):
         return self.views_by_id[view_id]
 
     # for tests
-    def text(self) -> None:
+    def text(self) -> str:
         return self.get_current_view().textwidget.get("1.0", "end - 1 char")
 
     def get_server_views(self) -> list[ServerView]:
