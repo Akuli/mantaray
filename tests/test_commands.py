@@ -1,4 +1,8 @@
-def test_join_and_part(alice, bob, wait_until):
+import pytest
+
+
+@pytest.mark.parametrize("part_command", ["/part", "/part #lol"])
+def test_join_and_part(alice, bob, wait_until, part_command):
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: alice.find_channel("#lol"))
@@ -14,7 +18,7 @@ def test_join_and_part(alice, bob, wait_until):
     )
     assert bob.get_current_config()["joined_channels"] == ["#autojoin", "#lol"]
 
-    bob.entry.insert("end", "/part #lol")
+    bob.entry.insert("end", part_command)
     bob.on_enter_pressed()
     wait_until(lambda: not bob.find_channel("#lol"))
     wait_until(
@@ -59,9 +63,8 @@ def test_nick_change(alice, bob, wait_until):
 
 
 def test_quit(alice, bob, wait_until):
-    # TODO: /quit command
-    #    alice.entry.insert("end", "/quit")
-    #    alice.on_enter_pressed()
+    alice.entry.insert("end", "/quit")
+    alice.on_enter_pressed()
     alice.core.quit()
 
     wait_until(
@@ -78,8 +81,18 @@ def test_invalid_command(alice, wait_until):
     alice.on_enter_pressed()
     wait_until(
         lambda: (
-            "There's no '/asdf' command :("
+            "No command named '/asdf'\n"
             in alice.find_channel("#autojoin").textwidget.get("1.0", "end")
+        )
+    )
+
+
+def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
+    alice.entry.insert("end", "/home/alice")
+    alice.on_enter_pressed()  # sends /home/alice as a message
+    wait_until(
+        lambda: (
+            "/home/alice" in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
 
@@ -124,22 +137,23 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     )
 
 
-def test_incorrect_usage(alice, wait_until):
-    test_cases = """\
-/join --> Usage: /join <channel>
-/part --> Usage: /part <channel>
-/nick --> Usage: /nick <new_nick>
-/msg --> Usage: /msg <nick> <message>
-/msg Bob --> Usage: /msg <nick> <message>  # TODO: maybe should be supported?
-"""
-    for line in test_cases.splitlines():
-        command, outcome = line.split("#")[0].strip().split(" --> ")
-        alice.entry.insert("end", command)
-        alice.on_enter_pressed()
-        wait_until(
-            lambda: (
-                alice.find_channel("#autojoin")
-                .textwidget.get("end - 1 char - 1 line", "end - 1 char")
-                .endswith(outcome + "\n")
-            )
+@pytest.mark.parametrize(
+    "command, error",
+    [
+        ("/join", "Usage: /join <channel>"),
+        ("/nick", "Usage: /nick <new_nick>"),
+        ("/msg", "Usage: /msg <nick> <message>"),
+        ("/msg Bob", "Usage: /msg <nick> <message>"),
+        ("/quit asdf", "Usage: /quit"),  # no arguments expected is special-cased
+    ],
+)
+def test_incorrect_usage(alice, wait_until, command, error):
+    alice.entry.insert("end", command)
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            alice.find_channel("#autojoin")
+            .textwidget.get("end - 1 char - 1 line", "end - 1 char")
+            .endswith(error + "\n")
         )
+    )
