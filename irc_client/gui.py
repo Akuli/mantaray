@@ -99,7 +99,8 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 class IrcWidget(ttk.PanedWindow):
     def __init__(
         self,
-        master: tkinter.Misc, file_config: config.Config,
+        master: tkinter.Misc,
+        file_config: config.Config,
         on_quit: Callable[[], object] | None = None,
     ):
         super().__init__(master, orient="horizontal")
@@ -146,10 +147,7 @@ class IrcWidget(ttk.PanedWindow):
         entryframe = ttk.Frame(self._middle_pane)
         entryframe.pack(side="bottom", fill="x")
         # TODO: add a tooltip to the button, it's not very obvious
-        self.nickbutton = ttk.Button(
-            entryframe,
-            command=self._show_change_nick_dialog,
-        )
+        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
         self.entry = ttk.Entry(entryframe)
         self.entry.pack(side="left", fill="both", expand=True)
@@ -297,7 +295,9 @@ class IrcWidget(ttk.PanedWindow):
             assert isinstance(channel, ChannelView)  # mypy awesomeness
             channel.server_view.extra_notifications ^= {channel.name}
 
-        var = tkinter.BooleanVar(value=(channel.name in channel.server_view.extra_notifications))
+        var = tkinter.BooleanVar(
+            value=(channel.name in channel.server_view.extra_notifications)
+        )
         var.trace_add("write", on_change)
         self._garbage_collection_is_lol = var
 
@@ -348,10 +348,10 @@ class IrcWidget(ttk.PanedWindow):
                     result += 1
         return result
 
-
     def get_current_config(self) -> config.Config:
-        return             {"servers":[
+        return {
+            "servers": [
                 server_view.get_current_config()
                 for server_view in self.get_server_views()
             ]
-}
+        }

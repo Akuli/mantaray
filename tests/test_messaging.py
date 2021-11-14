@@ -78,12 +78,7 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
 
     alice.entry.insert("end", "this should cause notification")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: (
-            "this should cause notification"
-            in bob.text()
-        )
-    )
+    wait_until(lambda: "this should cause notification" in bob.text())
     gui._show_popup.assert_called_once_with(
         "#bobnotify", "<Alice> this should cause notification"
     )

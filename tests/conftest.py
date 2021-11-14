@@ -91,16 +91,18 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
             root_window,
             {
                 "servers": [
-            {
-                "host": "localhost",
-                "port": 6667,
-                "ssl": False,
-                "nick": name,
-                "username": name,
-                "realname": f"{name}'s real name",
-                "joined_channels": ["#autojoin"],
-                "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
-            }]},
+                    {
+                        "host": "localhost",
+                        "port": 6667,
+                        "ssl": False,
+                        "nick": name,
+                        "username": name,
+                        "realname": f"{name}'s real name",
+                        "joined_channels": ["#autojoin"],
+                        "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
+                    }
+                ]
+            },
         )
         widgets[name].pack(fill="both", expand=True)
         wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())

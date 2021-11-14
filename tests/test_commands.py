@@ -10,23 +10,20 @@ def test_join_and_part(alice, bob, wait_until, part_command):
     bob.entry.insert("end", "/join #lol")
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in bob.text())
-    wait_until(
-        lambda: (
-            "Bob joined #lol.\n"
-            in alice.text()
-        )
-    )
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin", "#lol"]
+    wait_until(lambda: "Bob joined #lol.\n" in alice.text())
+    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
+        "#autojoin",
+        "#lol",
+    ]
 
     bob.entry.insert("end", part_command)
     bob.on_enter_pressed()
-    wait_until(lambda: not any(server.find_channel("#lol") for server in bob.get_server_views()))
     wait_until(
-        lambda: (
-            "Bob left #lol.\n"
-            in alice.text()
+        lambda: not any(
+            server.find_channel("#lol") for server in bob.get_server_views()
         )
     )
+    wait_until(lambda: "Bob left #lol.\n" in alice.text())
     assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
 
 
@@ -46,7 +43,8 @@ def test_topic_change(alice, wait_until):
     alice.entry.insert("end", "/topic blah blah")
     alice.on_enter_pressed()
     wait_until(
-        lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text())
+        lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
+    )
     # Bug in hircd: Bob doesn't get a notification about Alice changed topic
 
 

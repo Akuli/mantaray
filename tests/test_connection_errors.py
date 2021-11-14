@@ -4,10 +4,7 @@ import time
 def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     hircd.stop()
     wait_until(
-        lambda: (
-            "Error while receiving: Server closed the connection!"
-            in alice.text()
-        )
+        lambda: "Error while receiving: Server closed the connection!" in alice.text()
     )
     assert alice.get_current_view().name == "#autojoin"
 
@@ -33,5 +30,7 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
     hircd.start()
     wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
     connecting_end = len(alice.text())
-    wait_until(lambda: "The topic of #autojoin is: No topic" in alice.text()[connecting_end:])
+    wait_until(
+        lambda: "The topic of #autojoin is: No topic" in alice.text()[connecting_end:]
+    )
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
