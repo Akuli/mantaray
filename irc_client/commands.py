@@ -22,7 +22,7 @@ def add_command(usage: str) -> Callable[[_CommandT], _CommandT]:
 
 def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
     if not entry_content:
-        return None
+        return
 
     # TODO: disallow slashes in command
     if entry_content.startswith("/") and not entry_content.startswith("//"):
