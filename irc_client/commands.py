@@ -59,7 +59,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
             view.add_message(
                 "*",
                 (
-                    "You can't send messages directly to the server. "
+                    "You can't send messages here. "
                     "Join a channel instead and send messages there."
                 ),
             )
