@@ -56,6 +56,7 @@ def find_nicks(text: str, nicks: Sequence[str]) -> list[re.Match[str]]:
 @dataclasses.dataclass
 class SelfJoined:
     channel: str
+    topic: str
     nicklist: list[str]
 @dataclasses.dataclass
 class SelfChangedNick:
@@ -94,6 +95,11 @@ class ReceivedPrivmsg:
     recipient: str  # channel or user's nick
     text: str
 @dataclasses.dataclass
+class TopicChanged:
+    who_changed: str
+    channel: str
+    topic: str
+@dataclasses.dataclass
 class ServerMessage:
     sender: str | None  # I think this is a hostname. Not sure.
     # TODO: figure out meaning of command and args
@@ -121,6 +127,7 @@ _IrcEvent = Union[
     UserQuit,
     SentPrivmsg,
     ReceivedPrivmsg,
+    TopicChanged,
     ServerMessage,
     UnknownMessage,
     ConnectivityMessage,
@@ -169,14 +176,13 @@ class IrcCore:
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
-        # TODO: is automagic RPL_NAMREPLY in an rfc??
-        # TODO: what do the rfc's say about huge NAMES replies with more nicks
-        #       than maximum reply length?
-        #
-        # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when a
-        # client connects
+        # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
         # the replies are collected here before emitting a self_joined event
-        self._names_replys: dict[str, list[str]] = {}  # {channel: [nick1, nick2, ...]}
+        # Topic can also be sent before joining
+        # TODO: this in rfc?
+        #
+        # {channel: (topic, nicklist)}
+        self._joining_in_progress: dict[str, tuple[str | None, list[str]]] = {}
 
         self._quit_event = threading.Event()
 
@@ -232,10 +238,7 @@ class IrcCore:
         elif msg.command == "JOIN":
             assert msg.sender is not None
             [channel] = msg.args
-            if msg.sender == self.nick:
-                # channel will show up in ui once server finishes sending list of nicks
-                self._names_replys[channel] = []
-            else:
+            if msg.sender != self.nick:
                 self.event_queue.put(UserJoined(msg.sender, channel))
 
         elif msg.command == "PART":
@@ -270,23 +273,35 @@ class IrcCore:
                 channel, names = msg.args[-2:]
 
                 # TODO: don't ignore @ and + prefixes
-                self._names_replys[channel].extend(
+                self._joining_in_progress[channel][1].extend(
                     name.lstrip("@+") for name in names.split()
                 )
 
             elif msg.command == _RPL_ENDOFNAMES:
                 # joining a channel finished
                 channel, human_readable_message = msg.args[-2:]
-                nicks = self._names_replys.pop(channel)
-                self.event_queue.put(SelfJoined(channel, nicks))
+                topic, nicks = self._joining_in_progress.pop(channel)
+                if topic is None:
+                    topic = "(no topic)"  # happens on libera when creating channel
+                self.event_queue.put(SelfJoined(channel, topic, nicks))
+
+            elif msg.command == _RPL_ENDOFMOTD:
+                # TODO: there must be a better way than relying on MOTD
+                for channel in self.autojoin:
+                    self.join_channel(channel)
+
+            elif msg.command == "TOPIC":
+                channel, topic = msg.args
+                old_junk_topic, nicks = self._joining_in_progress[channel]
+                self._joining_in_progress[channel] = (topic, nicks)
 
             else:
-                # TODO: there must be a better way than relying on MOTD
-                if msg.command == _RPL_ENDOFMOTD:
-                    for channel in self.autojoin:
-                        self.join_channel(channel)
-
                 self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
+
+        elif msg.command == "TOPIC":
+            channel, topic = msg.args
+            assert msg.sender is not None
+            self.event_queue.put(TopicChanged(msg.sender, channel, topic))
 
         else:
             self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
@@ -401,6 +416,7 @@ class IrcCore:
             sock.close()
 
     def join_channel(self, channel: str) -> None:
+        self._joining_in_progress[channel] = (None, [])
         self._send_soon("JOIN", channel)
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
@@ -421,6 +437,9 @@ class IrcCore:
     # emits SelfChangedNick event on success
     def change_nick(self, new_nick: str) -> None:
         self._send_soon("NICK", new_nick)
+
+    def change_topic(self, channel: str, new_topic: str) -> None:
+        self._send_soon("TOPIC", channel, new_topic)
 
     def quit(self) -> None:
         if self._sock is None:

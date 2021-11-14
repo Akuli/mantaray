@@ -62,6 +62,18 @@ def test_nick_change(alice, bob, wait_until):
     )
 
 
+def test_topic_change(alice, wait_until):
+    alice.entry.insert("end", "/topic blah blah")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            "Alice changed the topic of #autojoin: blah blah\n"
+            in alice.find_channel("#autojoin").textwidget.get("1.0", "end")
+        )
+    )
+    # Bug in hircd: Bob doesn't get a notification about Alice changed topic
+
+
 def test_quit(alice, bob, wait_until):
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
