@@ -137,13 +137,16 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     )
 
 
-@pytest.mark.parametrize("command, error", [
-    ("/join", "Usage: /join <channel>"),
-    ("/nick", "Usage: /nick <new_nick>"),
-    ("/msg", "Usage: /msg <nick> <message>"),
-    ("/msg Bob", "Usage: /msg <nick> <message>"),
-    ("/quit asdf", "Usage: /quit"),
-])
+@pytest.mark.parametrize(
+    "command, error",
+    [
+        ("/join", "Usage: /join <channel>"),
+        ("/nick", "Usage: /nick <new_nick>"),
+        ("/msg", "Usage: /msg <nick> <message>"),
+        ("/msg Bob", "Usage: /msg <nick> <message>"),
+        ("/quit asdf", "Usage: /quit"),
+    ],
+)
 def test_incorrect_usage(alice, wait_until, command, error):
     alice.entry.insert("end", command)
     alice.on_enter_pressed()
