@@ -144,7 +144,7 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
         ("/nick", "Usage: /nick <new_nick>"),
         ("/msg", "Usage: /msg <nick> <message>"),
         ("/msg Bob", "Usage: /msg <nick> <message>"),
-        ("/quit asdf", "Usage: /quit"),
+        ("/quit asdf", "Usage: /quit"),  # no arguments expected is special-cased
     ],
 )
 def test_incorrect_usage(alice, wait_until, command, error):
