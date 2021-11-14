@@ -2,7 +2,6 @@
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
 import os
-import queue
 import re
 import subprocess
 import sys
@@ -11,7 +10,7 @@ import traceback
 from tkinter import ttk
 from typing import Callable, Any
 
-from irc_client import backend, config, commands
+from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
 
 
