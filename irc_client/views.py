@@ -163,7 +163,6 @@ class ChannelView(View):
     def show_topic(self, topic: str) -> None:
         self.add_message("*", f"The topic of {self.name} is: {topic}")
 
-    # TODO: show who changed topic
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
             "*", f"{colors.color_nick(nick)} changed the topic of {self.name}: {topic}"
