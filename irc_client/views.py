@@ -1,10 +1,12 @@
 from __future__ import annotations
+import re
+import queue
 import time
 import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING
 
-from irc_client import colors
+from irc_client import backend, colors, config
 
 if TYPE_CHECKING:
     from irc_client.gui import IrcWidget
@@ -34,9 +36,9 @@ class _UserList:
 
 
 class View:
-    def __init__(self, irc_widget: IrcWidget):
+    def __init__(self, irc_widget: IrcWidget, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
-        self.view_id = irc_widget.view_selector.insert("", "end")
+        self.view_id = irc_widget.view_selector.insert(parent_view_id, "end")
 
         # width and height are minimums, can stretch bigger
         self.textwidget = tkinter.Text(
@@ -47,6 +49,13 @@ class View:
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
+
+    @property
+    def server_view(self) -> ServerView:
+        parent_id = self.irc_widget.view_selector.parent(self.view_id)
+        parent_view = self.irc_widget.views_by_id[parent_id]
+        assert isinstance(parent_view, ServerView)
+        return parent_view
 
     def add_message(
         self,
@@ -105,18 +114,180 @@ class View:
 
 
 class ServerView(View):
-    def __init__(self, irc_widget: IrcWidget, hostname: str):
+    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget)
-        irc_widget.view_selector.item(self.view_id, text=hostname)
+        irc_widget.view_selector.item(self.view_id, text=server_config["host"])
+        self.core = backend.IrcCore(server_config)
+        self.extra_notifications = set(server_config["extra_notifications"])
+
+        self.core.start()
+        self.handle_events()
+
+    @property
+    def server_view(self) -> ServerView:
+        return self
+
+    def get_subviews(self, *, include_server: bool = False) -> list[View]:
+        result: list[View] = []
+        if include_server:
+            result.append(self)
+        for view_id in self.irc_widget.view_selector.get_children(self.view_id):
+            result.append(self.irc_widget.views_by_id[view_id])
+        return result
+
+    def find_channel(self, name: str) -> ChannelView | None:
+        for view in self.get_subviews():
+            if isinstance(view, ChannelView) and view.name == name:
+                return view
+        return None
+
+    def find_pm(self, nick: str) -> PMView | None:
+        for view in self.get_subviews():
+            # TODO: case insensitive
+            if isinstance(view, PMView) and view.nick == nick:
+                return view
+        return None
+
+    def handle_events(self) -> None:
+        """Call this once to start processing events from the core."""
+        # this is here so that this will be called again, even if
+        # something raises an error this time
+        next_call_id = self.irc_widget.after(100, self.handle_events)
+
+        while True:
+            try:
+                event = self.core.event_queue.get(block=False)
+            except queue.Empty:
+                break
+
+            if isinstance(event, backend.SelfJoined):
+                channel_view = self.find_channel(event.channel)
+                if channel_view is None:
+                    channel_view = ChannelView(self, event.channel, event.nicklist)
+                    self.irc_widget.add_view(channel_view)
+                else:
+                    # Can exist already, when has been disconnected from server
+                    channel_view.userlist.set_nicks(event.nicklist)
+
+                channel_view.show_topic(event.topic)
+                if event.channel not in self.core.autojoin:
+                    self.core.autojoin.append(event.channel)
+
+            elif isinstance(event, backend.SelfParted):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                self.irc_widget.remove_view(channel_view)
+                if event.channel in self.core.autojoin:
+                    self.core.autojoin.remove(event.channel)
+
+            elif isinstance(event, backend.SelfChangedNick):
+                if self.irc_widget.get_current_view().server_view == self:
+                    self.irc_widget.nickbutton.config(text=event.new)
+                for view in self.get_subviews(include_server=True):
+                    view.on_self_changed_nick(event.old, event.new)
+
+            elif isinstance(event, backend.SelfQuit):
+                self.irc_widget.after_cancel(next_call_id)
+                self.irc_widget.remove_server(self)
+                return
+
+            elif isinstance(event, backend.UserJoined):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                channel_view.on_join(event.nick)
+
+            elif isinstance(event, backend.UserParted):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                channel_view.on_part(event.nick, event.reason)
+
+            elif isinstance(event, backend.UserQuit):
+                for view in self.get_subviews(include_server=True):
+                    if event.nick in view.get_relevant_nicks():
+                        view.on_relevant_user_quit(event.nick, event.reason)
+
+            elif isinstance(event, backend.UserChangedNick):
+                for view in self.get_subviews(include_server=True):
+                    if event.old in view.get_relevant_nicks():
+                        view.on_relevant_user_changed_nick(event.old, event.new)
+
+            elif isinstance(event, backend.SentPrivmsg):
+                channel_view = self.find_channel(event.recipient)
+                if channel_view is None:
+                    assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
+                    pm_view = self.find_pm(event.recipient)
+                    if pm_view is None:
+                        # start of a new PM conversation
+                        pm_view = PMView(self, event.recipient)
+                        self.irc_widget.add_view(pm_view)
+                    pm_view.on_privmsg(self.core.nick, event.text)
+                else:
+                    channel_view.on_privmsg(self.core.nick, event.text)
+
+            elif isinstance(event, backend.ReceivedPrivmsg):
+                # sender and recipient are channels or nicks
+                if event.recipient == self.core.nick:  # PM
+                    pm_view = self.find_pm(event.sender)
+                    if pm_view is None:
+                        # start of a new PM conversation
+                        pm_view = PMView(self, event.sender)
+                        self.irc_widget.add_view(pm_view)
+                    pm_view.on_privmsg(event.sender, event.text)
+                    self.irc_widget.new_message_notify(pm_view, event.text)
+
+                else:
+                    channel_view = self.find_channel(event.recipient)
+                    assert channel_view is not None
+
+                    pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
+                    channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
+                    if pinged or (channel_view.name in self.extra_notifications):
+                        self.irc_widget.new_message_notify(
+                            channel_view, f"<{event.sender}> {event.text}"
+                        )
+
+            # TODO: do something to unknown messages!! maybe log in backend?
+            elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
+                self.server_view.add_message(
+                    event.sender or "???", " ".join(event.args)
+                )
+
+            elif isinstance(event, backend.ConnectivityMessage):
+                for view in self.get_subviews(include_server=True):
+                    view.on_connectivity_message(event.message, error=event.is_error)
+
+            elif isinstance(event, backend.TopicChanged):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                channel_view.on_topic_changed(event.who_changed, event.topic)
+
+            else:
+                # If mypy says 'error: unused "type: ignore" comment', you
+                # forgot to check for some class
+                print("can't happen")  # type: ignore
+
+    def get_current_config(self) -> config.ServerConfig:
+        return {
+            "host": self.core.host,
+            "port": self.core.port,
+            "ssl": self.core.ssl,
+            "nick": self.core.nick,
+            "username": self.core.username,
+            "realname": self.core.realname,
+            "joined_channels": self.core.autojoin.copy(),
+            "extra_notifications": list(self.extra_notifications),
+        }
 
 
 class ChannelView(View):
-    def __init__(self, irc_widget: IrcWidget, name: str, nicks: list[str]):
-        super().__init__(irc_widget)
+    userlist: _UserList  # no idea why this is needed to avoid mypy error
+
+    def __init__(self, server_view: ServerView, name: str, nicks: list[str]):
+        super().__init__(server_view.irc_widget, parent_view_id=server_view.view_id)
         self.irc_widget.view_selector.item(
-            self.view_id, text=name, image=irc_widget.channel_image
+            self.view_id, text=name, image=server_view.irc_widget.channel_image
         )
-        self.userlist = _UserList(irc_widget)
+        self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
 
     def destroy_widgets(self) -> None:
@@ -171,10 +342,10 @@ class ChannelView(View):
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
-    def __init__(self, irc_widget: IrcWidget, nick: str):
-        super().__init__(irc_widget)
+    def __init__(self, server_view: ServerView, nick: str):
+        super().__init__(server_view.irc_widget, parent_view_id=server_view.view_id)
         self.irc_widget.view_selector.item(
-            self.view_id, text=nick, image=irc_widget.pm_image
+            self.view_id, text=nick, image=self.irc_widget.pm_image
         )
 
     @property
