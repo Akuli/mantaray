@@ -11,11 +11,8 @@ from . import gui, config
 def update_title(
     root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
 ) -> None:
-    title = f"IRC: {irc_widget.core.host}"
     number = irc_widget.not_seen_count()
-    if number != 0:
-        title = f"({number}) " + title
-    root.title(title)
+    root.title("IRC" if number == 0 else f"({number}) IRC")
 
 
 def main() -> None:
@@ -47,9 +44,7 @@ def main() -> None:
         )
         if server_config is None:
             return
-    else:
-        # TODO: support multiple servers
-        [server_config] = file_config["servers"]
+        file_config = {"servers": [server_config]}
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
         if event.widget == root:
@@ -57,22 +52,29 @@ def main() -> None:
             # If you click the widget twice, this won't steal the focus second time
             root.after_idle(irc_widget.entry.focus)
 
-    irc_widget = gui.IrcWidget(root, server_config, root.destroy)
+    def quit_all_servers() -> None:
+        if not args.no_config:
+            server_configs = [
+                server_view.get_current_config()
+                for server_view in irc_widget.get_server_views()
+            ]
+            config.save_to_file({"servers": server_configs})
+
+        for server_view in irc_widget.get_server_views():
+            server_view.core.quit()
+
+    irc_widget = gui.IrcWidget(root, file_config, root.destroy)
     irc_widget.pack(fill="both", expand=True)
     root.bind("<FocusIn>", on_any_widget_focused)
-    root.protocol("WM_DELETE_WINDOW", irc_widget.core.quit)
+    root.protocol("WM_DELETE_WINDOW", quit_all_servers)
 
     update_the_title = functools.partial(update_title, root, irc_widget)
     update_the_title()
     irc_widget.bind("<<NotSeenCountChanged>>", update_the_title)
 
-    irc_widget.handle_events()  # doesn't block
     root.deiconify()  # unhide
     root.mainloop()
 
-    if not args.no_config:
-        new_config = irc_widget.get_current_config()
-        config.save_to_file({"servers": [new_config]})
 
 
 if __name__ == "__main__":

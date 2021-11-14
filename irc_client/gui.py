@@ -99,16 +99,10 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 class IrcWidget(ttk.PanedWindow):
     def __init__(
         self,
-        master: tkinter.Misc,
-        server_config: config.ServerConfig,
+        master: tkinter.Misc, file_config: config.Config,
         on_quit: Callable[[], object] | None = None,
     ):
         super().__init__(master, orient="horizontal")
-        self.core = backend.IrcCore(server_config)
-        self.core.start()
-
-        self._extra_notifications = set(server_config["extra_notifications"])
-
         self._on_quit = on_quit
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
@@ -152,12 +146,11 @@ class IrcWidget(ttk.PanedWindow):
         entryframe = ttk.Frame(self._middle_pane)
         entryframe.pack(side="bottom", fill="x")
         # TODO: add a tooltip to the button, it's not very obvious
-        self._nickbutton = ttk.Button(
+        self.nickbutton = ttk.Button(
             entryframe,
-            text=server_config["nick"],
             command=self._show_change_nick_dialog,
         )
-        self._nickbutton.pack(side="left")
+        self.nickbutton.pack(side="left")
         self.entry = ttk.Entry(entryframe)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
@@ -167,20 +160,36 @@ class IrcWidget(ttk.PanedWindow):
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
-        self.server_view = ServerView(self, self.core.host)
-        self.add_view(self.server_view)
+        for server_config in file_config["servers"]:
+            self.add_view(ServerView(self, server_config))
+
+    def remove_server(self, server_view: ServerView) -> None:
+        del self.views_by_id[server_view.view_id]
+        self.view_selector.delete(server_view.view_id)
+        if not self.view_selector.get_children(""):
+            (self._on_quit or self.destroy)()
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
 
+    def get_server_views(self) -> list[ServerView]:
+        result = []
+        for view_id in self.view_selector.get_children(""):
+            view = self.views_by_id[view_id]
+            assert isinstance(view, ServerView)
+            result.append(view)
+        return result
+
     def _show_change_nick_dialog(self) -> None:
-        new_nick = ask_new_nick(self.winfo_toplevel(), self.core.nick)
-        if new_nick != self.core.nick:
-            self.core.change_nick(new_nick)
+        core = self.get_current_view().server_view.core
+        new_nick = ask_new_nick(self.winfo_toplevel(), core.nick)
+        if new_nick != core.nick:
+            core.change_nick(new_nick)
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
-        commands.handle_command(self.get_current_view(), self.core, self.entry.get())
+        view = self.get_current_view()
+        commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
 
     def _on_page_up(self, junk_event: object) -> None:
@@ -248,6 +257,8 @@ class IrcWidget(ttk.PanedWindow):
         )
 
         self._previous_view = new_view
+
+        self.nickbutton.config(text=new_view.server_view.core.nick)
         self._mark_seen()
 
     def add_view(self, view: View) -> None:
@@ -264,19 +275,6 @@ class IrcWidget(ttk.PanedWindow):
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
-    def find_channel(self, name: str) -> ChannelView | None:
-        for view in self.views_by_id.values():
-            if isinstance(view, ChannelView) and view.name == name:
-                return view
-        return None
-
-    def find_pm(self, nick: str) -> PMView | None:
-        for view in self.views_by_id.values():
-            # TODO: case insensitive
-            if isinstance(view, PMView) and view.nick == nick:
-                return view
-        return None
-
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
@@ -291,9 +289,9 @@ class IrcWidget(ttk.PanedWindow):
 
         def on_change(*junk: object) -> None:
             assert isinstance(channel, ChannelView)  # mypy awesomeness
-            self._extra_notifications ^= {channel.name}
+            channel.server_view.extra_notifications ^= {channel.name}
 
-        var = tkinter.BooleanVar(value=(channel.name in self._extra_notifications))
+        var = tkinter.BooleanVar(value=(channel.name in channel.server_view.extra_notifications))
         var.trace_add("write", on_change)
         self._garbage_collection_is_lol = var
 
@@ -303,128 +301,11 @@ class IrcWidget(ttk.PanedWindow):
         )
         self._contextmenu.tk_popup(event.x_root, event.y_root)
 
-    def handle_events(self) -> None:
-        """Call this once to start processing events from the core."""
-        # this is here so that this will be called again, even if
-        # something raises an error this time
-        next_call_id = self.after(100, self.handle_events)
-
-        while True:
-            try:
-                event = self.core.event_queue.get(block=False)
-            except queue.Empty:
-                break
-
-            if isinstance(event, backend.SelfJoined):
-                channel_view = self.find_channel(event.channel)
-                if channel_view is None:
-                    channel_view = ChannelView(self, event.channel, event.nicklist)
-                    self.add_view(channel_view)
-                else:
-                    # Can exist already, when has been disconnected from server
-                    channel_view.userlist.set_nicks(event.nicklist)
-
-                channel_view.show_topic(event.topic)
-                if event.channel not in self.core.autojoin:
-                    self.core.autojoin.append(event.channel)
-
-            elif isinstance(event, backend.SelfParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                self.remove_view(channel_view)
-                if event.channel in self.core.autojoin:
-                    self.core.autojoin.remove(event.channel)
-
-            elif isinstance(event, backend.SelfChangedNick):
-                self._nickbutton.config(text=event.new)
-                for view in self.views_by_id.values():
-                    view.on_self_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SelfQuit):
-                (self._on_quit or self.destroy)()
-                self.after_cancel(next_call_id)
-                return  # don't run self.handle_events again
-
-            elif isinstance(event, backend.UserJoined):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_join(event.nick)
-
-            elif isinstance(event, backend.UserParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_part(event.nick, event.reason)
-
-            elif isinstance(event, backend.UserQuit):
-                for view in self.views_by_id.values():
-                    if event.nick in view.get_relevant_nicks():
-                        view.on_relevant_user_quit(event.nick, event.reason)
-
-            elif isinstance(event, backend.UserChangedNick):
-                for view in self.views_by_id.values():
-                    if event.old in view.get_relevant_nicks():
-                        view.on_relevant_user_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SentPrivmsg):
-                channel_view = self.find_channel(event.recipient)
-                if channel_view is None:
-                    assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
-                    pm_view = self.find_pm(event.recipient)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.recipient)
-                        self.add_view(pm_view)
-                    pm_view.on_privmsg(self.core.nick, event.text)
-                else:
-                    channel_view.on_privmsg(self.core.nick, event.text)
-
-            elif isinstance(event, backend.ReceivedPrivmsg):
-                # sender and recipient are channels or nicks
-                if event.recipient == self.core.nick:  # PM
-                    pm_view = self.find_pm(event.sender)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.sender)
-                        self.add_view(pm_view)
-                    pm_view.on_privmsg(event.sender, event.text)
-                    self._new_message_notify(pm_view, event.text)
-
-                else:
-                    channel_view = self.find_channel(event.recipient)
-                    assert channel_view is not None
-
-                    pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
-                    channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (channel_view.name in self._extra_notifications):
-                        self._new_message_notify(
-                            channel_view, f"<{event.sender}> {event.text}"
-                        )
-
-            # TODO: do something to unknown messages!! maybe log in backend?
-            elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
-                self.server_view.add_message(
-                    event.sender or "???", " ".join(event.args)
-                )
-
-            elif isinstance(event, backend.ConnectivityMessage):
-                for view in self.views_by_id.values():
-                    view.on_connectivity_message(event.message, error=event.is_error)
-
-            elif isinstance(event, backend.TopicChanged):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_topic_changed(event.who_changed, event.topic)
-
-            else:
-                # If mypy says 'error: unused "type: ignore" comment', you
-                # forgot to check for some class
-                print("can't happen")  # type: ignore
-
     def _window_has_focus(self) -> bool:
         return bool(self.tk.eval("focus"))
 
     # TODO: /me's and stuff should also call this when they are supported
-    def _new_message_notify(
+    def new_message_notify(
         self, view: ChannelView | PMView, message_with_sender: str
     ) -> None:
         if isinstance(view, ChannelView):
@@ -460,15 +341,3 @@ class IrcWidget(ttk.PanedWindow):
                 if "new_message" in tags:
                     result += 1
         return result
-
-    def get_current_config(self) -> config.ServerConfig:
-        return {
-            "host": self.core.host,
-            "port": self.core.port,
-            "ssl": self.core.ssl,
-            "nick": self.core.nick,
-            "username": self.core.username,
-            "realname": self.core.realname,
-            "joined_channels": self.core.autojoin.copy(),
-            "extra_notifications": list(self._extra_notifications),
-        }
