@@ -262,6 +262,8 @@ class IrcWidget(ttk.PanedWindow):
         self._mark_seen()
 
     def add_view(self, view: View) -> None:
+        assert view.view_id not in self.views_by_id
+        self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
 
