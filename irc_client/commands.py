@@ -2,7 +2,7 @@
 from __future__ import annotations
 import re
 from typing import Callable, TypeVar
-from irc_client.gui import View, ChannelView, PMView
+from irc_client.views import View, ChannelView, PMView
 from irc_client.backend import IrcCore
 
 
