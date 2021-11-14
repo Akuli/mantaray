@@ -70,7 +70,7 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
 
 def test_nickserv_and_memoserv(alice, bob, wait_until):
     # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
-    bob.get_current_view().server_view.core.change_nick("NickServ")
+    bob.get_server_views()[0].core.change_nick("NickServ")
     wait_until(lambda: "You are now known as NickServ.\n" in bob.text())
 
     # FIXME: show password with *** in Alice's client?
@@ -79,7 +79,7 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     wait_until(lambda: "identify Alice hunter2\n" in bob.text())
     assert bob.get_current_view().nick == "Alice"
 
-    bob.get_current_view().server_view.core.change_nick("MemoServ")
+    bob.get_server_views()[0].core.change_nick("MemoServ")
     wait_until(lambda: "You are now known as MemoServ.\n" in bob.text())
 
     # FIXME: show password with *** in Alice's client?

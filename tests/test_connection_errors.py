@@ -9,8 +9,8 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     assert alice.get_current_view().name == "#autojoin"
 
     start = time.monotonic()
-    alice.get_current_view().server_view.core.quit()
-    alice.get_current_view().server_view.core.wait_until_stopped()
+    alice.get_server_views()[0].core.quit()
+    alice.get_server_views()[0].core.wait_until_stopped()
     end = time.monotonic()
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
