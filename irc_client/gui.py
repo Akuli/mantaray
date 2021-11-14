@@ -11,7 +11,7 @@ import traceback
 from tkinter import ttk
 from typing import Callable, Any
 
-from irc_client import backend, config
+from irc_client import backend, config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
 
 
@@ -180,9 +180,7 @@ class IrcWidget(ttk.PanedWindow):
             self.core.change_nick(new_nick)
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
-        from irc_client.commands import handle_command  # import cycle
-
-        handle_command(self.get_current_view(), self.core, self.entry.get())
+        commands.handle_command(self.get_current_view(), self.core, self.entry.get())
         self.entry.delete(0, "end")
 
     def _on_page_up(self, junk_event: object) -> None:
