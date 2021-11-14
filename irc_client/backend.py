@@ -186,8 +186,6 @@ class IrcCore:
         # the replies are collected here before emitting a self_joined event
         # Topic can also be sent before joining
         # TODO: this in rfc?
-        #
-        # {channel: (topic, nicklist)}
         self._joining_in_progress: dict[str, _JoinInProgress] = {}
 
         self._quit_event = threading.Event()
