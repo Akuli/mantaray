@@ -82,8 +82,18 @@ def test_invalid_command(alice, wait_until):
     alice.on_enter_pressed()
     wait_until(
         lambda: (
-            "There's no '/asdf' command :("
+            "No command named '/asdf'\n"
             in alice.find_channel("#autojoin").textwidget.get("1.0", "end")
+        )
+    )
+
+
+def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
+    alice.entry.insert("end", "/home/alice")
+    alice.on_enter_pressed()  # sends /home/alice as a message
+    wait_until(
+        lambda: (
+            "/home/alice" in bob.find_channel("#autojoin").textwidget.get("1.0", "end")
         )
     )
 

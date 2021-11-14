@@ -24,45 +24,38 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
     if not entry_content:
         return
 
-    # TODO: disallow slashes in command
-    if entry_content.startswith("/") and not entry_content.startswith("//"):
+    if re.fullmatch("/[a-z]+( .*)?", entry_content):
         try:
-            command, args_string = entry_content.split(maxsplit=1)
-        except ValueError:
-            command = entry_content.strip()
-            args_string = ""
+            usage, func = _commands[entry_content.split()[0]]
+        except KeyError:
+            view.add_message("*", f"No command named '{entry_content.split()[0]}'")
+            return
 
-        if command in _commands:
-            usage, func = _commands[command]
-            required = usage.count(" <")
-            optional = usage.count(" [<")
-            # Last arg can contain spaces
-            args = args_string.split(maxsplit=required + optional - 1)
-            if len(args) < required or len(args) > required + optional:
-                view.add_message("*", "Usage: " + usage)
-            else:
-                func(view, core, **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)})
+        # Last arg can contain spaces
+        args = entry_content.split(maxsplit=usage.count(" "))[1:]
+        if len(args) < usage.count(" <"):
+            view.add_message("*", "Usage: " + usage)
         else:
-            view.add_message("*", f"There's no '{command}' command :(")
+            func(view, core, **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)})
+        return
 
+    if entry_content.startswith("//"):
+        message = entry_content[1:]
     else:
-        if entry_content.startswith("//"):
-            message = entry_content.replace("//", "/", 1)
-        else:
-            message = entry_content
+        message = entry_content
 
-        if isinstance(view, ChannelView):
-            core.send_privmsg(view.name, message)
-        elif isinstance(view, PMView):
-            core.send_privmsg(view.nick, message)
-        else:
-            view.add_message(
-                "*",
-                (
-                    "You can't send messages here. "
-                    "Join a channel instead and send messages there."
-                ),
-            )
+    if isinstance(view, ChannelView):
+        core.send_privmsg(view.name, message)
+    elif isinstance(view, PMView):
+        core.send_privmsg(view.nick, message)
+    else:
+        view.add_message(
+            "*",
+            (
+                "You can't send messages here. "
+                "Join a channel instead and send messages there."
+            ),
+        )
 
 
 def _add_default_commands() -> None:
