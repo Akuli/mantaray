@@ -36,7 +36,14 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
         if len(args) < usage.count(" <"):
             view.add_message("*", "Usage: " + usage)
         else:
-            func(view, core, **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)})
+            func(
+                view,
+                core,
+                **{
+                    name.strip("[<>]"): arg
+                    for name, arg in zip(usage.split()[1:], args)
+                },
+            )
         return
 
     if entry_content.startswith("//"):
