@@ -32,8 +32,9 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
             return
 
         # Last arg can contain spaces
-        args = entry_content.split(maxsplit=usage.count(" "))[1:]
-        if len(args) < usage.count(" <"):
+        # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
+        args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
+        if len(args) < usage.count(" <") or len(args) > usage.count(" "):
             view.add_message("*", "Usage: " + usage)
         else:
             func(
@@ -86,6 +87,11 @@ def _add_default_commands() -> None:
             view.add_message(
                 "*", "Channel is needed unless you are currently on a channel."
             )
+
+    # TODO: specifying a reason
+    @add_command("/quit")
+    def quit(view: View, core: IrcCore) -> None:
+        core.quit()
 
     @add_command("/nick <new_nick>")
     def nick(view: View, core: IrcCore, new_nick: str) -> None:

@@ -63,9 +63,8 @@ def test_nick_change(alice, bob, wait_until):
 
 
 def test_quit(alice, bob, wait_until):
-    # TODO: /quit command
-    #    alice.entry.insert("end", "/quit")
-    #    alice.on_enter_pressed()
+    alice.entry.insert("end", "/quit")
+    alice.on_enter_pressed()
     alice.core.quit()
 
     wait_until(
@@ -138,21 +137,20 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     )
 
 
-def test_incorrect_usage(alice, wait_until):
-    test_cases = """\
-/join --> Usage: /join <channel>
-/nick --> Usage: /nick <new_nick>
-/msg --> Usage: /msg <nick> <message>
-/msg Bob --> Usage: /msg <nick> <message>  # TODO: maybe should be supported?
-"""
-    for line in test_cases.splitlines():
-        command, outcome = line.split("#")[0].strip().split(" --> ")
-        alice.entry.insert("end", command)
-        alice.on_enter_pressed()
-        wait_until(
-            lambda: (
-                alice.find_channel("#autojoin")
-                .textwidget.get("end - 1 char - 1 line", "end - 1 char")
-                .endswith(outcome + "\n")
-            )
+@pytest.mark.parametrize("command, error", [
+    ("/join", "Usage: /join <channel>"),
+    ("/nick", "Usage: /nick <new_nick>"),
+    ("/msg", "Usage: /msg <nick> <message>"),
+    ("/msg Bob", "Usage: /msg <nick> <message>"),
+    ("/quit asdf", "Usage: /quit"),
+])
+def test_incorrect_usage(alice, wait_until, command, error):
+    alice.entry.insert("end", command)
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: (
+            alice.find_channel("#autojoin")
+            .textwidget.get("end - 1 char - 1 line", "end - 1 char")
+            .endswith(error + "\n")
         )
+    )
