@@ -14,14 +14,6 @@ from typing import Union, Sequence
 from . import config
 
 
-@dataclasses.dataclass
-class _ReceivedAndParsedMessage:
-    sender: str | None
-    sender_is_server: bool
-    command: str
-    args: list[str]
-
-
 # from rfc1459
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
@@ -136,6 +128,20 @@ _IrcEvent = Union[
 RECONNECT_SECONDS = 10
 
 
+@dataclasses.dataclass
+class _ReceivedAndParsedMessage:
+    sender: str | None
+    sender_is_server: bool
+    command: str
+    args: list[str]
+
+
+@dataclasses.dataclass
+class _JoinInProgress:
+    topic: str | None
+    nicks: list[str]
+
+
 def _recv_line(
     sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]
 ) -> str:
@@ -182,7 +188,7 @@ class IrcCore:
         # TODO: this in rfc?
         #
         # {channel: (topic, nicklist)}
-        self._joining_in_progress: dict[str, tuple[str | None, list[str]]] = {}
+        self._joining_in_progress: dict[str, _JoinInProgress] = {}
 
         self._quit_event = threading.Event()
 
@@ -273,27 +279,25 @@ class IrcCore:
                 channel, names = msg.args[-2:]
 
                 # TODO: don't ignore @ and + prefixes
-                self._joining_in_progress[channel][1].extend(
+                self._joining_in_progress[channel].nicks.extend(
                     name.lstrip("@+") for name in names.split()
                 )
 
             elif msg.command == _RPL_ENDOFNAMES:
                 # joining a channel finished
                 channel, human_readable_message = msg.args[-2:]
-                topic, nicks = self._joining_in_progress.pop(channel)
-                if topic is None:
-                    topic = "(no topic)"  # happens on libera when creating channel
-                self.event_queue.put(SelfJoined(channel, topic, nicks))
+                join = self._joining_in_progress.pop(channel)
+                # join.topic is None, when creating channel on libera
+                self.event_queue.put(SelfJoined(channel, join.topic or "(no topic)", join.nicks))
 
             elif msg.command == _RPL_ENDOFMOTD:
-                # TODO: there must be a better way than relying on MOTD
+                # TODO: relying on MOTD good?
                 for channel in self.autojoin:
                     self.join_channel(channel)
 
             elif msg.command == "TOPIC":
                 channel, topic = msg.args
-                old_junk_topic, nicks = self._joining_in_progress[channel]
-                self._joining_in_progress[channel] = (topic, nicks)
+                self._joining_in_progress[channel].topic = topic
 
             else:
                 self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
@@ -416,7 +420,7 @@ class IrcCore:
             sock.close()
 
     def join_channel(self, channel: str) -> None:
-        self._joining_in_progress[channel] = (None, [])
+        self._joining_in_progress[channel] = _JoinInProgress(None, [])
         self._send_soon("JOIN", channel)
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
