@@ -267,6 +267,10 @@ class ServerView(View):
                 print("can't happen")  # type: ignore
 
     def get_current_config(self) -> config.ServerConfig:
+        channel_names = [
+            view.name for view in self.get_subviews() if isinstance(view, ChannelView)
+        ]
+        index_mapping = {chan: index for index, chan in enumerate(channel_names)}
         return {
             "host": self.core.host,
             "port": self.core.port,
@@ -274,7 +278,9 @@ class ServerView(View):
             "nick": self.core.nick,
             "username": self.core.username,
             "realname": self.core.realname,
-            "joined_channels": self.core.autojoin.copy(),
+            "joined_channels": sorted(
+                self.core.autojoin, key=(lambda chan: index_mapping.get(chan, -1))
+            ),
             "extra_notifications": list(self.extra_notifications),
         }
 

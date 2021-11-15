@@ -157,6 +157,8 @@ class IrcWidget(ttk.PanedWindow):
         # TODO: Ctrl+PageUp good on mac?
         self.entry.bind("<Control-Prior>", self._select_previous_view)
         self.entry.bind("<Control-Next>", self._select_next_view)
+        self.entry.bind("<Control-Shift-Prior>", self._move_view_up)
+        self.entry.bind("<Control-Shift-Next>", self._move_view_down)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -214,6 +216,22 @@ class IrcWidget(ttk.PanedWindow):
         index = ids.index(self.get_current_view().view_id) + 1
         if index < len(ids):
             self.view_selector.selection_set(ids[index])
+
+    def _move_view_up(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) - 1,
+        )
+
+    def _move_view_down(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) + 1,
+        )
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()
