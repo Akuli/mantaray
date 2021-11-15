@@ -73,8 +73,8 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
 
     alice.get_server_views()[0].core.join_channel("#bobnotify")
     bob.get_server_views()[0].core.join_channel("#bobnotify")
-    wait_until(lambda: alice.get_current_view().name == "#bobnotify")
-    wait_until(lambda: bob.get_current_view().name == "#bobnotify")
+    wait_until(lambda: alice.get_current_view().channel_name == "#bobnotify")
+    wait_until(lambda: bob.get_current_view().channel_name == "#bobnotify")
 
     alice.entry.insert("end", "this should cause notification")
     alice.on_enter_pressed()
