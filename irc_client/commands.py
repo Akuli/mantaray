@@ -20,38 +20,7 @@ def add_command(usage: str) -> Callable[[_CommandT], _CommandT]:
     return do_it
 
 
-def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
-    if not entry_content:
-        return
-
-    if re.fullmatch("/[a-z]+( .*)?", entry_content):
-        try:
-            usage, func = _commands[entry_content.split()[0]]
-        except KeyError:
-            view.add_message("*", f"No command named '{entry_content.split()[0]}'")
-            return
-
-        # Last arg can contain spaces
-        # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
-        if len(args) < usage.count(" <") or len(args) > usage.count(" "):
-            view.add_message("*", "Usage: " + usage)
-        else:
-            func(
-                view,
-                core,
-                **{
-                    name.strip("[<>]"): arg
-                    for name, arg in zip(usage.split()[1:], args)
-                },
-            )
-        return
-
-    if entry_content.startswith("//"):
-        message = entry_content[1:]
-    else:
-        message = entry_content
-
+def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
     if isinstance(view, ChannelView):
         core.send_privmsg(view.channel_name, message)
     elif isinstance(view, PMView):
@@ -63,6 +32,40 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
                 "You can't send messages here. "
                 "Join a channel instead and send messages there."
             ),
+        )
+
+
+def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
+    if not entry_content:
+        return
+
+    if not re.fullmatch("/[a-z]+( .*)?", entry_content):
+        if entry_content.startswith("//"):
+            message = entry_content[1:]
+        else:
+            message = entry_content
+        _send_privmsg(view, core, message)
+        return
+
+    try:
+        usage, func = _commands[entry_content.split()[0]]
+    except KeyError:
+        view.add_message("*", f"No command named '{entry_content.split()[0]}'")
+        return
+
+    # Last arg can contain spaces
+    # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
+    args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
+    if len(args) < usage.count(" <") or len(args) > usage.count(" "):
+        view.add_message("*", "Usage: " + usage)
+    else:
+        func(
+            view,
+            core,
+            **{
+                name.strip("[<>]"): arg
+                for name, arg in zip(usage.split()[1:], args)
+            },
         )
 
 
@@ -101,6 +104,10 @@ def _add_default_commands() -> None:
         else:
             view.add_message("*", "You must be on a channel to change its topic.")
 
+    @add_command("/me <message>")
+    def me(view: View, core: IrcCore, message: str) -> None:
+        _send_privmsg(view, core, "\x01ACTION " + message + "\x01")
+
     # TODO: /msg <nick>, should open up PMView
     @add_command("/msg <nick> <message>")
     def msg(view: View, core: IrcCore, nick: str, message: str) -> None:
@@ -116,7 +123,7 @@ def _add_default_commands() -> None:
     def msg_memoserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "MemoServ", message)
 
-    # TODO: /me, /kick, /ban etc... lots of commands to add
+    # TODO: /kick, /ban etc... lots of commands to add
 
 
 _add_default_commands()
