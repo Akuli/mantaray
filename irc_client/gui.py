@@ -1,7 +1,6 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
-import os
 import re
 import subprocess
 import sys
@@ -9,6 +8,7 @@ import tkinter
 import traceback
 from tkinter import ttk
 from typing import Callable, Any
+from pathlib import Path
 
 from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
@@ -100,18 +100,18 @@ class IrcWidget(ttk.PanedWindow):
         self,
         master: tkinter.Misc,
         file_config: config.Config,
+        log_dir: Path,
         on_quit: Callable[[], object] | None = None,
     ):
         super().__init__(master, orient="horizontal")
+        self.log_dir = log_dir
         self._on_quit = on_quit
 
-        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
-            file=os.path.join(images_dir, "hashtagbubble-20x20.png")
+            file=(images_dir / "hashtagbubble-20x20.png")
         )
-        self.pm_image = tkinter.PhotoImage(
-            file=os.path.join(images_dir, "face-20x20.png")
-        )
+        self.pm_image = tkinter.PhotoImage(file=(images_dir / "face-20x20.png"))
 
         # Help Python's GC (tkinter images rely on __del__ and it sucks)
         self.bind(

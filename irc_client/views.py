@@ -1,10 +1,11 @@
 from __future__ import annotations
 import re
 import queue
+import traceback
 import time
 import tkinter
 from tkinter import ttk
-from typing import Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING, IO
 
 from irc_client import backend, colors, config
 
@@ -47,8 +48,14 @@ class View:
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         colors.config_tags(self.textwidget)
 
-    def destroy_widgets(self) -> None:
+        self.log_file: IO[str] | None = None
+
+    def destroy_view(self) -> None:
         self.textwidget.destroy()
+        if self.log_file is not None:
+            print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
+            self.log_file.close()
+        print("DESTROY", self, self.log_file)
 
     @property
     def server_view(self) -> ServerView:
@@ -65,7 +72,6 @@ class View:
         nicks_to_highlight: Sequence[str] = (),
         pinged: bool = False,
     ) -> None:
-        """Add a message to self.textwidget."""
         # scroll down all the way if the user hasn't scrolled up manually
         do_the_scroll = self.textwidget.yview()[1] == 1.0
 
@@ -84,6 +90,9 @@ class View:
         )
         self.textwidget.insert("end", "\n")
         self.textwidget.config(state="disabled")
+
+        if self.log_file is not None:
+            print(time.asctime(), sender, message, sep="\t", file=self.log_file, flush=True)
 
         if do_the_scroll:
             self.textwidget.see("end")
@@ -122,6 +131,20 @@ class ServerView(View):
 
         self.core.start()
         self.handle_events()
+
+    def open_log_file(self, name: str) -> IO[str] | None:
+        name = re.sub(r"[^A-Za-z0-9-_#]", "", name)
+        (self.irc_widget.log_dir / self.core.host).mkdir(parents=True, exist_ok=True)
+        try:
+            file = (self.irc_widget.log_dir / self.core.host / (name + ".log")).open(
+                "a", encoding="utf-8"
+            )
+        except OSError:
+            traceback.print_exc()
+            return None
+        else:
+            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+            return file
 
     @property
     def server_view(self) -> ServerView:
@@ -188,7 +211,7 @@ class ServerView(View):
 
             elif isinstance(event, backend.SelfQuit):
                 self.irc_widget.after_cancel(next_call_id)
-                self.irc_widget.remove_server(self)
+                self.irc_widget.remove_view(self)
                 return
 
             elif isinstance(event, backend.UserJoined):
@@ -241,7 +264,9 @@ class ServerView(View):
 
                     pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (channel_view.channel_name in self.extra_notifications):
+                    if pinged or (
+                        channel_view.channel_name in self.extra_notifications
+                    ):
                         self.irc_widget.new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
                         )
@@ -290,8 +315,10 @@ class ChannelView(View):
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
 
-    def destroy_widgets(self) -> None:
-        super().destroy_widgets()
+        self.log_file = self.server_view.open_log_file(name)
+
+    def destroy_view(self) -> None:
+        super().destroy_view()
         self.userlist.treeview.destroy()
 
     @property
@@ -336,7 +363,8 @@ class ChannelView(View):
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
-            "*", f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}"
+            "*",
+            f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}",
         )
 
 
@@ -347,6 +375,9 @@ class PMView(View):
         self.irc_widget.view_selector.item(
             self.view_id, text=nick, image=self.irc_widget.pm_image
         )
+
+        # FIXME: reopen log file when nick changes
+        self.log_file = self.server_view.open_log_file(nick)
 
     @property
     def nick(self) -> str:

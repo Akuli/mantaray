@@ -1,8 +1,7 @@
 from irc_client.config import load_from_file
 
 
-def test_old_config_format(tmp_path, monkeypatch):
-    monkeypatch.setattr("irc_client.config._config_json_path", tmp_path / "config.json")
+def test_old_config_format(tmp_path):
     (tmp_path / "config.json").write_text(
         """
         {
@@ -21,7 +20,7 @@ def test_old_config_format(tmp_path, monkeypatch):
         }
         """
     )
-    assert load_from_file() == {
+    assert load_from_file(tmp_path) == {
         "servers": [
             {
                 "host": "irc.libera.chat",
