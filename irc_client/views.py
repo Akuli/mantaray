@@ -55,7 +55,6 @@ class View:
         if self.log_file is not None:
             print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
             self.log_file.close()
-        print("DESTROY", self, self.log_file)
 
     @property
     def server_view(self) -> ServerView:
@@ -211,7 +210,7 @@ class ServerView(View):
 
             elif isinstance(event, backend.SelfQuit):
                 self.irc_widget.after_cancel(next_call_id)
-                self.irc_widget.remove_view(self)
+                self.irc_widget.remove_server(self)
                 return
 
             elif isinstance(event, backend.UserJoined):

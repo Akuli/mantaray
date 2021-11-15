@@ -20,8 +20,16 @@ def test_basic(alice, bob, wait_until):
     wait_until(lambda: "Hiii" in alice.text())
 
     alice.get_current_view().server_view.core.quit()
-    #wait_until(lambda: not alice.winfo_exists())
-    #alice.get_current_view().server_view.core.wait_until_stopped()
-    t = time.time()
-    wait_until(lambda: time.time() > t+2)
-    assert (alice.log_dir / "localhost" / "#autojoin.log").read_text("ascii") == "lol"
+    wait_until(lambda: not alice.winfo_exists())
+
+    # TODO: get rid of hex codes
+    expected_log = """\
+*** LOGGING BEGINS <timestamp>
+<timestamp>\t*\tThe topic of #autojoin is: No topic
+<timestamp>\t*\t\x02\x035Bob\x0f joined #autojoin.
+<timestamp>\tAlice\tHello
+<timestamp>\tBob\tHiii
+*** LOGGING ENDS <timestamp>
+"""
+    actual_log = (alice.log_dir / "localhost" / "#autojoin.log").read_text("ascii")
+    assert _remove_timestamps(actual_log) == expected_log
