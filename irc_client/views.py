@@ -137,7 +137,7 @@ class ServerView(View):
 
     def find_channel(self, name: str) -> ChannelView | None:
         for view in self.get_subviews():
-            if isinstance(view, ChannelView) and view.name == name:
+            if isinstance(view, ChannelView) and view.channel_name == name:
                 return view
         return None
 
@@ -241,7 +241,7 @@ class ServerView(View):
 
                     pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (channel_view.name in self.extra_notifications):
+                    if pinged or (channel_view.channel_name in self.extra_notifications):
                         self.irc_widget.new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
                         )
@@ -301,7 +301,7 @@ class ChannelView(View):
         self.userlist.treeview.destroy()
 
     @property
-    def name(self) -> str:
+    def channel_name(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
@@ -311,11 +311,11 @@ class ChannelView(View):
 
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
-        self.add_message("*", f"{colors.color_nick(nick)} joined {self.name}.")
+        self.add_message("*", f"{colors.color_nick(nick)} joined {self.channel_name}.")
 
     def on_part(self, nick: str, reason: str | None) -> None:
         self.userlist.remove_user(nick)
-        msg = f"{colors.color_nick(nick)} left {self.name}."
+        msg = f"{colors.color_nick(nick)} left {self.channel_name}."
         if reason is not None:
             msg += f" ({reason})"
         self.add_message("*", msg)
@@ -338,11 +338,11 @@ class ChannelView(View):
         self.userlist.remove_user(nick)
 
     def show_topic(self, topic: str) -> None:
-        self.add_message("*", f"The topic of {self.name} is: {topic}")
+        self.add_message("*", f"The topic of {self.channel_name} is: {topic}")
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
-            "*", f"{colors.color_nick(nick)} changed the topic of {self.name}: {topic}"
+            "*", f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}"
         )
 
 

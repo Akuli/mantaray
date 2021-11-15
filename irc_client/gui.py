@@ -326,16 +326,16 @@ class IrcWidget(ttk.PanedWindow):
             return
         self.view_selector.selection_set(item_id)
 
-        channel = self.get_current_view()
-        if not isinstance(channel, ChannelView):
+        view = self.get_current_view()
+        if not isinstance(view, ChannelView):
             return
 
         def on_change(*junk: object) -> None:
-            assert isinstance(channel, ChannelView)  # mypy awesomeness
-            channel.server_view.extra_notifications ^= {channel.name}
+            assert isinstance(view, ChannelView)  # mypy awesomeness
+            view.server_view.extra_notifications ^= {view.channel_name}
 
         var = tkinter.BooleanVar(
-            value=(channel.name in channel.server_view.extra_notifications)
+            value=(view.channel_name in view.server_view.extra_notifications)
         )
         var.trace_add("write", on_change)
         self._garbage_collection_is_lol = var
@@ -354,7 +354,7 @@ class IrcWidget(ttk.PanedWindow):
         self, view: ChannelView | PMView, message_with_sender: str
     ) -> None:
         if isinstance(view, ChannelView):
-            channel_name_or_nick = view.name
+            channel_name_or_nick = view.channel_name
         else:
             channel_name_or_nick = view.nick
 
