@@ -50,11 +50,14 @@ class View:
 
         self.log_file: IO[str] | None = None
 
-    def destroy_view(self) -> None:
-        self.textwidget.destroy()
+    def stop_logging(self):
         if self.log_file is not None:
             print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
             self.log_file.close()
+
+    def destroy_view(self) -> None:
+        self.textwidget.destroy()
+        self.stop_logging()  # TODO: doesn't really belong here
 
     @property
     def server_view(self) -> ServerView:
@@ -393,3 +396,6 @@ class PMView(View):
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
         self.irc_widget.view_selector.item(self.view_id, text=new)
+
+        self.stop_logging()
+        self.log_file = self.server_view.open_log_file(new)
