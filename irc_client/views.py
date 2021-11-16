@@ -281,7 +281,6 @@ class ServerView(View):
             for view in self.get_subviews()
             if isinstance(view, ChannelView)
         ]
-        index_mapping = {chan: index for index, chan in enumerate(channel_names)}
         return {
             "host": self.core.host,
             "port": self.core.port,
