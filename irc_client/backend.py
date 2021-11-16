@@ -117,6 +117,10 @@ class UnknownMessage:
 class ConnectivityMessage:
     message: str  # one line
     is_error: bool
+@dataclasses.dataclass
+class HostChanged:
+    old: str
+    new: str
 # fmt: on
 
 _IrcEvent = Union[
@@ -134,6 +138,7 @@ _IrcEvent = Union[
     ServerMessage,
     UnknownMessage,
     ConnectivityMessage,
+    HostChanged,
 ]
 
 RECONNECT_SECONDS = 10
@@ -469,8 +474,11 @@ class IrcCore:
             self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
+        old_host = self.host
         self._apply_config(server_config)
         self._disconnect()  # will cause the main loop to reconnect
+        if old_host != self.host:
+            self.event_queue.put(HostChanged(old_host, self.host))
 
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel] = _JoinInProgress(None, [])

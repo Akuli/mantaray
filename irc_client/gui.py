@@ -323,7 +323,7 @@ class IrcWidget(ttk.PanedWindow):
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
-        view.stop_logging()
+        view.close_log_file()
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
@@ -337,7 +337,7 @@ class IrcWidget(ttk.PanedWindow):
         else:
             self._select_another_view(server_view)
             self.view_selector.delete(server_view.view_id)
-            server_view.stop_logging()
+            server_view.close_log_file()
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 

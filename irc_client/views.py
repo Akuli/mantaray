@@ -4,6 +4,7 @@ import queue
 import traceback
 import time
 import itertools
+import sys
 import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
@@ -84,10 +85,33 @@ class View:
 
         self.log_file: IO[str] | None = None
 
-    def stop_logging(self) -> None:
+    def get_log_name(self) -> str | None:
+        return None
+
+    def close_log_file(self) -> None:
         if self.log_file is not None:
             print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
             self.log_file.close()
+            self.log_file = None
+
+    def open_log_file(self) -> None:
+        self.close_log_file()
+
+        name = self.get_log_name()
+        if name is None:
+            return
+        name = re.sub(r"[^A-Za-z0-9-_#]", "", name)
+        path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
+
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            file = path.open("a", encoding="utf-8")
+            if sys.platform != "win32":
+                path.chmod(0o600)
+            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+            self.log_file = file
+        except OSError:
+            traceback.print_exc()
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
@@ -185,19 +209,6 @@ class ServerView(View):
 
         self.core.start()
         self.handle_events()
-
-    def open_log_file(self, name: str) -> IO[str] | None:
-        name = re.sub(r"[^A-Za-z0-9-_#]", "", name)
-        (self.irc_widget.log_dir / self.core.host).mkdir(parents=True, exist_ok=True)
-        try:
-            file = (self.irc_widget.log_dir / self.core.host / (name + ".log")).open(
-                "a", encoding="utf-8"
-            )
-            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
-            return file
-        except OSError:
-            traceback.print_exc()
-            return None
 
     @property
     def server_view(self) -> ServerView:
@@ -343,6 +354,12 @@ class ServerView(View):
                 assert channel_view is not None
                 channel_view.on_topic_changed(event.who_changed, event.topic)
 
+            elif isinstance(event, backend.HostChanged):
+                self.irc_widget.view_selector.item(self.view_id, text=event.new)
+                for subview in self.get_subviews():
+                    subview.close_log_file()
+                    subview.open_log_file()
+
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you
                 # forgot to check for some class
@@ -374,7 +391,7 @@ class ServerView(View):
             transient_to=self.irc_widget.winfo_toplevel(),
             initial_config=self.get_current_config(),
             title="Connection settings",
-            connect_button_text="Reconnect"
+            connect_button_text="Reconnect",
         )
         if new_config is not None:
             # FIXME: make channel views disappear?
@@ -392,8 +409,10 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
+        self.open_log_file()
 
-        self.log_file = self.server_view.open_log_file(name)
+    def get_log_name(self) -> str:
+        return self.channel_name
 
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
@@ -464,13 +483,15 @@ class PMView(View):
         self.irc_widget.view_selector.item(
             self.view_id, text=nick, image=self.irc_widget.pm_image
         )
-
-        self.log_file = self.server_view.open_log_file(nick)
+        self.open_log_file()
 
     # TODO: rename to other_nick
     @property
     def nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
+
+    def get_log_name(self) -> str:
+        return self.nick
 
     def on_privmsg(self, sender: str, message: str) -> None:
         sender, chunks = _parse_privmsg(
@@ -490,5 +511,5 @@ class PMView(View):
         super().on_relevant_user_changed_nick(old, new)
         self.irc_widget.view_selector.item(self.view_id, text=new)
 
-        self.stop_logging()
-        self.log_file = self.server_view.open_log_file(new)
+        self.close_log_file()
+        self.open_log_file()
