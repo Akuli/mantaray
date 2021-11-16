@@ -4,15 +4,13 @@ import re
 def _remove_timestamps(string):
     return re.sub(
         r"[A-Z][a-z][a-z] [A-Z][a-z][a-z] \d\d \d\d:\d\d:\d\d \d\d\d\d",
-        "<timestamp>",
+        "<time>",
         string,
     )
 
 
 def check_log(path, expected_content):
-    assert (
-        _remove_timestamps(path.read_text("utf-8")).expandtabs(12) == expected_content
-    )
+    assert _remove_timestamps(path.read_text("utf-8")).expandtabs() == expected_content
 
 
 def test_basic(alice, bob, wait_until):
@@ -31,12 +29,12 @@ def test_basic(alice, bob, wait_until):
     check_log(
         alice.log_dir / "localhost" / "#autojoin.log",
         """\
-*** LOGGING BEGINS <timestamp>
-<timestamp> *           The topic of #autojoin is: No topic
-<timestamp> *           Bob joined #autojoin.
-<timestamp> Alice       Hello
-<timestamp> Bob         Hiii
-*** LOGGING ENDS <timestamp>
+*** LOGGING BEGINS <time>
+<time>  *       The topic of #autojoin is: No topic
+<time>  *       Bob joined #autojoin.
+<time>  Alice   Hello
+<time>  Bob     Hiii
+*** LOGGING ENDS <time>
 """,
     )
 
@@ -61,27 +59,27 @@ def test_pm_logs(alice, bob, wait_until):
     check_log(
         alice.log_dir / "localhost" / "#autojoin.log",
         """\
-*** LOGGING BEGINS <timestamp>
-<timestamp> *           The topic of #autojoin is: No topic
-<timestamp> *           Bob joined #autojoin.
-<timestamp> *           Bob is now known as blabla.
-*** LOGGING ENDS <timestamp>
+*** LOGGING BEGINS <time>
+<time>  *       The topic of #autojoin is: No topic
+<time>  *       Bob joined #autojoin.
+<time>  *       Bob is now known as blabla.
+*** LOGGING ENDS <time>
 """,
     )
     check_log(
         alice.log_dir / "localhost" / "Bob.log",
         """\
-*** LOGGING BEGINS <timestamp>
-<timestamp> Alice       hey
-<timestamp> *           Bob is now known as blabla.
-*** LOGGING ENDS <timestamp>
+*** LOGGING BEGINS <time>
+<time>  Alice   hey
+<time>  *       Bob is now known as blabla.
+*** LOGGING ENDS <time>
 """,
     )
     check_log(
         alice.log_dir / "localhost" / "blabla.log",
         """\
-*** LOGGING BEGINS <timestamp>
-<timestamp> Alice       its ur new nick
-*** LOGGING ENDS <timestamp>
+*** LOGGING BEGINS <time>
+<time>  Alice   its ur new nick
+*** LOGGING ENDS <time>
 """,
     )
