@@ -154,12 +154,11 @@ class ServerView(View):
             file = (self.irc_widget.log_dir / self.core.host / (name + ".log")).open(
                 "a", encoding="utf-8"
             )
+            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+            return file
         except OSError:
             traceback.print_exc()
             return None
-        else:
-            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
-            return file
 
     @property
     def server_view(self) -> ServerView:
