@@ -391,7 +391,6 @@ class PMView(View):
             self.view_id, text=nick, image=self.irc_widget.pm_image
         )
 
-        # FIXME: reopen log file when nick changes
         self.log_file = self.server_view.open_log_file(nick)
 
     @property
