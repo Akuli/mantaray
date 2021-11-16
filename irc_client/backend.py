@@ -299,7 +299,8 @@ class IrcCore:
                 elif subcommand == "NAK":
                     rejected = set(msg.args[-1].split())
                     if "sasl" in rejected:
-                        raise ValueError("The server does not support SASL.")  # TODO: this good?
+                        # TODO: this good?
+                        raise ValueError("The server does not support SASL.")
 
             elif msg.command == "AUTHENTICATE":
                 query = f"\0{self.username}\0{self.password}"
