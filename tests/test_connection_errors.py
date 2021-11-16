@@ -22,7 +22,8 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
 
     lines = alice.text().splitlines()
-    assert lines[-3].endswith("Error while receiving: Server closed the connection!")
+    assert lines[-4].endswith("Error while receiving: Server closed the connection!")
+    assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
     assert lines[-1].endswith("Connection refused")
