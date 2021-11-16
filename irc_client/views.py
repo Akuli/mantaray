@@ -330,7 +330,7 @@ class ServerView(View):
 
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
-                    event.sender or "???", (" ".join(event.args), [])
+                    event.sender or "???", (" ".join([event.command] + event.args), [])
                 )
 
             elif isinstance(event, backend.ConnectivityMessage):
@@ -360,6 +360,7 @@ class ServerView(View):
             "nick": self.core.nick,
             "username": self.core.username,
             "realname": self.core.realname,
+            "password": self.core.password,
             "joined_channels": sorted(
                 self.core.autojoin,
                 key=(lambda chan: channels.index(chan) if chan in channels else -1),

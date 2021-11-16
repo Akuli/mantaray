@@ -98,6 +98,7 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
                         "port": 6667,
                         "ssl": False,
                         "nick": name,
+                        "password": None,
                         "username": name,
                         "realname": f"{name}'s real name",
                         "joined_channels": ["#autojoin"],

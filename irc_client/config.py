@@ -24,6 +24,7 @@ class ServerConfig(TypedDict):
     nick: str  # TODO: multiple choices, in case already in use
     username: str
     realname: str
+    password: str | None
     joined_channels: list[str]
     extra_notifications: list[str]  # channels to notify for all messages
 
@@ -40,6 +41,7 @@ def load_from_file(config_dir: Path) -> Config | None:
             for server in result["servers"]:
                 server.setdefault("ssl", True)
                 server.setdefault("extra_notifications", [])
+                server.setdefault("password", None)
             return result
     except FileNotFoundError:
         return None
@@ -50,6 +52,11 @@ def save_to_file(config_dir: Path, config: Config) -> None:
     with (config_dir / "config.json").open("w", encoding="utf-8") as file:
         json.dump(config, file, indent=2)
         file.write("\n")
+
+    # config.json contains passwords (hexchat stores them in plain text too)
+    # TODO: how do permissions work on windows?
+    if sys.platform != "win32":
+        (config_dir / "config.json").chmod(0o600)
 
 
 class _EntryWithVar(ttk.Entry):
@@ -79,6 +86,9 @@ class _ServerConfigurer(ttk.Frame):
         self._nick_entry = self._create_entry()
         self._nick_entry.var.trace("w", self._on_nick_changed)
         self._add_row("Nickname:", self._nick_entry)
+
+        self._password_entry = self._create_entry()
+        self._add_row("Password (leave empty if none):", self._password_entry)
 
         button = ttk.Button(self, text="More options...")
         button.config(command=functools.partial(self._show_more, button))
@@ -125,6 +135,7 @@ class _ServerConfigurer(ttk.Frame):
         self._server_entry.var.set(initial_config["host"])
         self._port_entry.var.set(str(initial_config["port"]))
         self._nick_entry.var.set(initial_config["nick"])
+        self._password_entry.var.set(initial_config["password"] or "")
         self._username_entry.var.set(initial_config["username"])
         self._realname_entry.var.set(initial_config["realname"])
         self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
@@ -240,6 +251,7 @@ class _ServerConfigurer(ttk.Frame):
             "nick": self._nick_entry.get(),
             "username": self._username_entry.get(),
             "realname": self._realname_entry.get(),
+            "password": self._password_entry.get() or None,
             "joined_channels": self._channel_entry.get().split(),
             "extra_notifications": self._extra_notifications,
         }

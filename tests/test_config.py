@@ -29,6 +29,7 @@ def test_old_config_format(tmp_path):
                 "nick": "Akuli2",
                 "username": "Akuli2",
                 "realname": "Akuli2",
+                "password": None,  # added
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],  # added
             }

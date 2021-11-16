@@ -9,6 +9,7 @@ import re
 import socket
 import threading
 import traceback
+from base64 import b64encode
 from typing import Union, Sequence, Iterator
 
 from . import config
@@ -18,6 +19,7 @@ from . import config
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
 _RPL_ENDOFNAMES = "366"
+_RPL_LOGGEDIN = "900"
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -182,6 +184,7 @@ class IrcCore:
         self.nick = server_config["nick"]
         self.username = server_config["username"]
         self.realname = server_config["realname"]
+        self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
 
         self._sock: socket.socket | ssl.SSLSocket | None = None
@@ -247,14 +250,16 @@ class IrcCore:
             assert msg.sender is not None
             recipient, text = msg.args
             self.event_queue.put(ReceivedPrivmsg(msg.sender, recipient, text))
+            return
 
-        elif msg.command == "JOIN":
+        if msg.command == "JOIN":
             assert msg.sender is not None
             [channel] = msg.args
             if msg.sender != self.nick:
                 self.event_queue.put(UserJoined(msg.sender, channel))
+            return
 
-        elif msg.command == "PART":
+        if msg.command == "PART":
             assert msg.sender is not None
             channel = msg.args[0]
             reason = msg.args[1] if len(msg.args) >= 2 else None
@@ -262,8 +267,9 @@ class IrcCore:
                 self.event_queue.put(SelfParted(channel))
             else:
                 self.event_queue.put(UserParted(msg.sender, channel, reason))
+            return
 
-        elif msg.command == "NICK":
+        if msg.command == "NICK":
             assert msg.sender is not None
             old = msg.sender
             [new] = msg.args
@@ -272,14 +278,40 @@ class IrcCore:
                 self.event_queue.put(SelfChangedNick(old, new))
             else:
                 self.event_queue.put(UserChangedNick(old, new))
+            return
 
-        elif msg.command == "QUIT":
+        if msg.command == "QUIT":
             assert msg.sender is not None
             reason = msg.args[0] if msg.args else None
             self.event_queue.put(UserQuit(msg.sender, reason or None))
+            return
 
-        elif msg.sender_is_server:
-            if msg.command == _RPL_NAMREPLY:
+        if msg.sender_is_server:
+            if msg.command == "CAP":
+                subcommand = msg.args[1]
+
+                if subcommand == "ACK":
+                    acknowledged = set(msg.args[-1].split())
+
+                    if "sasl" in acknowledged:
+                        print("SASL was acknowleged.")
+                        self._send_soon("AUTHENTICATE", "PLAIN")
+                elif subcommand == "NAK":
+                    rejected = set(msg.args[-1].split())
+                    if "sasl" in rejected:
+                        # TODO: this good?
+                        raise ValueError("The server does not support SASL.")
+
+            elif msg.command == "AUTHENTICATE":
+                query = f"\0{self.username}\0{self.password}"
+                b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
+                for i in range(0, len(b64_query), 400):
+                    self._send_soon("AUTHENTICATE", b64_query[i : i + 400])
+
+            elif msg.command == _RPL_LOGGEDIN:
+                self._send_soon("CAP", "END")
+
+            elif msg.command == _RPL_NAMREPLY:
                 # TODO: wtf are the first 2 args?
                 # rfc1459 doesn't mention them, but freenode
                 # gives 4-element msg.args lists
@@ -289,6 +321,7 @@ class IrcCore:
                 self._joining_in_progress[channel].nicks.extend(
                     name.lstrip("@+") for name in names.split()
                 )
+                return  # don't spam server view with nicks
 
             elif msg.command == _RPL_ENDOFNAMES:
                 # joining a channel finished
@@ -308,16 +341,16 @@ class IrcCore:
                 channel, topic = msg.args
                 self._joining_in_progress[channel].topic = topic
 
-            else:
-                self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
+            self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
+            return
 
-        elif msg.command == "TOPIC":
+        if msg.command == "TOPIC":
             channel, topic = msg.args
             assert msg.sender is not None
             self.event_queue.put(TopicChanged(msg.sender, channel, topic))
+            return
 
-        else:
-            self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
+        self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
 
     @staticmethod
     def _split_line(line: str) -> _ReceivedAndParsedMessage:
@@ -416,6 +449,10 @@ class IrcCore:
             raise e
 
         self._sock = sock
+
+        if self.password is not None:
+            self._send_soon("CAP", "REQ", "sasl")
+
         # TODO: what if nick or user are in use? use alternatives?
         self._send_soon("NICK", self.nick)
         self._send_soon("USER", self.username, "0", "*", ":" + self.realname)
