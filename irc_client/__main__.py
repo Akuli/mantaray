@@ -59,8 +59,9 @@ def main() -> None:
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 
-    irc_widget = gui.IrcWidget(root, file_config, root.destroy)
+    irc_widget = gui.IrcWidget(root, file_config)
     irc_widget.pack(fill="both", expand=True)
+    irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
     root.bind("<FocusIn>", on_any_widget_focused)
     root.protocol("WM_DELETE_WINDOW", save_config_and_quit_all_servers)
 

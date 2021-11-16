@@ -8,7 +8,7 @@ import sys
 import tkinter
 import traceback
 from tkinter import ttk
-from typing import Callable, Any
+from typing import Any
 
 from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
@@ -96,14 +96,8 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(
-        self,
-        master: tkinter.Misc,
-        file_config: config.Config,
-        on_quit: Callable[[], object] | None = None,
-    ):
+    def __init__(self, master: tkinter.Misc, file_config: config.Config):
         super().__init__(master, orient="horizontal")
-        self._on_quit = on_quit
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
         self.channel_image = tkinter.PhotoImage(
@@ -217,6 +211,15 @@ class IrcWidget(ttk.PanedWindow):
         if index < len(ids):
             self.view_selector.selection_set(ids[index])
 
+    def _select_another_view(self, bad_view: View) -> None:
+        if self.get_current_view() == bad_view:
+            ids = self._get_flat_list_of_item_ids()
+            index = ids.index(bad_view.view_id)
+            if index == 0:
+                self.view_selector.selection_set(ids[1])
+            else:
+                self.view_selector.selection_set(ids[index - 1])
+
     def _move_view_up(self, junk_event: object) -> None:
         view_id = self.get_current_view().view_id
         self.view_selector.move(
@@ -303,20 +306,21 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.selection_set(view.view_id)
 
     def remove_view(self, view: ChannelView | PMView) -> None:
-        if self.get_current_view() == view:
-            self.view_selector.selection_set(
-                self.view_selector.next(view.view_id)
-                or self.view_selector.prev(view.view_id)
-            )
+        self._select_another_view(view)
         self.view_selector.delete(view.view_id)
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
     def remove_server(self, server_view: ServerView) -> None:
-        del self.views_by_id[server_view.view_id]
-        self.view_selector.delete(server_view.view_id)
-        if not self.view_selector.get_children(""):
-            (self._on_quit or self.destroy)()
+        for subview in server_view.get_subviews():
+            assert isinstance(subview, (ChannelView, PMView))
+            self.remove_view(subview)
+
+        if len(self.view_selector.get_children("")) == 1:
+            self.destroy()
+        else:
+            self._select_another_view(server_view)
+            self.view_selector.delete(server_view.view_id)
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
