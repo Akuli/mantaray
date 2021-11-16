@@ -152,8 +152,13 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)
-        self.entry.bind("<Prior>", self._on_page_up)
-        self.entry.bind("<Next>", self._on_page_down)
+        self.entry.bind("<Prior>", self._scroll_up)
+        self.entry.bind("<Next>", self._scroll_down)
+        # TODO: Ctrl+PageUp good on mac?
+        self.entry.bind("<Control-Prior>", self._select_previous_view)
+        self.entry.bind("<Control-Next>", self._select_next_view)
+        self.entry.bind("<Control-Shift-Prior>", self._move_view_up)
+        self.entry.bind("<Control-Shift-Next>", self._move_view_down)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -187,11 +192,46 @@ class IrcWidget(ttk.PanedWindow):
         commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
 
-    def _on_page_up(self, junk_event: object) -> None:
+    def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
 
-    def _on_page_down(self, junk_event: object) -> None:
+    def _scroll_down(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(1, "pages")
+
+    def _get_flat_list_of_item_ids(self) -> list[str]:
+        result = []
+        for server_id in self.view_selector.get_children(""):
+            result.append(server_id)
+            result.extend(self.view_selector.get_children(server_id))
+        return result
+
+    def _select_previous_view(self, junk_event: object) -> None:
+        ids = self._get_flat_list_of_item_ids()
+        index = ids.index(self.get_current_view().view_id) - 1
+        if index >= 0:
+            self.view_selector.selection_set(ids[index])
+
+    def _select_next_view(self, junk_event: object) -> None:
+        ids = self._get_flat_list_of_item_ids()
+        index = ids.index(self.get_current_view().view_id) + 1
+        if index < len(ids):
+            self.view_selector.selection_set(ids[index])
+
+    def _move_view_up(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) - 1,
+        )
+
+    def _move_view_down(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) + 1,
+        )
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()

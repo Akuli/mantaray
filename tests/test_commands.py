@@ -16,13 +16,15 @@ def test_join_and_part(alice, bob, wait_until, part_command):
         "#lol",
     ]
 
+    bob._move_view_up(None)
+    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
+        "#lol",
+        "#autojoin",
+    ]
+
     bob.entry.insert("end", part_command)
     bob.on_enter_pressed()
-    wait_until(
-        lambda: not any(
-            server.find_channel("#lol") for server in bob.get_server_views()
-        )
-    )
+    wait_until(lambda: not bob.get_server_views()[0].find_channel("#lol"))
     wait_until(lambda: "Bob left #lol.\n" in alice.text())
     assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
 
