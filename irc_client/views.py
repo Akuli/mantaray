@@ -302,8 +302,8 @@ class ServerView(View):
                     assert channel_view is not None
 
                     pinged = "self-nick" in (
-                        tags
-                        for substring, tags in backend.find_nicks(
+                        tag
+                        for substring, tag in backend.find_nicks(
                             event.text, self.core.nick, [self.core.nick]
                         )
                     )
@@ -315,7 +315,6 @@ class ServerView(View):
                             channel_view, f"<{event.sender}> {event.text}"
                         )
 
-            # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
                     event.sender or "???", (" ".join(event.args), [])
