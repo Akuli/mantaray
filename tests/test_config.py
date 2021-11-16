@@ -64,3 +64,10 @@ def test_changing_autojoins(alice, mocker, wait_until):
     reconnect_with_change(server_view, mocker, "joined_channels", old=["#autojoin", "#lol"], new=["#autojoin"])
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
     assert server_view.find_channel("#lol") is None
+
+
+def test_changing_nick_in_setting_dialog(alice, mocker, wait_until):
+    server_view = alice.get_server_views()[0]
+    reconnect_with_change(server_view, mocker, "nick", old="Alice", new="Anna")
+    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
+    assert alice.nickbutton["text"] == "Anna"

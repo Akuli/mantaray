@@ -393,7 +393,6 @@ class ServerView(View):
             connect_button_text="Reconnect",
         )
         if new_config is not None:
-            # FIXME: changing nick in settings
             self.core.apply_config_and_reconnect(new_config)
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
