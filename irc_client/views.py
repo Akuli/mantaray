@@ -314,7 +314,6 @@ class ServerView(View):
                             channel_view, f"<{event.sender}> {event.text}"
                         )
 
-            # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
                     event.sender or "???", (" ".join(event.args), [])
