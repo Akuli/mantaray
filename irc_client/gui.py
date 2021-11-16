@@ -96,9 +96,7 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config: config.Config,
-        log_dir: Path,
-):
+    def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
         super().__init__(master, orient="horizontal")
         self.log_dir = log_dir
 
