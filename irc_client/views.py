@@ -35,6 +35,13 @@ class _UserList:
             self.treeview.insert("", "end", nick, text=nick)
 
 
+def _handle_privmsg_slash_me(sender: str, message: str) -> tuple[str, str]:
+    # /me asdf --> "\x01ACTION asdf\x01"
+    if message.startswith("\x01ACTION ") and message.endswith("\x01"):
+        return ("*", sender + " " + message[8:-1])
+    return (sender, message)
+
+
 class View:
     def __init__(self, irc_widget: IrcWidget, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -241,7 +248,9 @@ class ServerView(View):
 
                     pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (channel_view.channel_name in self.extra_notifications):
+                    if pinged or (
+                        channel_view.channel_name in self.extra_notifications
+                    ):
                         self.irc_widget.new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
                         )
@@ -305,6 +314,7 @@ class ChannelView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
+        sender, message = _handle_privmsg_slash_me(sender, message)
         self.add_message(
             sender, message, nicks_to_highlight=self.userlist.get_nicks(), pinged=pinged
         )
@@ -342,7 +352,8 @@ class ChannelView(View):
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
-            "*", f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}"
+            "*",
+            f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}",
         )
 
 
@@ -359,6 +370,7 @@ class PMView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str) -> None:
+        sender, message = _handle_privmsg_slash_me(sender, message)
         self.add_message(sender, message)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
