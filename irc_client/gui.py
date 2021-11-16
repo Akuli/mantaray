@@ -209,7 +209,6 @@ class IrcWidget(ttk.PanedWindow):
 
     def _select_by_number(self, index: int, junk_event: object) -> None:
         ids = self._get_flat_list_of_item_ids()
-        print(ids, index)
         try:
             self.view_selector.selection_set(ids[index])
         except IndexError:
