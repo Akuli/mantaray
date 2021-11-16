@@ -331,7 +331,6 @@ class IrcCore:
                 self.event_queue.put(
                     SelfJoined(channel, join.topic or "(no topic)", join.nicks)
                 )
-                return  # don't generate event for this
 
             elif msg.command == _RPL_ENDOFMOTD:
                 # TODO: relying on MOTD good?
