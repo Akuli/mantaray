@@ -214,11 +214,11 @@ class IrcWidget(ttk.PanedWindow):
     def _select_another_view(self, bad_view: View) -> None:
         if self.get_current_view() == bad_view:
             ids = self._get_flat_list_of_item_ids()
-            index = ids.index(self.get_current_view().view_id)
-            if index >= 1:
-                self.view_selector.selection_set(ids[index - 1])
+            index = ids.index(bad_view.view_id)
+            if index == 0:
+                self.view_selector.selection_set(ids[1])
             else:
-                self.view_selector.selection_set(ids[index + 1])
+                self.view_selector.selection_set(ids[index - 1])
 
     def _move_view_up(self, junk_event: object) -> None:
         view_id = self.get_current_view().view_id
@@ -317,7 +317,6 @@ class IrcWidget(ttk.PanedWindow):
             self.remove_view(subview)
 
         if len(self.view_selector.get_children("")) == 1:
-            self.view_selector.delete(server_view.view_id)
             self.destroy()
         else:
             self._select_another_view(server_view)
