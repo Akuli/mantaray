@@ -42,6 +42,7 @@ def main() -> None:
                 "nick": getuser(),
                 "username": getuser(),
                 "realname": getuser(),
+                "password": "",
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
             },
