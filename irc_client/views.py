@@ -281,7 +281,6 @@ class ServerView(View):
             for view in self.get_subviews()
             if isinstance(view, ChannelView)
         ]
-        index_mapping = {chan: index for index, chan in enumerate(channel_names)}
         return {
             "host": self.core.host,
             "port": self.core.port,
@@ -290,7 +289,7 @@ class ServerView(View):
             "username": self.core.username,
             "realname": self.core.realname,
             "joined_channels": sorted(
-                self.core.autojoin, key=(lambda chan: index_mapping.get(chan, -1))
+                self.core.autojoin, key=(lambda chan: channel_names.index(chan) if chan in channel_names else -1)
             ),
             "extra_notifications": list(self.extra_notifications),
         }
