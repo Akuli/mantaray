@@ -218,7 +218,7 @@ class IrcWidget(ttk.PanedWindow):
     def _select_another_view(self, bad_view: View) -> None:
         if self.get_current_view() == bad_view:
             ids = self._get_flat_list_of_item_ids()
-            index = ids.index(self.get_current_view().view_id)
+            index = ids.index(bad_view.view_id)
             if index >= 1:
                 self.view_selector.selection_set(ids[index - 1])
             else:
