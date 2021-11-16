@@ -10,8 +10,7 @@ def _remove_timestamps(string):
 
 
 def check_log(path, expected_content):
-    content = _remove_timestamps(path.read_text("utf-8"))
-    assert content == expected_content
+    assert _remove_timestamps(path.read_text("utf-8")).expandtabs(12) == expected_content
 
 
 def test_basic(alice, bob, wait_until):
@@ -31,10 +30,10 @@ def test_basic(alice, bob, wait_until):
         alice.log_dir / "localhost" / "#autojoin.log",
         """\
 *** LOGGING BEGINS <timestamp>
-<timestamp>\t*\tThe topic of #autojoin is: No topic
-<timestamp>\t*\tBob joined #autojoin.
-<timestamp>\tAlice\tHello
-<timestamp>\tBob\tHiii
+<timestamp> *           The topic of #autojoin is: No topic
+<timestamp> *           Bob joined #autojoin.
+<timestamp> Alice       Hello
+<timestamp> Bob         Hiii
 *** LOGGING ENDS <timestamp>
 """,
     )
@@ -61,9 +60,9 @@ def test_pm_logs(alice, bob, wait_until):
         alice.log_dir / "localhost" / "#autojoin.log",
         """\
 *** LOGGING BEGINS <timestamp>
-<timestamp>\t*\tThe topic of #autojoin is: No topic
-<timestamp>\t*\tBob joined #autojoin.
-<timestamp>\t*\tBob is now known as blabla.
+<timestamp> *           The topic of #autojoin is: No topic
+<timestamp> *           Bob joined #autojoin.
+<timestamp> *           Bob is now known as blabla.
 *** LOGGING ENDS <timestamp>
 """,
     )
@@ -71,8 +70,8 @@ def test_pm_logs(alice, bob, wait_until):
         alice.log_dir / "localhost" / "Bob.log",
         """\
 *** LOGGING BEGINS <timestamp>
-<timestamp>\tAlice\they
-<timestamp>\t*\tBob is now known as blabla.
+<timestamp> Alice       hey
+<timestamp> *           Bob is now known as blabla.
 *** LOGGING ENDS <timestamp>
 """,
     )
@@ -80,7 +79,7 @@ def test_pm_logs(alice, bob, wait_until):
         alice.log_dir / "localhost" / "blabla.log",
         """\
 *** LOGGING BEGINS <timestamp>
-<timestamp>\tAlice\tits ur new nick
+<timestamp> Alice       its ur new nick
 *** LOGGING ENDS <timestamp>
 """,
     )
