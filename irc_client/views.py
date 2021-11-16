@@ -36,6 +36,13 @@ class _UserList:
             self.treeview.insert("", "end", nick, text=nick)
 
 
+def _handle_privmsg_slash_me(sender: str, message: str) -> tuple[str, str]:
+    # /me asdf --> "\x01ACTION asdf\x01"
+    if message.startswith("\x01ACTION ") and message.endswith("\x01"):
+        return ("*", sender + " " + message[8:-1])
+    return (sender, message)
+
+
 class View:
     def __init__(self, irc_widget: IrcWidget, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -328,6 +335,7 @@ class ChannelView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
+        sender, message = _handle_privmsg_slash_me(sender, message)
         self.add_message(
             sender, message, nicks_to_highlight=self.userlist.get_nicks(), pinged=pinged
         )
@@ -386,6 +394,7 @@ class PMView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str) -> None:
+        sender, message = _handle_privmsg_slash_me(sender, message)
         self.add_message(sender, message)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
