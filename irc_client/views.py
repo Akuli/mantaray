@@ -62,9 +62,8 @@ class View:
             print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
             self.log_file.close()
 
-    def destroy_view(self) -> None:
+    def destroy_widgets(self) -> None:
         self.textwidget.destroy()
-        self.stop_logging()  # TODO: doesn't really belong here
 
     @property
     def server_view(self) -> ServerView:
@@ -333,8 +332,8 @@ class ChannelView(View):
 
         self.log_file = self.server_view.open_log_file(name)
 
-    def destroy_view(self) -> None:
-        super().destroy_view()
+    def destroy_widgets(self) -> None:
+        super().destroy_widgets()
         self.userlist.treeview.destroy()
 
     @property

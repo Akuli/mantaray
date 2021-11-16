@@ -269,12 +269,14 @@ class IrcWidget(ttk.PanedWindow):
                 or self.view_selector.prev(view.view_id)
             )
         self.view_selector.delete(view.view_id)
-        view.destroy_view()
+        view.stop_logging()
+        view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
     def remove_server(self, server_view: ServerView) -> None:
         for subview in server_view.get_subviews(include_server=True):
-            subview.destroy_view()
+            subview.stop_logging()
+            subview.destroy_widgets()
 
         del self.views_by_id[server_view.view_id]
         self.view_selector.delete(server_view.view_id)
