@@ -289,7 +289,7 @@ class ServerView(View):
             "username": self.core.username,
             "realname": self.core.realname,
             "joined_channels": sorted(
-                self.core.autojoin, key=(lambda chan: index_mapping.get(chan, -1))
+                self.core.autojoin, key=(lambda chan: channel_names.index(chan) if chan in channel_names else -1)
             ),
             "extra_notifications": list(self.extra_notifications),
         }
