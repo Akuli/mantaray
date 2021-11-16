@@ -10,7 +10,9 @@ def _remove_timestamps(string):
 
 
 def check_log(path, expected_content):
-    assert _remove_timestamps(path.read_text("utf-8")).expandtabs(12) == expected_content
+    assert (
+        _remove_timestamps(path.read_text("utf-8")).expandtabs(12) == expected_content
+    )
 
 
 def test_basic(alice, bob, wait_until):
