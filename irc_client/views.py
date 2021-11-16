@@ -276,7 +276,7 @@ class ServerView(View):
                 print("can't happen")  # type: ignore
 
     def get_current_config(self) -> config.ServerConfig:
-        channel_names = [
+        channels = [
             view.channel_name
             for view in self.get_subviews()
             if isinstance(view, ChannelView)
@@ -290,11 +290,7 @@ class ServerView(View):
             "realname": self.core.realname,
             "joined_channels": sorted(
                 self.core.autojoin,
-                key=(
-                    lambda chan: (
-                        channel_names.index(chan) if chan in channel_names else -1
-                    )
-                ),
+                key=(lambda chan: channels.index(chan) if chan in channels else -1),
             ),
             "extra_notifications": list(self.extra_notifications),
         }
