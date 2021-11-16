@@ -1,3 +1,5 @@
+import re
+
 from irc_client import gui
 
 
@@ -5,6 +7,25 @@ def test_basic(alice, bob, wait_until):
     alice.entry.insert("end", "Hello there")
     alice.on_enter_pressed()
     wait_until(lambda: "Hello there\n" in bob.text())
+
+
+def test_colors(alice, bob, wait_until):
+    alice.entry.insert(
+        "end",
+        "\x0311,4cyan on red\x0f \x02bold\x0f \x1funderline\x0f \x0311,4\x02\x1feverything\x0f nothing",
+    )
+    alice.on_enter_pressed()
+    wait_until(lambda: "cyan on red" in bob.text())
+
+    def tags(search_string):
+        index = bob.get_current_view().textwidget.search(search_string, "1.0")
+        return set(bob.get_current_view().textwidget.tag_names(index))
+
+    assert tags("cyan on red") == {"foreground-11", "background-4"}
+    assert tags("bold") == {"bold"}
+    assert tags("underline") == {"underline"}
+    assert tags("everything") == {"foreground-11", "background-4", "bold", "underline"}
+    assert tags("nothing") == set()
 
 
 def test_nick_autocompletion(alice, bob):
@@ -53,19 +74,16 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
     alice.on_enter_pressed()
     wait_until(lambda: "unrelated" in bob.text())
 
-    assert (
-        bob.get_current_view().textwidget.get("pinged.first", "pinged.last")
-        == "hey bob"
+    assert re.fullmatch(
+        r"\[\d\d:\d\d\]            Alice \| hey bob\n",
+        bob.get_current_view().textwidget.get("pinged.first", "pinged.last"),
     )
     gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
 
-    # "hey bob" should highlight "bob" with extra tags e.g. {'bold', 'foreground-3', 'pinged'}
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.first + 1 char")
-    bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 1 char")
-    assert hey_tags == ("pinged",)
-    assert "pinged" in bob_tags
-    assert "bold" in bob_tags
-    assert any(t.startswith("foreground") for t in bob_tags)
+    bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
+    assert set(hey_tags) == {"pinged"}
+    assert set(bob_tags) == {"pinged", "self-nick"}
 
 
 def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):

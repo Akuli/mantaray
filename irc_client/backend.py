@@ -9,7 +9,7 @@ import re
 import socket
 import threading
 import traceback
-from typing import Union, Sequence
+from typing import Union, Sequence, Iterator
 
 from . import config
 
@@ -35,13 +35,22 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
-def find_nicks(text: str, nicks: Sequence[str]) -> list[re.Match[str]]:
-    nicks = [n.lower() for n in nicks]
-    return [
-        match
-        for match in re.finditer(NICK_REGEX, text)
-        if match.group(0).lower() in nicks
-    ]
+def find_nicks(
+    text: str, self_nick: str, all_nicks: Sequence[str]
+) -> Iterator[tuple[str, str | None]]:
+    lowercase_nicks = {n.lower() for n in all_nicks}
+    assert self_nick.lower() in lowercase_nicks
+
+    previous_end = 0
+    for match in re.finditer(NICK_REGEX, text):
+        if match.group(0).lower() in lowercase_nicks:
+            yield (text[previous_end : match.start()], None)
+            if match.group(0).lower() == self_nick.lower():
+                yield (match.group(0), "self-nick")
+            else:
+                yield (match.group(0), "other-nick")
+            previous_end = match.end()
+    yield (text[previous_end:], None)
 
 
 # fmt: off
