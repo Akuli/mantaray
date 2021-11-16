@@ -202,7 +202,6 @@ class ServerView(View):
 
     def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget)
-        # FIXME: update host when reconnecting happens
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
