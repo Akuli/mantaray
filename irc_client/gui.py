@@ -123,16 +123,12 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         if sys.platform == "darwin":
-            self.view_selector.bind(
-                "<Button-2>", self._view_selector_right_click
-            )
+            self.view_selector.bind("<Button-2>", self._view_selector_right_click)
             self.view_selector.bind(
                 "<Control-Button-1>", self._view_selector_right_click
             )
         else:
-            self.view_selector.bind(
-                "<Button-3>", self._view_selector_right_click
-            )
+            self.view_selector.bind("<Button-3>", self._view_selector_right_click)
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)  # always stretch
@@ -158,9 +154,13 @@ class IrcWidget(ttk.PanedWindow):
         # Don't use alt+n, because some windows users use it for entering characters
         for n in range(10):
             if sys.platform == "darwin":
-                self.entry.bind(f"<Command-Key-{n}>", partial(self._select_by_number, n))
+                self.entry.bind(
+                    f"<Command-Key-{n}>", partial(self._select_by_number, n)
+                )
             else:
-                self.entry.bind(f"<Control-Key-{n}>", partial(self._select_by_number, n))
+                self.entry.bind(
+                    f"<Control-Key-{n}>", partial(self._select_by_number, n)
+                )
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
