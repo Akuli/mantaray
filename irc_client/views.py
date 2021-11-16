@@ -38,21 +38,24 @@ class _UserList:
 
 
 def _parse_privmsg(
-    sender: str, message: str, nicks: tuple[str, ...] = (), pinged: bool = False
+    sender: str, message: str, self_nick: str, all_nicks: Sequence[str], *, pinged: bool = False
 ) -> tuple[str, list[tuple[str, list[str]]]]:
     chunks = []
 
     # /me asdf --> "\x01ACTION asdf\x01"
     if message.startswith("\x01ACTION ") and message.endswith("\x01"):
-        chunks.append((sender, ["nick"]))
+        if sender.lower() == self_nick.lower():
+            chunks.append((sender, ["self-nick"]))
+        else:
+            chunks.append((sender, ["other-nick"]))
         message = message[7:-1]  # keep the space
         sender = "*"
 
     for substring, base_tags in colors.parse_text(message):
-        for subsubstring, is_nick in backend.find_nicks(substring, nicks):
+        for subsubstring, nick_tag in backend.find_nicks(substring, self_nick, all_nicks):
             tags = base_tags.copy()
-            if is_nick:
-                tags.append("nick")
+            if nick_tag is not None:
+                tags.append(nick_tag)
             chunks.append((subsubstring, tags))
 
     if pinged:
@@ -101,10 +104,17 @@ class View:
         #    ''
         padding = " " * (16 - len(sender))
 
+        if sender == "*":
+            sender_tags = []
+        elif sender == self.server_view.core.nick:
+            sender_tags = ["self-nick"]
+        else:
+            sender_tags = ["other-nick"]
+
         self.textwidget.config(state="normal")
         start = self.textwidget.index("end - 1 char")
         self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-        self.textwidget.insert("end", sender, ([] if sender == "*" else ["nick"]))
+        self.textwidget.insert("end", sender, sender_tags)
         self.textwidget.insert("end", " | ")
         flatten = itertools.chain.from_iterable
         self.textwidget.insert("end", *flatten(chunks))  # type: ignore
@@ -131,14 +141,14 @@ class View:
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         # notify about the nick change everywhere, by putting this to base class
-        self.add_message("*", ("You are now known as ", []), (new, ["nick"]), (".", []))
+        self.add_message("*", ("You are now known as ", []), (new, ["self-nick"]), (".", []))
 
     def get_relevant_nicks(self) -> Sequence[str]:
         return []
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
-            "*", (old, ["nick"]), (" is now known as ", []), (new, ["nick"]), (".", [])
+            "*", (old, ["other-nick"]), (" is now known as ", []), (new, ["other-nick"]), (".", [])
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
@@ -146,10 +156,12 @@ class View:
             extra = ""
         else:
             extra = " (" + reason + ")"
-        self.add_message("*", (nick, ["nick"]), (" quit." + extra, []))
+        self.add_message("*", (nick, ["other-nick"]), (" quit." + extra, []))
 
 
 class ServerView(View):
+    core: backend.IrcCore  # no idea why mypy need this
+
     def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget)
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
@@ -288,10 +300,10 @@ class ServerView(View):
                     channel_view = self.find_channel(event.recipient)
                     assert channel_view is not None
 
-                    pinged = any(
-                        is_nick
-                        for substring, is_nick in backend.find_nicks(
-                            event.text, [self.core.nick]
+                    pinged = "self-nick" in (
+                        tags
+                        for substring, tags in backend.find_nicks(
+                            event.text, self.core.nick, [self.core.nick]
                         )
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
@@ -365,12 +377,12 @@ class ChannelView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        sender, chunks = _parse_privmsg(sender, message, self.userlist.get_nicks())
+        sender, chunks = _parse_privmsg(sender, message, self.server_view.core.nick, self.userlist.get_nicks())
         self.add_message(sender, *chunks, pinged=pinged)
 
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
-        self.add_message("*", (nick, ["nick"]), (f" joined {self.channel_name}.", []))
+        self.add_message("*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", []))
 
     def on_part(self, nick: str, reason: str | None) -> None:
         self.userlist.remove_user(nick)
@@ -379,7 +391,7 @@ class ChannelView(View):
         else:
             extra = " (" + reason + ")"
         self.add_message(
-            "*", (nick, ["nick"]), (f" left {self.channel_name}." + extra, [])
+            "*", (nick, ["other-nick"]), (f" left {self.channel_name}." + extra, [])
         )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
@@ -403,9 +415,13 @@ class ChannelView(View):
         self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
+        if nick == self.server_view.core.nick:
+            nick_tag = "self-nick"
+        else:
+            nick_tag = "other-nick"
         self.add_message(
             "*",
-            (nick, ["nick"]),
+            (nick, [nick_tag]),
             (f" changed the topic of {self.channel_name}: {topic}", []),
         )
 
@@ -420,12 +436,13 @@ class PMView(View):
 
         self.log_file = self.server_view.open_log_file(nick)
 
+    # TODO: rename to other_nick
     @property
     def nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str) -> None:
-        sender, chunks = _parse_privmsg(sender, message)
+        sender, chunks = _parse_privmsg(sender, message, self.server_view.core.nick, [self.server_view.core.nick, self.nick])
         self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same

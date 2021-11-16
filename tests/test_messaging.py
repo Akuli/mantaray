@@ -65,7 +65,7 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.first + 1 char")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
     assert set(hey_tags) == {"pinged"}
-    assert set(bob_tags) == {"pinged", "nick"}
+    assert set(bob_tags) == {"pinged", "self-nick"}
 
 
 def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
