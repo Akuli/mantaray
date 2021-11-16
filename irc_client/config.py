@@ -53,6 +53,11 @@ def save_to_file(config_dir: Path, config: Config) -> None:
         json.dump(config, file, indent=2)
         file.write("\n")
 
+    # config.json contains passwords (hexchat stores them in plain text too)
+    # TODO: how do permissions work on windows?
+    if sys.platform != "win32":
+        (config_dir / "config.json").chmod(0o600)
+
 
 class _EntryWithVar(ttk.Entry):
     def __init__(self, master: tkinter.Misc, **kwargs: Any):
