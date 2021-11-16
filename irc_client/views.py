@@ -301,8 +301,8 @@ class ServerView(View):
                     assert channel_view is not None
 
                     pinged = "self-nick" in (
-                        tags
-                        for substring, tags in backend.find_nicks(
+                        tag
+                        for substring, tag in backend.find_nicks(
                             event.text, self.core.nick, [self.core.nick]
                         )
                     )
