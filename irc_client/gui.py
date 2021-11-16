@@ -321,7 +321,6 @@ class IrcWidget(ttk.PanedWindow):
             self.remove_view(subview)
 
         if len(self.view_selector.get_children("")) == 1:
-            self.view_selector.delete(server_view.view_id)
             self.destroy()
         else:
             self._select_another_view(server_view)
