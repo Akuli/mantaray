@@ -48,6 +48,12 @@ def test_topic_change(alice, wait_until):
     # Bug in hircd: Bob doesn't get a notification about Alice changed topic
 
 
+def test_me(alice, bob, wait_until):
+    alice.entry.insert("end", "/me does something")
+    alice.on_enter_pressed()
+    wait_until(lambda: "* | Alice does something" in bob.text())
+
+
 def test_quit(alice, bob, wait_until):
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
