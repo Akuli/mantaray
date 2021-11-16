@@ -8,7 +8,7 @@ import sys
 import tkinter
 import traceback
 from tkinter import ttk
-from typing import Callable, Any
+from typing import Any
 
 from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
@@ -96,11 +96,7 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(
-        self,
-        master: tkinter.Misc,
-        file_config: config.Config,
-    ):
+    def __init__(self, master: tkinter.Misc, file_config: config.Config):
         super().__init__(master, orient="horizontal")
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
