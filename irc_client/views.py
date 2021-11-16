@@ -117,7 +117,8 @@ class View:
         self.textwidget.insert("end", sender, sender_tags)
         self.textwidget.insert("end", " | ")
         flatten = itertools.chain.from_iterable
-        self.textwidget.insert("end", *flatten(chunks))  # type: ignore
+        if chunks:
+            self.textwidget.insert("end", *flatten(chunks))  # type: ignore
         self.textwidget.insert("end", "\n")
         if pinged:
             self.textwidget.tag_add("pinged", start, "end - 1 char")
