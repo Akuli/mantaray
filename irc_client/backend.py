@@ -299,7 +299,6 @@ class IrcCore:
                 elif subcommand == "NAK":
                     rejected = set(msg.args[-1].split())
                     if "sasl" in rejected:
-                        print("SASL was rejected.")
                         raise ValueError("The server does not support SASL.")
                 print("Responded to CAP", subcommand)
 
