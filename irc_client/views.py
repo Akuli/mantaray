@@ -38,7 +38,12 @@ class _UserList:
 
 
 def _parse_privmsg(
-    sender: str, message: str, self_nick: str, all_nicks: Sequence[str], *, pinged: bool = False
+    sender: str,
+    message: str,
+    self_nick: str,
+    all_nicks: Sequence[str],
+    *,
+    pinged: bool = False,
 ) -> tuple[str, list[tuple[str, list[str]]]]:
     chunks = []
 
@@ -52,7 +57,9 @@ def _parse_privmsg(
         sender = "*"
 
     for substring, base_tags in colors.parse_text(message):
-        for subsubstring, nick_tag in backend.find_nicks(substring, self_nick, all_nicks):
+        for subsubstring, nick_tag in backend.find_nicks(
+            substring, self_nick, all_nicks
+        ):
             tags = base_tags.copy()
             if nick_tag is not None:
                 tags.append(nick_tag)
@@ -142,14 +149,20 @@ class View:
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         # notify about the nick change everywhere, by putting this to base class
-        self.add_message("*", ("You are now known as ", []), (new, ["self-nick"]), (".", []))
+        self.add_message(
+            "*", ("You are now known as ", []), (new, ["self-nick"]), (".", [])
+        )
 
     def get_relevant_nicks(self) -> Sequence[str]:
         return []
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
-            "*", (old, ["other-nick"]), (" is now known as ", []), (new, ["other-nick"]), (".", [])
+            "*",
+            (old, ["other-nick"]),
+            (" is now known as ", []),
+            (new, ["other-nick"]),
+            (".", []),
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
@@ -377,12 +390,16 @@ class ChannelView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        sender, chunks = _parse_privmsg(sender, message, self.server_view.core.nick, self.userlist.get_nicks())
+        sender, chunks = _parse_privmsg(
+            sender, message, self.server_view.core.nick, self.userlist.get_nicks()
+        )
         self.add_message(sender, *chunks, pinged=pinged)
 
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
-        self.add_message("*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", []))
+        self.add_message(
+            "*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", [])
+        )
 
     def on_part(self, nick: str, reason: str | None) -> None:
         self.userlist.remove_user(nick)
@@ -442,7 +459,12 @@ class PMView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str) -> None:
-        sender, chunks = _parse_privmsg(sender, message, self.server_view.core.nick, [self.server_view.core.nick, self.nick])
+        sender, chunks = _parse_privmsg(
+            sender,
+            message,
+            self.server_view.core.nick,
+            [self.server_view.core.nick, self.nick],
+        )
         self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same

@@ -35,7 +35,9 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
-def find_nicks(text: str, self_nick: str, all_nicks: Sequence[str]) -> Iterator[tuple[str, str | None]]:
+def find_nicks(
+    text: str, self_nick: str, all_nicks: Sequence[str]
+) -> Iterator[tuple[str, str | None]]:
     lowercase_nicks = {n.lower() for n in all_nicks}
     assert self_nick.lower() in lowercase_nicks
 
