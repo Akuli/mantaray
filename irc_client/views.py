@@ -277,7 +277,9 @@ class ServerView(View):
 
     def get_current_config(self) -> config.ServerConfig:
         channel_names = [
-            view.channel_name for view in self.get_subviews() if isinstance(view, ChannelView)
+            view.channel_name
+            for view in self.get_subviews()
+            if isinstance(view, ChannelView)
         ]
         index_mapping = {chan: index for index, chan in enumerate(channel_names)}
         return {
