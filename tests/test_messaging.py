@@ -61,7 +61,6 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
     )
     gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
 
-    # "hey bob" should highlight "bob" with extra tags e.g. {'bold', 'foreground-3', 'pinged'}
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.first + 1 char")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
     assert set(hey_tags) == {"pinged"}
