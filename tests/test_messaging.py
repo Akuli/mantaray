@@ -9,6 +9,22 @@ def test_basic(alice, bob, wait_until):
     wait_until(lambda: "Hello there\n" in bob.text())
 
 
+def test_colors(alice, bob, wait_until):
+    alice.entry.insert("end", "\x0311,4cyan on red\x0f \x02bold\x0f \x1funderline\x0f \x0311,4\x02\x1feverything\x0f nothing")
+    alice.on_enter_pressed()
+    wait_until(lambda: "cyan on red" in bob.text())
+
+    def tags(search_string):
+        index = bob.get_current_view().textwidget.search(search_string, "1.0")
+        return set(bob.get_current_view().textwidget.tag_names(index))
+
+    assert tags("cyan on red") == {"foreground-11", "background-4"}
+    assert tags("bold") == {"bold"}
+    assert tags("underline") == {"underline"}
+    assert tags("everything") == {"foreground-11", "background-4", "bold", "underline"}
+    assert tags("nothing") == set()
+
+
 def test_nick_autocompletion(alice, bob):
     alice.entry.insert("end", "i think b")
     alice.autocomplete()
