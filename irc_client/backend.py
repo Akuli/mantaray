@@ -309,7 +309,6 @@ class IrcCore:
                     self._send_soon("AUTHENTICATE", b64_query[i : i + 400])
 
             elif msg.command == _RPL_LOGGEDIN:
-                print("Logged in")
                 self._send_soon("CAP", "END")
 
             elif msg.command == _RPL_NAMREPLY:
