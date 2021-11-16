@@ -241,7 +241,9 @@ class ServerView(View):
 
                     pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (channel_view.channel_name in self.extra_notifications):
+                    if pinged or (
+                        channel_view.channel_name in self.extra_notifications
+                    ):
                         self.irc_widget.new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
                         )
@@ -336,7 +338,8 @@ class ChannelView(View):
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
-            "*", f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}"
+            "*",
+            f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}",
         )
 
 
