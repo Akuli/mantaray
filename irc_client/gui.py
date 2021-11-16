@@ -9,6 +9,7 @@ import traceback
 from tkinter import ttk
 from typing import Any
 from pathlib import Path
+from functools import partial
 
 from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
@@ -122,16 +123,12 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         if sys.platform == "darwin":
+            self.view_selector.bind("<Button-2>", self._view_selector_right_click)
             self.view_selector.bind(
-                "<Button-2>", self._view_selector_right_click, add=True
-            )
-            self.view_selector.bind(
-                "<Control-Button-1>", self._view_selector_right_click, add=True
+                "<Control-Button-1>", self._view_selector_right_click
             )
         else:
-            self.view_selector.bind(
-                "<Button-3>", self._view_selector_right_click, add=True
-            )
+            self.view_selector.bind("<Button-3>", self._view_selector_right_click)
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)  # always stretch
@@ -147,11 +144,23 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Tab>", self._tab_event_handler)
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
-        # TODO: Ctrl+PageUp good on mac?
+
+        # Control instead of Command should be ok, seems like macs don't have page up/down keys
         self.entry.bind("<Control-Prior>", self._select_previous_view)
         self.entry.bind("<Control-Next>", self._select_next_view)
         self.entry.bind("<Control-Shift-Prior>", self._move_view_up)
         self.entry.bind("<Control-Shift-Next>", self._move_view_down)
+
+        # Don't use alt+n, because some windows users use it for entering characters
+        for n in range(10):
+            if sys.platform == "darwin":
+                self.entry.bind(
+                    f"<Command-Key-{n}>", partial(self._select_by_number, n)
+                )
+            else:
+                self.entry.bind(
+                    f"<Control-Key-{n}>", partial(self._select_by_number, n)
+                )
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -197,6 +206,13 @@ class IrcWidget(ttk.PanedWindow):
             result.append(server_id)
             result.extend(self.view_selector.get_children(server_id))
         return result
+
+    def _select_by_number(self, index: int, junk_event: object) -> None:
+        ids = self._get_flat_list_of_item_ids()
+        try:
+            self.view_selector.selection_set(ids[index])
+        except IndexError:
+            pass
 
     def _select_previous_view(self, junk_event: object) -> None:
         ids = self._get_flat_list_of_item_ids()
