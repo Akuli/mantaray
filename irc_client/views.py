@@ -396,7 +396,10 @@ class ServerView(View):
             self.core.apply_config_and_reconnect(new_config)
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
-                if isinstance(subview, ChannelView) and subview.channel_name not in self.core.autojoin:
+                if (
+                    isinstance(subview, ChannelView)
+                    and subview.channel_name not in self.core.autojoin
+                ):
                     self.irc_widget.remove_view(subview)
 
 

@@ -41,7 +41,9 @@ def reconnect_with_change(server_view, mocker, key, old, new):
     new_config = server_view.get_current_config().copy()
     assert new_config[key] == old
     new_config[key] = new
-    mocker.patch("irc_client.config.show_server_config_dialog").return_value = new_config
+    mocker.patch(
+        "irc_client.config.show_server_config_dialog"
+    ).return_value = new_config
     server_view.show_config_dialog()
 
 
@@ -61,7 +63,13 @@ def test_changing_autojoins(alice, mocker, wait_until):
     wait_until(lambda: "The topic of #lol is:" in alice.text())
 
     server_view = alice.get_server_views()[0]
-    reconnect_with_change(server_view, mocker, "joined_channels", old=["#autojoin", "#lol"], new=["#autojoin"])
+    reconnect_with_change(
+        server_view,
+        mocker,
+        "joined_channels",
+        old=["#autojoin", "#lol"],
+        new=["#autojoin"],
+    )
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
     assert server_view.find_channel("#lol") is None
 

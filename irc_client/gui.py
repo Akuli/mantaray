@@ -345,6 +345,7 @@ class IrcWidget(ttk.PanedWindow):
         view = self.get_current_view()
 
         if isinstance(view, ChannelView):
+
             def on_change(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
                 view.server_view.extra_notifications ^= {view.channel_name}
@@ -360,8 +361,8 @@ class IrcWidget(ttk.PanedWindow):
 
         elif isinstance(view, ServerView):
             self._contextmenu.add_command(
-                label="Connection settings...",
-                command=view.show_config_dialog)
+                label="Connection settings...", command=view.show_config_dialog
+            )
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]

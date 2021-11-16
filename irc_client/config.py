@@ -67,7 +67,12 @@ class _EntryWithVar(ttk.Entry):
 
 
 class _ServerConfigurer(ttk.Frame):
-    def __init__(self, master: tkinter.Misc, initial_config: ServerConfig, connect_button_text: str):
+    def __init__(
+        self,
+        master: tkinter.Misc,
+        initial_config: ServerConfig,
+        connect_button_text: str,
+    ):
         super().__init__(master)
 
         self.result: ServerConfig | None = None
@@ -260,10 +265,11 @@ class _ServerConfigurer(ttk.Frame):
 
 # returns None if user cancel
 def show_server_config_dialog(
-    transient_to: tkinter.Tk |  tkinter.Toplevel | None, initial_config: ServerConfig,
+    transient_to: tkinter.Tk | tkinter.Toplevel | None,
+    initial_config: ServerConfig,
     *,
     title: str = "Connect to IRC",
-    connect_button_text: str = "Connect"
+    connect_button_text: str = "Connect",
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
