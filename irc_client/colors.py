@@ -4,16 +4,10 @@ import tkinter
 import tkinter.font as tkfont
 from typing import Iterator
 
-# (he)xchat supports these
-_BOLD = "\x02"
-_UNDERLINE = "\x1f"
-_COLOR = "\x03"  # followed by N or N,M where N and M are 1 or 2 digit numbers
-_BACK_TO_NORMAL = "\x0f"
-
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
-    0: "#000000",
-    1: "#ffffff",
+    0: "#ffffff",
+    1: "#000000",
     2: "#00007f",
     3: "#009300",
     4: "#ff0000",
@@ -29,13 +23,6 @@ _MIRC_COLORS = {
     14: "#7f7f7f",
     15: "#d2d2d2",
 }
-
-# uncomment if you don't want a dark background
-_MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
-
-# avoid dark colors, black, white and grays
-# 9 is green, would conflict with pinged tag
-_NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 9, 14, 15})
 
 
 def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
@@ -55,12 +42,12 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
         if not style_spec:
             # beginning of text
             pass
-        elif style_spec == _BOLD:
+        elif style_spec == "\x02":
             bold = True
-        elif style_spec == _UNDERLINE:
+        elif style_spec == "\x1f":
             underline = True
-        elif style_spec.startswith(_COLOR):
-            # _COLOR == '\x03'
+        elif style_spec.startswith("\x03"):
+            # color
             match = re.fullmatch(r"\x03([0-9]{1,2})(,[0-9]{1,2})?", style_spec)
             assert match is not None
             fg_spec, bg_spec = match.groups()
@@ -80,7 +67,7 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
                 bg = int(bg_spec.lstrip(","))
                 if bg not in _MIRC_COLORS:
                     bg = None
-        elif style_spec == _BACK_TO_NORMAL:
+        elif style_spec == "\x0f":
             fg = bg = None
             bold = underline = False
         else:
