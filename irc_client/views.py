@@ -306,6 +306,11 @@ class ServerView(View):
                 print("can't happen")  # type: ignore
 
     def get_current_config(self) -> config.ServerConfig:
+        channels = [
+            view.channel_name
+            for view in self.get_subviews()
+            if isinstance(view, ChannelView)
+        ]
         return {
             "host": self.core.host,
             "port": self.core.port,
@@ -313,7 +318,10 @@ class ServerView(View):
             "nick": self.core.nick,
             "username": self.core.username,
             "realname": self.core.realname,
-            "joined_channels": self.core.autojoin.copy(),
+            "joined_channels": sorted(
+                self.core.autojoin,
+                key=(lambda chan: channels.index(chan) if chan in channels else -1),
+            ),
             "extra_notifications": list(self.extra_notifications),
         }
 

@@ -7,7 +7,7 @@ import sys
 import tkinter
 import traceback
 from tkinter import ttk
-from typing import Callable, Any
+from typing import Any
 from pathlib import Path
 
 from irc_client import config, commands
@@ -96,16 +96,11 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(
-        self,
-        master: tkinter.Misc,
-        file_config: config.Config,
+    def __init__(self, master: tkinter.Misc, file_config: config.Config,
         log_dir: Path,
-        on_quit: Callable[[], object] | None = None,
-    ):
+):
         super().__init__(master, orient="horizontal")
         self.log_dir = log_dir
-        self._on_quit = on_quit
 
         images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
@@ -152,8 +147,13 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)
-        self.entry.bind("<Prior>", self._on_page_up)
-        self.entry.bind("<Next>", self._on_page_down)
+        self.entry.bind("<Prior>", self._scroll_up)
+        self.entry.bind("<Next>", self._scroll_down)
+        # TODO: Ctrl+PageUp good on mac?
+        self.entry.bind("<Control-Prior>", self._select_previous_view)
+        self.entry.bind("<Control-Next>", self._select_next_view)
+        self.entry.bind("<Control-Shift-Prior>", self._move_view_up)
+        self.entry.bind("<Control-Shift-Next>", self._move_view_down)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -187,11 +187,55 @@ class IrcWidget(ttk.PanedWindow):
         commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
 
-    def _on_page_up(self, junk_event: object) -> None:
+    def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
 
-    def _on_page_down(self, junk_event: object) -> None:
+    def _scroll_down(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(1, "pages")
+
+    def _get_flat_list_of_item_ids(self) -> list[str]:
+        result = []
+        for server_id in self.view_selector.get_children(""):
+            result.append(server_id)
+            result.extend(self.view_selector.get_children(server_id))
+        return result
+
+    def _select_previous_view(self, junk_event: object) -> None:
+        ids = self._get_flat_list_of_item_ids()
+        index = ids.index(self.get_current_view().view_id) - 1
+        if index >= 0:
+            self.view_selector.selection_set(ids[index])
+
+    def _select_next_view(self, junk_event: object) -> None:
+        ids = self._get_flat_list_of_item_ids()
+        index = ids.index(self.get_current_view().view_id) + 1
+        if index < len(ids):
+            self.view_selector.selection_set(ids[index])
+
+    def _select_another_view(self, bad_view: View) -> None:
+        if self.get_current_view() == bad_view:
+            ids = self._get_flat_list_of_item_ids()
+            index = ids.index(bad_view.view_id)
+            if index == 0:
+                self.view_selector.selection_set(ids[1])
+            else:
+                self.view_selector.selection_set(ids[index - 1])
+
+    def _move_view_up(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) - 1,
+        )
+
+    def _move_view_down(self, junk_event: object) -> None:
+        view_id = self.get_current_view().view_id
+        self.view_selector.move(
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) + 1,
+        )
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()
@@ -263,25 +307,24 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.selection_set(view.view_id)
 
     def remove_view(self, view: ChannelView | PMView) -> None:
-        if self.get_current_view() == view:
-            self.view_selector.selection_set(
-                self.view_selector.next(view.view_id)
-                or self.view_selector.prev(view.view_id)
-            )
+        self._select_another_view(view)
         self.view_selector.delete(view.view_id)
         view.stop_logging()
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
     def remove_server(self, server_view: ServerView) -> None:
-        for subview in server_view.get_subviews(include_server=True):
-            subview.stop_logging()
-            subview.destroy_widgets()
+        for subview in server_view.get_subviews():
+            assert isinstance(subview, (ChannelView, PMView))
+            self.remove_view(subview)
 
-        del self.views_by_id[server_view.view_id]
-        self.view_selector.delete(server_view.view_id)
-        if not self.view_selector.get_children(""):
-            (self._on_quit or self.destroy)()
+        if len(self.view_selector.get_children("")) == 1:
+            self.destroy()
+        else:
+            self._select_another_view(server_view)
+            self.view_selector.delete(server_view.view_id)
+            server_view.destroy_widgets()
+            del self.views_by_id[server_view.view_id]
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
