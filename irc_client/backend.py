@@ -307,7 +307,6 @@ class IrcCore:
                 b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
                 for i in range(0, len(b64_query), 400):
                     self._send_soon("AUTHENTICATE", b64_query[i : i + 400])
-                print("Responded to AUTHENTICATE")
 
             elif msg.command == _RPL_LOGGEDIN:
                 print("Logged in")
