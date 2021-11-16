@@ -57,7 +57,7 @@ class View:
 
         self.log_file: IO[str] | None = None
 
-    def stop_logging(self):
+    def stop_logging(self) -> None:
         if self.log_file is not None:
             print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
             self.log_file.close()
