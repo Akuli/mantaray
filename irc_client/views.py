@@ -3,6 +3,7 @@ import re
 import queue
 import traceback
 import time
+import itertools
 import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
@@ -36,11 +37,27 @@ class _UserList:
             self.treeview.insert("", "end", nick, text=nick)
 
 
-def _handle_privmsg_slash_me(sender: str, message: str) -> tuple[str, str]:
+def _parse_privmsg(
+    sender: str, message: str, nicks: tuple[str, ...] = (), pinged: bool = False
+) -> tuple[str, list[tuple[str, list[str]]]]:
+    chunks = []
+
     # /me asdf --> "\x01ACTION asdf\x01"
     if message.startswith("\x01ACTION ") and message.endswith("\x01"):
-        return ("*", sender + " " + message[8:-1])
-    return (sender, message)
+        chunks.append((sender, ["nick"]))
+        message = message[7:-1]  # keep the space
+        sender = "*"
+
+    for substring, base_tags in colors.parse_text(message):
+        for subsubstring, is_nick in backend.find_nicks(substring, nicks):
+            tags = base_tags.copy()
+            if is_nick:
+                tags.append("nick")
+            chunks.append((subsubstring, tags))
+
+    if pinged:
+        chunks = [(text, tags + ["pinged"]) for text, tags in chunks]
+    return (sender, chunks)
 
 
 class View:
@@ -73,12 +90,7 @@ class View:
         return parent_view
 
     def add_message(
-        self,
-        sender: str,
-        message: str,
-        *,
-        nicks_to_highlight: Sequence[str] = (),
-        pinged: bool = False,
+        self, sender: str, *chunks: tuple[str, list[str]], pinged: bool = False
     ) -> None:
         # scroll down all the way if the user hasn't scrolled up manually
         do_the_scroll = self.textwidget.yview()[1] == 1.0
@@ -90,20 +102,22 @@ class View:
         padding = " " * (16 - len(sender))
 
         self.textwidget.config(state="normal")
+        start = self.textwidget.index("end - 1 char")
         self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-        colors.add_text(self.textwidget, colors.color_nick(sender))
+        self.textwidget.insert("end", sender, ([] if sender == "*" else ["nick"]))
         self.textwidget.insert("end", " | ")
-        colors.add_text(
-            self.textwidget, message, known_nicks=nicks_to_highlight, pinged=pinged
-        )
+        flatten = itertools.chain.from_iterable
+        self.textwidget.insert("end", *flatten(chunks))  # type: ignore
         self.textwidget.insert("end", "\n")
+        if pinged:
+            self.textwidget.tag_add("pinged", start, "end - 1 char")
         self.textwidget.config(state="disabled")
 
         if self.log_file is not None:
             print(
                 time.asctime(),
                 sender,
-                colors.strip_colors(message),
+                "".join(text for text, tags in chunks),
                 sep="\t",
                 file=self.log_file,
                 flush=True,
@@ -113,28 +127,26 @@ class View:
             self.textwidget.see("end")
 
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
-        if error:
-            self.add_message("", colors.ERROR_PREFIX + message)
-        else:
-            self.add_message("", colors.INFO_PREFIX + message)
+        self.add_message("", (message, ["error" if error else "info"]))
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         # notify about the nick change everywhere, by putting this to base class
-        self.add_message("*", f"You are now known as {colors.color_nick(new)}.")
+        self.add_message("*", ("You are now known as ", []), (new, ["nick"]), (".", []))
 
     def get_relevant_nicks(self) -> Sequence[str]:
         return []
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         self.add_message(
-            "*", f"{colors.color_nick(old)} is now known as {colors.color_nick(new)}."
+            "*", (old, ["nick"]), (" is now known as ", []), (new, ["nick"]), (".", [])
         )
 
     def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        msg = f"{colors.color_nick(nick)} quit."
-        if reason is not None:
-            msg += f" ({reason})"
-        self.add_message("*", msg)
+        if reason is None:
+            extra = ""
+        else:
+            extra = " (" + reason + ")"
+        self.add_message("*", (nick, ["nick"]), (" quit." + extra, []))
 
 
 class ServerView(View):
@@ -276,7 +288,12 @@ class ServerView(View):
                     channel_view = self.find_channel(event.recipient)
                     assert channel_view is not None
 
-                    pinged = bool(backend.find_nicks(event.text, [self.core.nick]))
+                    pinged = any(
+                        is_nick
+                        for substring, is_nick in backend.find_nicks(
+                            event.text, [self.core.nick]
+                        )
+                    )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
                     if pinged or (
                         channel_view.channel_name in self.extra_notifications
@@ -288,7 +305,7 @@ class ServerView(View):
             # TODO: do something to unknown messages!! maybe log in backend?
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
-                    event.sender or "???", " ".join(event.args)
+                    event.sender or "???", (" ".join(event.args), [])
                 )
 
             elif isinstance(event, backend.ConnectivityMessage):
@@ -348,21 +365,22 @@ class ChannelView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        sender, message = _handle_privmsg_slash_me(sender, message)
-        self.add_message(
-            sender, message, nicks_to_highlight=self.userlist.get_nicks(), pinged=pinged
-        )
+        sender, chunks = _parse_privmsg(sender, message, self.userlist.get_nicks())
+        self.add_message(sender, *chunks, pinged=pinged)
 
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
-        self.add_message("*", f"{colors.color_nick(nick)} joined {self.channel_name}.")
+        self.add_message("*", (nick, ["nick"]), (f" joined {self.channel_name}.", []))
 
     def on_part(self, nick: str, reason: str | None) -> None:
         self.userlist.remove_user(nick)
-        msg = f"{colors.color_nick(nick)} left {self.channel_name}."
-        if reason is not None:
-            msg += f" ({reason})"
-        self.add_message("*", msg)
+        if reason is None:
+            extra = ""
+        else:
+            extra = " (" + reason + ")"
+        self.add_message(
+            "*", (nick, ["nick"]), (f" left {self.channel_name}." + extra, [])
+        )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         super().on_self_changed_nick(old, new)
@@ -382,12 +400,13 @@ class ChannelView(View):
         self.userlist.remove_user(nick)
 
     def show_topic(self, topic: str) -> None:
-        self.add_message("*", f"The topic of {self.channel_name} is: {topic}")
+        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         self.add_message(
             "*",
-            f"{colors.color_nick(nick)} changed the topic of {self.channel_name}: {topic}",
+            (nick, ["nick"]),
+            (f" changed the topic of {self.channel_name}: {topic}", []),
         )
 
 
@@ -406,8 +425,8 @@ class PMView(View):
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str) -> None:
-        sender, message = _handle_privmsg_slash_me(sender, message)
-        self.add_message(sender, message)
+        sender, chunks = _parse_privmsg(sender, message)
+        self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user

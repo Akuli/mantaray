@@ -2,9 +2,7 @@ from __future__ import annotations
 import re
 import tkinter
 import tkinter.font as tkfont
-from typing import Iterator, Sequence
-
-from . import backend
+from typing import Iterator
 
 # (he)xchat supports these
 _BOLD = "\x02"
@@ -39,13 +37,8 @@ _MIRC_COLORS[0], _MIRC_COLORS[1] = _MIRC_COLORS[1], _MIRC_COLORS[0]
 # 9 is green, would conflict with pinged tag
 _NICK_COLORS = sorted(_MIRC_COLORS.keys() - {0, 1, 2, 9, 14, 15})
 
-INFO_PREFIX = _COLOR + "11"
-ERROR_PREFIX = _COLOR + "4"
 
-
-def _parse_styles(
-    text: str,
-) -> Iterator[tuple[str, int | None, int | None, bool, bool]]:
+def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
     style_regex = r"\x02|\x1f|\x03[0-9]{1,2}(?:,[0-9]{1,2})?|\x0f"
 
     # parts contains matched parts of the regex followed by texts
@@ -94,26 +87,16 @@ def _parse_styles(
             raise ValueError("unexpected regex match: " + repr(style_spec))
 
         if substring:
-            yield (substring, fg, bg, bold, underline)
-
-
-def strip_colors(text: str) -> str:
-    return "".join(result[0] for result in _parse_styles(text))
-
-
-# python's string hashes use a randomization by default, so hash('a')
-# returns a different value after restarting python
-def _nick_hash(nick: str) -> int:
-    # http://www.cse.yorku.ca/~oz/hash.html
-    hash_ = 5381
-    for c in nick:
-        hash_ = hash_ * 33 + ord(c)
-    return hash_
-
-
-def color_nick(nick: str) -> str:
-    color = _NICK_COLORS[_nick_hash(nick) % len(_NICK_COLORS)]
-    return _BOLD + _COLOR + str(color) + nick + _BACK_TO_NORMAL
+            tags = []
+            if fg is not None:
+                tags.append("foreground-%d" % fg)
+            if bg is not None:
+                tags.append("background-%d" % bg)
+            if bold:
+                tags.append("bold")
+            if underline:
+                tags.append("underline")
+            yield (substring, tags)
 
 
 def config_tags(textwidget: tkinter.Text) -> None:
@@ -126,33 +109,12 @@ def config_tags(textwidget: tkinter.Text) -> None:
 
     textwidget.tag_configure("underline", underline=True)
     textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
+    textwidget.tag_configure("error", foreground=_MIRC_COLORS[4])
+    textwidget.tag_configure("info", foreground=_MIRC_COLORS[11])
+    textwidget.tag_configure("nick", foreground=_MIRC_COLORS[10], underline=True)  # TODO: make clickable
+
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
         textwidget.tag_configure(f"background-{number}", background=hexcolor)
         textwidget.tag_raise(f"foreground-{number}", "pinged")
         textwidget.tag_raise(f"background-{number}", "pinged")
-
-
-def add_text(
-    textwidget: tkinter.Text,
-    text: str,
-    *,
-    known_nicks: Sequence[str] = [],
-    pinged: bool = False,
-) -> None:
-    for match in reversed(backend.find_nicks(text, known_nicks)):
-        text = text[: match.start()] + color_nick(match.group(0)) + text[match.end() :]
-
-    for substring, fg, bg, bold, underline in _parse_styles(text):
-        tags = []
-        if pinged:
-            tags.append("pinged")
-        if fg is not None:
-            tags.append("foreground-%d" % fg)
-        if bg is not None:
-            tags.append("background-%d" % bg)
-        if bold:
-            tags.append("bold")
-        if underline:
-            tags.append("underline")
-        textwidget.insert("end", substring, tags)

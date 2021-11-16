@@ -29,8 +29,11 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         view.add_message(
             "*",
             (
-                "You can't send messages here. "
-                "Join a channel instead and send messages there."
+                (
+                    "You can't send messages here. "
+                    "Join a channel instead and send messages there."
+                ),
+                [],
             ),
         )
 
@@ -50,14 +53,14 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
     try:
         usage, func = _commands[entry_content.split()[0]]
     except KeyError:
-        view.add_message("*", f"No command named '{entry_content.split()[0]}'")
+        view.add_message("*", (f"No command named '{entry_content.split()[0]}'", []))
         return
 
     # Last arg can contain spaces
     # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
     args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
     if len(args) < usage.count(" <") or len(args) > usage.count(" "):
-        view.add_message("*", "Usage: " + usage)
+        view.add_message("*", ("Usage: " + usage, []))
     else:
         func(
             view,
@@ -80,9 +83,9 @@ def _add_default_commands() -> None:
         elif isinstance(view, ChannelView):
             core.part_channel(view.channel_name)
         else:
-            view.add_message("*", "Usage: /part [<channel>]")
+            view.add_message("*", ("Usage: /part [<channel>]", []))
             view.add_message(
-                "*", "Channel is needed unless you are currently on a channel."
+                "*", ("Channel is needed unless you are currently on a channel.", [])
             )
 
     # TODO: specifying a reason
@@ -99,7 +102,7 @@ def _add_default_commands() -> None:
         if isinstance(view, ChannelView):
             core.change_topic(view.channel_name, new_topic)
         else:
-            view.add_message("*", "You must be on a channel to change its topic.")
+            view.add_message("*", ("You must be on a channel to change its topic.", []))
 
     @add_command("/me <message>")
     def me(view: View, core: IrcCore, message: str) -> None:

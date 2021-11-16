@@ -1,3 +1,5 @@
+import re
+
 from irc_client import gui
 
 
@@ -53,19 +55,17 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
     alice.on_enter_pressed()
     wait_until(lambda: "unrelated" in bob.text())
 
-    assert (
-        bob.get_current_view().textwidget.get("pinged.first", "pinged.last")
-        == "hey bob"
+    assert re.fullmatch(
+        r"\[\d\d:\d\d\]            Alice \| hey bob\n",
+        bob.get_current_view().textwidget.get("pinged.first", "pinged.last"),
     )
     gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
 
     # "hey bob" should highlight "bob" with extra tags e.g. {'bold', 'foreground-3', 'pinged'}
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.first + 1 char")
-    bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 1 char")
-    assert hey_tags == ("pinged",)
-    assert "pinged" in bob_tags
-    assert "bold" in bob_tags
-    assert any(t.startswith("foreground") for t in bob_tags)
+    bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
+    assert set(hey_tags) == {"pinged"}
+    assert set(bob_tags) == {"pinged", "nick"}
 
 
 def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
