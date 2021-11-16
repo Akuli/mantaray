@@ -101,7 +101,14 @@ class View:
         self.textwidget.config(state="disabled")
 
         if self.log_file is not None:
-            print(time.asctime(), sender, message, sep="\t", file=self.log_file, flush=True)
+            print(
+                time.asctime(),
+                sender,
+                colors.strip_colors(message),
+                sep="\t",
+                file=self.log_file,
+                flush=True,
+            )
 
         if do_the_scroll:
             self.textwidget.see("end")

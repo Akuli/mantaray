@@ -27,13 +27,12 @@ def test_basic(alice, bob, wait_until):
     alice.on_enter_pressed()
     wait_until(lambda: not alice.winfo_exists())
 
-    # FIXME: strip colors
     check_log(
         alice.log_dir / "localhost" / "#autojoin.log",
         """\
 *** LOGGING BEGINS <timestamp>
 <timestamp>\t*\tThe topic of #autojoin is: No topic
-<timestamp>\t*\t\x02\x035Bob\x0f joined #autojoin.
+<timestamp>\t*\tBob joined #autojoin.
 <timestamp>\tAlice\tHello
 <timestamp>\tBob\tHiii
 *** LOGGING ENDS <timestamp>
@@ -63,8 +62,8 @@ def test_pm_logs(alice, bob, wait_until):
         """\
 *** LOGGING BEGINS <timestamp>
 <timestamp>\t*\tThe topic of #autojoin is: No topic
-<timestamp>\t*\t\x02\x035Bob\x0f joined #autojoin.
-<timestamp>\t*\t\x02\x035Bob\x0f is now known as \x02\x036blabla\x0f.
+<timestamp>\t*\tBob joined #autojoin.
+<timestamp>\t*\tBob is now known as blabla.
 *** LOGGING ENDS <timestamp>
 """,
     )
@@ -73,7 +72,7 @@ def test_pm_logs(alice, bob, wait_until):
         """\
 *** LOGGING BEGINS <timestamp>
 <timestamp>\tAlice\they
-<timestamp>\t*\t\x02\x035Bob\x0f is now known as \x02\x036blabla\x0f.
+<timestamp>\t*\tBob is now known as blabla.
 *** LOGGING ENDS <timestamp>
 """,
     )
