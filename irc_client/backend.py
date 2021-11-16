@@ -321,7 +321,7 @@ class IrcCore:
                 self._joining_in_progress[channel].nicks.extend(
                     name.lstrip("@+") for name in names.split()
                 )
-                return  # don't generate event for this
+                return  # don't spam server view with nicks
 
             elif msg.command == _RPL_ENDOFNAMES:
                 # joining a channel finished
