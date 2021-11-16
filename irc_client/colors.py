@@ -97,6 +97,10 @@ def _parse_styles(
             yield (substring, fg, bg, bold, underline)
 
 
+def strip_colors(text: str) -> str:
+    return "".join(result[0] for result in _parse_styles(text))
+
+
 # python's string hashes use a randomization by default, so hash('a')
 # returns a different value after restarting python
 def _nick_hash(nick: str) -> int:

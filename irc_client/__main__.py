@@ -4,8 +4,11 @@ import argparse
 import functools
 import tkinter
 from getpass import getuser
+from pathlib import Path
 
 from . import gui, config
+
+import appdirs
 
 
 def update_title(
@@ -27,7 +30,8 @@ def main() -> None:
     root = tkinter.Tk()
     root.withdraw()
 
-    file_config = None if args.no_config else config.load_from_file()
+    config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
+    file_config = None if args.no_config else config.load_from_file(config_dir)
     if file_config is None:
         server_config = config.show_server_config_dialog(
             transient_to=None,
@@ -54,12 +58,12 @@ def main() -> None:
 
     def save_config_and_quit_all_servers() -> None:
         if not args.no_config:
-            config.save_to_file(irc_widget.get_current_config())
+            config.save_to_file(config_dir, irc_widget.get_current_config())
 
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 
-    irc_widget = gui.IrcWidget(root, file_config)
+    irc_widget = gui.IrcWidget(root, file_config, config_dir / "logs")
     irc_widget.pack(fill="both", expand=True)
     irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
     root.bind("<FocusIn>", on_any_widget_focused)

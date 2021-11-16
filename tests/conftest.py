@@ -3,6 +3,8 @@ import tkinter
 import sys
 import subprocess
 from pathlib import Path
+import shutil
+import tempfile
 
 from irc_client import gui
 
@@ -103,6 +105,7 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
                     }
                 ]
             },
+            Path(tempfile.mkdtemp()),
         )
         widgets[name].pack(fill="both", expand=True)
         wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
@@ -110,6 +113,7 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
     yield widgets
 
     for irc_widget in widgets.values():
+        shutil.rmtree(irc_widget.log_dir)
         if irc_widget.winfo_exists():
             for server_view in irc_widget.get_server_views():
                 server_view.core.quit()

@@ -1,10 +1,11 @@
 from __future__ import annotations
 import re
 import queue
+import traceback
 import time
 import tkinter
 from tkinter import ttk
-from typing import Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING, IO
 
 from irc_client import backend, colors, config
 
@@ -54,6 +55,13 @@ class View:
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         colors.config_tags(self.textwidget)
 
+        self.log_file: IO[str] | None = None
+
+    def stop_logging(self) -> None:
+        if self.log_file is not None:
+            print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
+            self.log_file.close()
+
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
@@ -72,7 +80,6 @@ class View:
         nicks_to_highlight: Sequence[str] = (),
         pinged: bool = False,
     ) -> None:
-        """Add a message to self.textwidget."""
         # scroll down all the way if the user hasn't scrolled up manually
         do_the_scroll = self.textwidget.yview()[1] == 1.0
 
@@ -91,6 +98,16 @@ class View:
         )
         self.textwidget.insert("end", "\n")
         self.textwidget.config(state="disabled")
+
+        if self.log_file is not None:
+            print(
+                time.asctime(),
+                sender,
+                colors.strip_colors(message),
+                sep="\t",
+                file=self.log_file,
+                flush=True,
+            )
 
         if do_the_scroll:
             self.textwidget.see("end")
@@ -129,6 +146,19 @@ class ServerView(View):
 
         self.core.start()
         self.handle_events()
+
+    def open_log_file(self, name: str) -> IO[str] | None:
+        name = re.sub(r"[^A-Za-z0-9-_#]", "", name)
+        (self.irc_widget.log_dir / self.core.host).mkdir(parents=True, exist_ok=True)
+        try:
+            file = (self.irc_widget.log_dir / self.core.host / (name + ".log")).open(
+                "a", encoding="utf-8"
+            )
+            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+            return file
+        except OSError:
+            traceback.print_exc()
+            return None
 
     @property
     def server_view(self) -> ServerView:
@@ -307,6 +337,8 @@ class ChannelView(View):
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
 
+        self.log_file = self.server_view.open_log_file(name)
+
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()
@@ -367,6 +399,8 @@ class PMView(View):
             self.view_id, text=nick, image=self.irc_widget.pm_image
         )
 
+        self.log_file = self.server_view.open_log_file(nick)
+
     @property
     def nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
@@ -383,3 +417,6 @@ class PMView(View):
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
         self.irc_widget.view_selector.item(self.view_id, text=new)
+
+        self.stop_logging()
+        self.log_file = self.server_view.open_log_file(new)

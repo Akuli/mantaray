@@ -8,8 +8,6 @@ from tkinter import ttk
 import sys
 from typing import Any, TYPE_CHECKING
 
-import appdirs
-
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 else:
@@ -34,12 +32,9 @@ class Config(TypedDict):
     servers: list[ServerConfig]  # TODO: support multiple servers in gui
 
 
-_config_json_path = Path(appdirs.user_config_dir("irc-client", "Akuli")) / "config.json"
-
-
-def load_from_file() -> Config | None:
+def load_from_file(config_dir: Path) -> Config | None:
     try:
-        with _config_json_path.open("r", encoding="utf-8") as file:
+        with (config_dir / "config.json").open("r", encoding="utf-8") as file:
             result = json.load(file)
             # Backwards compatibility with older config.json files
             for server in result["servers"]:
@@ -50,9 +45,9 @@ def load_from_file() -> Config | None:
         return None
 
 
-def save_to_file(config: Config) -> None:
-    _config_json_path.parent.mkdir(parents=True, exist_ok=True)
-    with _config_json_path.open("w", encoding="utf-8") as file:
+def save_to_file(config_dir: Path, config: Config) -> None:
+    config_dir.mkdir(parents=True, exist_ok=True)
+    with (config_dir / "config.json").open("w", encoding="utf-8") as file:
         json.dump(config, file, indent=2)
         file.write("\n")
 

@@ -1,7 +1,6 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
-import os
 import re
 import subprocess
 import sys
@@ -9,6 +8,7 @@ import tkinter
 import traceback
 from tkinter import ttk
 from typing import Any
+from pathlib import Path
 
 from irc_client import config, commands
 from irc_client.views import View, ServerView, ChannelView, PMView
@@ -96,16 +96,15 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config: config.Config):
+    def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
         super().__init__(master, orient="horizontal")
+        self.log_dir = log_dir
 
-        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
-            file=os.path.join(images_dir, "hashtagbubble-20x20.png")
+            file=(images_dir / "hashtagbubble-20x20.png")
         )
-        self.pm_image = tkinter.PhotoImage(
-            file=os.path.join(images_dir, "face-20x20.png")
-        )
+        self.pm_image = tkinter.PhotoImage(file=(images_dir / "face-20x20.png"))
 
         # Help Python's GC (tkinter images rely on __del__ and it sucks)
         self.bind(
@@ -308,6 +307,7 @@ class IrcWidget(ttk.PanedWindow):
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
+        view.stop_logging()
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
@@ -321,6 +321,7 @@ class IrcWidget(ttk.PanedWindow):
         else:
             self._select_another_view(server_view)
             self.view_selector.delete(server_view.view_id)
+            server_view.stop_logging()
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 
