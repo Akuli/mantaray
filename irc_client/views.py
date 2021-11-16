@@ -178,6 +178,7 @@ class ServerView(View):
 
     def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget)
+        # FIXME: update host when reconnecting happens
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
@@ -367,6 +368,18 @@ class ServerView(View):
             ),
             "extra_notifications": list(self.extra_notifications),
         }
+
+    def show_config_dialog(self) -> None:
+        new_config = config.show_server_config_dialog(
+            transient_to=self.irc_widget.winfo_toplevel(),
+            initial_config=self.get_current_config(),
+            title="Connection settings",
+            connect_button_text="Reconnect"
+        )
+        if new_config is not None:
+            # FIXME: make channel views disappear?
+            # FIXME: changing nick in settings
+            self.core.apply_config_and_reconnect(new_config)
 
 
 class ChannelView(View):

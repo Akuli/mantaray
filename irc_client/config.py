@@ -67,7 +67,7 @@ class _EntryWithVar(ttk.Entry):
 
 
 class _ServerConfigurer(ttk.Frame):
-    def __init__(self, master: tkinter.Misc, initial_config: ServerConfig):
+    def __init__(self, master: tkinter.Misc, initial_config: ServerConfig, connect_button_text: str):
         super().__init__(master)
 
         self.result: ServerConfig | None = None
@@ -125,7 +125,7 @@ class _ServerConfigurer(ttk.Frame):
             side="right"
         )
         self._connectbutton = ttk.Button(
-            self._bottomframe, text="Connect!", command=self.connect_clicked
+            self._bottomframe, text=connect_button_text, command=self.connect_clicked
         )
         self._connectbutton.pack(side="right")
 
@@ -260,11 +260,14 @@ class _ServerConfigurer(ttk.Frame):
 
 # returns None if user cancel
 def show_server_config_dialog(
-    transient_to: tkinter.Tk | None, initial_config: ServerConfig
+    transient_to: tkinter.Tk |  tkinter.Toplevel | None, initial_config: ServerConfig,
+    *,
+    title: str = "Connect to IRC",
+    connect_button_text: str = "Connect"
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
-    content = _ServerConfigurer(dialog, initial_config)
+    content = _ServerConfigurer(dialog, initial_config, connect_button_text)
     content.pack(fill="both", expand=True)
 
     dialog.minsize(350, 200)
@@ -272,7 +275,7 @@ def show_server_config_dialog(
         "<<MoreOptions>>", lambda junk_event: dialog.minsize(350, 250), add=True
     )
 
-    dialog.title("Connect to IRC")
+    dialog.title(title)
     if transient_to is not None:
         dialog.transient(transient_to)
     dialog.wait_window()

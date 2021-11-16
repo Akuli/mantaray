@@ -343,6 +343,7 @@ class IrcWidget(ttk.PanedWindow):
 
     def _fill_menu(self) -> None:
         view = self.get_current_view()
+
         if isinstance(view, ChannelView):
             def on_change(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
@@ -356,6 +357,11 @@ class IrcWidget(ttk.PanedWindow):
             self._contextmenu.add_checkbutton(
                 label="Show notifications for all messages", variable=var
             )
+
+        elif isinstance(view, ServerView):
+            self._contextmenu.add_command(
+                label="Connection settings...",
+                command=view.show_config_dialog)
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
