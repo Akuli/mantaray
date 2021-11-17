@@ -56,8 +56,8 @@ def test_private_messages(alice, bob, wait_until):
     alice.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
     wait_until(lambda: "hello there" in bob.text())
-    assert alice.get_current_view().nick == "Bob"
-    assert bob.get_current_view().nick == "Alice"
+    assert alice.get_current_view().other_nick == "Bob"
+    assert bob.get_current_view().other_nick == "Alice"
 
     bob.entry.insert("end", "Hey Alice")
     bob.on_enter_pressed()
