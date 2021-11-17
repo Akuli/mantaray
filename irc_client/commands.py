@@ -24,7 +24,7 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
     if isinstance(view, ChannelView):
         core.send_privmsg(view.channel_name, message)
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick, message)
+        core.send_privmsg(view.other_nick, message)
     else:
         view.add_message(
             "*",

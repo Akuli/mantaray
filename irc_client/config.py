@@ -30,7 +30,7 @@ class ServerConfig(TypedDict):
 
 
 class Config(TypedDict):
-    servers: list[ServerConfig]  # TODO: support multiple servers in gui
+    servers: list[ServerConfig]
 
 
 def load_from_file(config_dir: Path) -> Config | None:
@@ -114,8 +114,7 @@ class _DialogContent(ttk.Frame):
             self._username_entry = self._create_entry()
             self._add_row("Username:", self._username_entry)
 
-        # TODO: show it with stars
-        self._password_entry = self._create_entry()
+        self._password_entry = self._create_entry(show="*")
         self._add_row("Password (leave empty if none):", self._password_entry)
 
         if connecting_to_new_server:
@@ -273,7 +272,6 @@ class _DialogContent(ttk.Frame):
 
 
 # returns None if user cancel
-# TODO: 2nd alternative for nicknames
 def show_connection_settings_dialog(
     transient_to: tkinter.Tk | tkinter.Toplevel | None,
     initial_config: ServerConfig | None,
