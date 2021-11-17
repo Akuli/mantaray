@@ -100,7 +100,9 @@ class View:
         name = self.get_log_name()
         if name is None:
             return
-        name = re.sub(r"[^A-Za-z0-9-_#]", "", name)
+
+        # Unlikely to create name conflicts in practice, but it is possible
+        name = re.sub("[^A-Za-z0-9-_#]", "_", name.lower())
         path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
 
         try:
