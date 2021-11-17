@@ -232,7 +232,7 @@ class ServerView(View):
     def find_pm(self, nick: str) -> PMView | None:
         for view in self.get_subviews():
             # TODO: case insensitive
-            if isinstance(view, PMView) and view.nick == nick:
+            if isinstance(view, PMView) and view.other_nick == nick:
                 return view
         return None
 
@@ -489,27 +489,26 @@ class PMView(View):
         )
         self.open_log_file()
 
-    # TODO: rename to other_nick
     @property
-    def nick(self) -> str:
+    def other_nick(self) -> str:
         return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def get_log_name(self) -> str:
-        return self.nick
+        return self.other_nick
 
     def on_privmsg(self, sender: str, message: str) -> None:
         sender, chunks = _parse_privmsg(
             sender,
             message,
             self.server_view.core.nick,
-            [self.server_view.core.nick, self.nick],
+            [self.server_view.core.nick, self.other_nick],
         )
         self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user
     def get_relevant_nicks(self) -> list[str]:
-        return [self.nick]
+        return [self.other_nick]
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
