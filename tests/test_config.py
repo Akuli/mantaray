@@ -1,4 +1,6 @@
-from irc_client.config import load_from_file
+from tkinter import ttk
+
+from irc_client.config import load_from_file, show_connection_settings_dialog
 
 
 def test_old_config_format(tmp_path):
@@ -42,7 +44,7 @@ def reconnect_with_change(server_view, mocker, key, old, new):
     assert new_config[key] == old
     new_config[key] = new
     mocker.patch(
-        "irc_client.config.show_server_config_dialog"
+        "irc_client.config.show_connection_settings_dialog"
     ).return_value = new_config
     server_view.show_config_dialog()
 
@@ -57,25 +59,67 @@ def test_changing_host(alice, mocker, wait_until):
     assert (alice.log_dir / "127.0.0.1" / "#autojoin.log").exists()
 
 
-def test_changing_autojoins(alice, mocker, wait_until):
-    alice.entry.insert("end", "/join #lol")
+def click(window, button_text):
+    widgets = [window]
+    while True:
+        w = widgets.pop()
+        if isinstance(w, ttk.Button) and w["text"] == button_text:
+            w.invoke()
+            return
+        widgets.extend(w.winfo_children())
+
+
+def test_cancel(alice, mocker, monkeypatch, wait_until):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Cancel"))
+    server_view = alice.get_server_views()[0]
+    server_view.show_config_dialog()
+
+    # Ensure nothing happened
+    alice.entry.insert("end", "lolwatwut")
     alice.on_enter_pressed()
-    wait_until(lambda: "The topic of #lol is:" in alice.text())
+    wait_until(lambda: "lolwatwut" in alice.text())
+    assert "Disconnected" not in alice.text()
 
+
+def test_reconnect(alice, mocker, monkeypatch, wait_until):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
     server_view = alice.get_server_views()[0]
-    reconnect_with_change(
-        server_view,
-        mocker,
-        "joined_channels",
-        old=["#autojoin", "#lol"],
-        new=["#autojoin"],
+    server_view.show_config_dialog()
+    wait_until(lambda: "Disconnected" in alice.text())
+
+
+def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
+    sample_config = {
+        "host": "example.com",
+        "port": 1234,
+        "ssl": False,
+        "nick": "AzureDiamond",
+        "password": "hunter2",
+        "username": "azure69",
+        "realname": "xd lol",
+        "joined_channels": ["#lol", "#wut"],
+        "extra_notifications": ["#wut"],
+    }
+    assert (
+        show_connection_settings_dialog(
+            transient_to=root_window, initial_config=sample_config
+        )
+        == sample_config
     )
-    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
-    assert server_view.find_channel("#lol") is None
 
 
-def test_changing_nick_in_setting_dialog(alice, mocker, wait_until):
-    server_view = alice.get_server_views()[0]
-    reconnect_with_change(server_view, mocker, "nick", old="Alice", new="Anna")
-    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
-    assert alice.nickbutton["text"] == "Anna"
+def test_default_settings(root_window, monkeypatch):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Connect!"))
+    config = show_connection_settings_dialog(
+        transient_to=root_window, initial_config=None
+    )
+    assert config.pop("nick") == config.pop("username") == config.pop("realname")
+    assert config == {
+        "extra_notifications": [],
+        "host": "irc.libera.chat",
+        "joined_channels": ["##learnpython"],
+        "password": None,
+        "port": 6697,
+        "ssl": True,
+    }

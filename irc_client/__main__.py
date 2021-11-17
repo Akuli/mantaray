@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import functools
 import tkinter
-from getpass import getuser
 from pathlib import Path
 
 from . import gui, config
@@ -33,19 +32,8 @@ def main() -> None:
     config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
     file_config = None if args.no_config else config.load_from_file(config_dir)
     if file_config is None:
-        server_config = config.show_server_config_dialog(
-            transient_to=None,
-            initial_config={
-                "host": "irc.libera.chat",
-                "port": 6697,
-                "ssl": True,
-                "nick": getuser(),
-                "username": getuser(),
-                "realname": getuser(),
-                "password": "",
-                "joined_channels": ["##learnpython"],
-                "extra_notifications": [],
-            },
+        server_config = config.show_connection_settings_dialog(
+            transient_to=None, initial_config=None
         )
         if server_config is None:
             return

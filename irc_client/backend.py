@@ -473,16 +473,15 @@ class IrcCore:
             sock.close()
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
-        old_nick = self.nick
+        assert self.nick == server_config["nick"]
+        assert self.autojoin == server_config["joined_channels"]
+
         old_host = self.host
         self._apply_config(server_config)
         self._disconnect()  # will cause the main loop to reconnect
 
-        # TODO: would be cleaner if nick and host couldn't be changed here
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
-        if old_nick != self.nick:
-            self.event_queue.put(SelfChangedNick(old_nick, self.nick))
 
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel] = _JoinInProgress(None, [])

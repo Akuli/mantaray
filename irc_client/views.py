@@ -388,11 +388,9 @@ class ServerView(View):
         }
 
     def show_config_dialog(self) -> None:
-        new_config = config.show_server_config_dialog(
+        new_config = config.show_connection_settings_dialog(
             transient_to=self.irc_widget.winfo_toplevel(),
             initial_config=self.get_current_config(),
-            title="Connection settings",
-            connect_button_text="Reconnect",
         )
         if new_config is not None:
             self.core.apply_config_and_reconnect(new_config)
