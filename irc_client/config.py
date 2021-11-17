@@ -191,8 +191,7 @@ class _DialogContent(ttk.Frame):
         self._rownumber += 1
 
     def _guess_port_based_on_ssl(self, *junk: object) -> None:
-        self._port_entry.delete(0, "end")
-        self._port_entry.insert(0, "6697" if self._ssl_var.get() else "6667")
+        self._port_entry.var.set("6697" if self._ssl_var.get() else "6667")
 
     def _validate(self, *junk: object) -> bool:
         self._connectbutton.config(state="disabled")
