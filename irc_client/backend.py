@@ -480,7 +480,6 @@ class IrcCore:
         self._apply_config(server_config)
         self._disconnect()  # will cause the main loop to reconnect
 
-        # TODO: would be cleaner if nick and host couldn't be changed here
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
 
