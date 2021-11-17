@@ -97,10 +97,10 @@ class _DialogContent(ttk.Frame):
         self._rownumber += 1
 
         if not connecting_to_new_server:
-            self.channel_entry = None
+            self._channel_entry = None
         else:
-            self.channel_entry = self._create_entry()
-            self._add_row("Channels (space-separated):", self.channel_entry)
+            self._channel_entry = self._create_entry()
+            self._add_row("Channels (space-separated):", self._channel_entry)
 
         if not connecting_to_new_server:
             self._nick_entry = None
@@ -172,8 +172,8 @@ class _DialogContent(ttk.Frame):
         if self._realname_entry is not None:
             self._realname_entry.var.set(initial_config["realname"])
         self._password_entry.var.set(initial_config["password"] or "")
-        if self.channel_entry is not None:
-            self.channel_entry.var.set(" ".join(initial_config["joined_channels"]))
+        if self._channel_entry is not None:
+            self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
 
     def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
         entry = _EntryWithVar(self, **kwargs)
@@ -217,9 +217,9 @@ class _DialogContent(ttk.Frame):
             )
             return False
 
-        if self.channel_entry is not None:
+        if self._channel_entry is not None:
             # channel entry can be empty, no channels joined
-            channels = self.channel_entry.get().split()
+            channels = self._channel_entry.get().split()
             for channel in channels:
                 if not re.fullmatch(CHANNEL_REGEX, channel):
                     text = f"'{channel}' is not a valid channel name."
@@ -264,8 +264,8 @@ class _DialogContent(ttk.Frame):
             "password": self._password_entry.get() or None,
             "joined_channels": (
                 self._initial_config["joined_channels"]
-                if self.channel_entry is None
-                else self.channel_entry.get().split()
+                if self._channel_entry is None
+                else self._channel_entry.get().split()
             ),
             "extra_notifications": self._initial_config["extra_notifications"],
         }
