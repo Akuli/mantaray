@@ -66,7 +66,11 @@ class _EntryWithVar(ttk.Entry):
         self.var = var
 
 
-class _ConnectDialogContent(ttk.Frame):
+class _DialogContent(ttk.Frame):
+    pass
+
+
+class _ConnectDialogContent(_DialogContent):
     def __init__(self, master: tkinter.Misc):
         super().__init__(master)
         self.result: ServerConfig | None = None
@@ -206,7 +210,7 @@ class _ConnectDialogContent(ttk.Frame):
         self.winfo_toplevel().destroy()
 
 
-class _ConnectionSettingsDialogContent(ttk.Frame):
+class _ConnectionSettingsDialogContent(_DialogContent):
     # TODO: 2nd alternative for nicknames
     def __init__(
         self,
@@ -333,7 +337,7 @@ class _ConnectionSettingsDialogContent(ttk.Frame):
             return False
         # TODO: can realname be empty?
 
-        from .backend import NICK_REGEX, CHANNEL_REGEX
+        from .backend import NICK_REGEX
 
         if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
             self._statuslabel.config(
@@ -378,7 +382,7 @@ def ask_settings_for_new_server(
     content = _ConnectDialogContent(dialog)
     content.pack(fill="both", expand=True)
 
-    dialog.title("Connect to IRC server")
+    dialog.title("Connect to an IRC server")
     dialog.minsize(450, 200)
     if transient_to is not None:
         dialog.transient(transient_to)
@@ -407,5 +411,7 @@ def show_connection_settings_dialog(
 
 if __name__ == "__main__":
     tkinter.Tk().withdraw()
-    s: ServerConfig = {'host': 'irc.libera.chat', 'port': 6697, 'ssl': True, 'nick': 'akuli', 'username': 'akuli', 'realname': 'akuli', 'password': None, 'joined_channels': ['##learnpython'], 'extra_notifications': []}
-    print(show_connection_settings_dialog(None, s))
+    s = ask_settings_for_new_server(None)
+    print(s)
+    if s is not None:
+        print(show_connection_settings_dialog(None, s))
