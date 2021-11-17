@@ -67,10 +67,7 @@ class _EntryWithVar(ttk.Entry):
 
 
 class _ConnectDialogContent(ttk.Frame):
-    def __init__(
-        self,
-        master: tkinter.Misc,
-    ):
+    def __init__(self, master: tkinter.Misc):
         super().__init__(master)
         self.result: ServerConfig | None = None
 
@@ -87,13 +84,13 @@ class _ConnectDialogContent(ttk.Frame):
         self._ssl_var = tkinter.BooleanVar(value=True)
         self._ssl_var.trace("w", self._guess_port_based_on_ssl)
         self._ssl_checkbox = ttk.Checkbutton(
-         self, text="Use SSL", variable=self._ssl_var
+            self, text="Use SSL", variable=self._ssl_var
         )
         self._ssl_checkbox.grid(row=self._rownumber, column=2)
         self._rownumber += 1
 
         self._channel_entry = self._create_entry()
-        self._add_row("Channels: (space-separated)", self._channel_entry)
+        self._add_row("Channels (space-separated):", self._channel_entry)
 
         self._nick_entry = self._create_entry()
         self._add_row("Nickname:", self._nick_entry)
@@ -218,7 +215,7 @@ def ask_settings_for_new_server(
     content.pack(fill="both", expand=True)
 
     dialog.title("Connect to IRC server")
-    dialog.minsize(350, 200)
+    dialog.minsize(450, 200)
     if transient_to is not None:
         dialog.transient(transient_to)
 

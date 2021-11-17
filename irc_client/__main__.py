@@ -32,9 +32,7 @@ def main() -> None:
     config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
     file_config = None if args.no_config else config.load_from_file(config_dir)
     if file_config is None:
-        server_config = config.show_server_config_dialog(
-            transient_to=None,
-        )
+        server_config = config.ask_settings_for_new_server(transient_to=None)
         if server_config is None:
             return
         file_config = {"servers": [server_config]}
