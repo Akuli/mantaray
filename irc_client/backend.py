@@ -117,6 +117,10 @@ class UnknownMessage:
 class ConnectivityMessage:
     message: str  # one line
     is_error: bool
+@dataclasses.dataclass
+class HostChanged:
+    old: str
+    new: str
 # fmt: on
 
 _IrcEvent = Union[
@@ -134,6 +138,7 @@ _IrcEvent = Union[
     ServerMessage,
     UnknownMessage,
     ConnectivityMessage,
+    HostChanged,
 ]
 
 RECONNECT_SECONDS = 10
@@ -178,15 +183,7 @@ class IrcCore:
 
     # each channel in autojoin will be joined after connecting
     def __init__(self, server_config: config.ServerConfig):
-        self.host = server_config["host"]
-        self.port = server_config["port"]
-        self.ssl = server_config["ssl"]
-        self.nick = server_config["nick"]
-        self.username = server_config["username"]
-        self.realname = server_config["realname"]
-        self.password = server_config["password"]
-        self.autojoin = server_config["joined_channels"].copy()
-
+        self._apply_config(server_config)
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
@@ -201,6 +198,16 @@ class IrcCore:
         self._joining_in_progress: dict[str, _JoinInProgress] = {}
 
         self._quit_event = threading.Event()
+
+    def _apply_config(self, server_config: config.ServerConfig) -> None:
+        self.host = server_config["host"]
+        self.port = server_config["port"]
+        self.ssl = server_config["ssl"]
+        self.nick = server_config["nick"]
+        self.username = server_config["username"]
+        self.realname = server_config["realname"]
+        self.password = server_config["password"]
+        self.autojoin = server_config["joined_channels"].copy()
 
     def start(self) -> None:
         assert not self._threads
@@ -464,6 +471,19 @@ class IrcCore:
         if sock is not None:
             sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
             sock.close()
+            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
+
+    def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
+        old_nick = self.nick
+        old_host = self.host
+        self._apply_config(server_config)
+        self._disconnect()  # will cause the main loop to reconnect
+
+        # TODO: would be cleaner if nick and host couldn't be changed here
+        if old_host != self.host:
+            self.event_queue.put(HostChanged(old_host, self.host))
+        if old_nick != self.nick:
+            self.event_queue.put(SelfChangedNick(old_nick, self.nick))
 
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel] = _JoinInProgress(None, [])

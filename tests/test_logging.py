@@ -67,7 +67,7 @@ def test_pm_logs(alice, bob, wait_until):
 """,
     )
     check_log(
-        alice.log_dir / "localhost" / "Bob.log",
+        alice.log_dir / "localhost" / "bob.log",
         """\
 *** LOGGING BEGINS <time>
 <time>  Alice   hey
@@ -81,5 +81,22 @@ def test_pm_logs(alice, bob, wait_until):
 *** LOGGING BEGINS <time>
 <time>  Alice   its ur new nick
 *** LOGGING ENDS <time>
+""",
+    )
+
+
+def test_funny_filenames(alice, bob, wait_until):
+    alice.entry.insert("end", "/nick {Bruh}")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as {Bruh}." in alice.text())
+    alice.entry.insert("end", "/msg Bob blah")
+    alice.on_enter_pressed()
+    wait_until(lambda: "blah" in bob.text())
+
+    check_log(
+        bob.log_dir / "localhost" / "_bruh_.log",
+        """\
+*** LOGGING BEGINS <time>
+<time>  {Bruh}  blah
 """,
     )

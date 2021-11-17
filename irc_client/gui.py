@@ -323,7 +323,7 @@ class IrcWidget(ttk.PanedWindow):
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
-        view.stop_logging()
+        view.close_log_file()
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
@@ -337,9 +337,32 @@ class IrcWidget(ttk.PanedWindow):
         else:
             self._select_another_view(server_view)
             self.view_selector.delete(server_view.view_id)
-            server_view.stop_logging()
+            server_view.close_log_file()
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
+
+    def _fill_menu(self) -> None:
+        view = self.get_current_view()
+
+        if isinstance(view, ChannelView):
+
+            def on_change(*junk: object) -> None:
+                assert isinstance(view, ChannelView)  # mypy awesomeness
+                view.server_view.extra_notifications ^= {view.channel_name}
+
+            var = tkinter.BooleanVar(
+                value=(view.channel_name in view.server_view.extra_notifications)
+            )
+            var.trace_add("write", on_change)
+            self._garbage_collection_is_lol = var
+            self._contextmenu.add_checkbutton(
+                label="Show notifications for all messages", variable=var
+            )
+
+        elif isinstance(view, ServerView):
+            self._contextmenu.add_command(
+                label="Connection settings...", command=view.show_config_dialog
+            )
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
@@ -349,24 +372,8 @@ class IrcWidget(ttk.PanedWindow):
             return
         self.view_selector.selection_set(item_id)
 
-        view = self.get_current_view()
-        if not isinstance(view, ChannelView):
-            return
-
-        def on_change(*junk: object) -> None:
-            assert isinstance(view, ChannelView)  # mypy awesomeness
-            view.server_view.extra_notifications ^= {view.channel_name}
-
-        var = tkinter.BooleanVar(
-            value=(view.channel_name in view.server_view.extra_notifications)
-        )
-        var.trace_add("write", on_change)
-        self._garbage_collection_is_lol = var
-
         self._contextmenu.delete(0, "end")
-        self._contextmenu.add_checkbutton(
-            label="Show notifications for all messages", variable=var
-        )
+        self._fill_menu()
         self._contextmenu.tk_popup(event.x_root, event.y_root)
 
     def _window_has_focus(self) -> bool:
