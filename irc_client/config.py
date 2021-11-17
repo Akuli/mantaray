@@ -269,7 +269,7 @@ def show_server_config_dialog(
     initial_config: ServerConfig,
     *,
     title: str = "Connect to IRC",
-    connect_button_text: str = "Connect",
+    connect_button_text: str = "Connect!",
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
