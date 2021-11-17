@@ -388,21 +388,22 @@ class ServerView(View):
         }
 
     def show_config_dialog(self) -> None:
-        new_config = config.show_server_config_dialog(
-            transient_to=self.irc_widget.winfo_toplevel(),
-            initial_config=self.get_current_config(),
-            title="Connection settings",
-            connect_button_text="Reconnect",
-        )
-        if new_config is not None:
-            self.core.apply_config_and_reconnect(new_config)
-            # TODO: autojoin setting would be better in right-click
-            for subview in self.get_subviews():
-                if (
-                    isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
-                ):
-                    self.irc_widget.remove_view(subview)
+        pass
+#        new_config = config.show_server_config_dialog(
+#            transient_to=self.irc_widget.winfo_toplevel(),
+#            initial_config=self.get_current_config(),
+#            title="Connection settings",
+#            connect_button_text="Reconnect",
+#        )
+#        if new_config is not None:
+#            self.core.apply_config_and_reconnect(new_config)
+#            # TODO: autojoin setting would be better in right-click
+#            for subview in self.get_subviews():
+#                if (
+#                    isinstance(subview, ChannelView)
+#                    and subview.channel_name not in self.core.autojoin
+#                ):
+#                    self.irc_widget.remove_view(subview)
 
 
 class ChannelView(View):

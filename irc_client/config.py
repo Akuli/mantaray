@@ -1,11 +1,11 @@
 from __future__ import annotations
-import functools
 import json
 import re
-from pathlib import Path
 import tkinter
-from tkinter import ttk
 import sys
+from pathlib import Path
+from tkinter import ttk
+from getpass import getuser
 from typing import Any, TYPE_CHECKING
 
 if sys.version_info >= (3, 8):
@@ -66,15 +66,12 @@ class _EntryWithVar(ttk.Entry):
         self.var = var
 
 
-class _ServerConfigurer(ttk.Frame):
+class _ConnectDialogContent(ttk.Frame):
     def __init__(
         self,
         master: tkinter.Misc,
-        initial_config: ServerConfig,
-        connect_button_text: str,
     ):
         super().__init__(master)
-
         self.result: ServerConfig | None = None
 
         self._rownumber = 0
@@ -83,34 +80,26 @@ class _ServerConfigurer(ttk.Frame):
 
         self._server_entry = self._create_entry()
         self._add_row("Server:", self._server_entry)
-        self._rownumber += 1  # room for port and ssl checkbox
+
+        ttk.Label(self, text="Port:").grid(row=self._rownumber, column=0, sticky="w")
+        self._port_entry = self._create_entry(width=8)
+        self._port_entry.grid(row=self._rownumber, column=1, sticky="we")
+        self._ssl_var = tkinter.BooleanVar(value=True)
+        self._ssl_var.trace("w", self._guess_port_based_on_ssl)
+        self._ssl_checkbox = ttk.Checkbutton(
+         self, text="Use SSL", variable=self._ssl_var
+        )
+        self._ssl_checkbox.grid(row=self._rownumber, column=2)
+        self._rownumber += 1
 
         self._channel_entry = self._create_entry()
-        self._add_row("Channel:", self._channel_entry)
+        self._add_row("Channels: (space-separated)", self._channel_entry)
 
         self._nick_entry = self._create_entry()
-        self._nick_entry.var.trace("w", self._on_nick_changed)
         self._add_row("Nickname:", self._nick_entry)
 
         self._password_entry = self._create_entry()
         self._add_row("Password (leave empty if none):", self._password_entry)
-
-        button = ttk.Button(self, text="More options...")
-        button.config(command=functools.partial(self._show_more, button))
-        button.grid(
-            row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
-        )
-        # leave self._rownumber untouched
-
-        # _show_more() grids these
-        self._username_entry = self._create_entry()
-        self._realname_entry = self._create_entry()
-        self._port_entry = self._create_entry(width=8)
-        self._ssl_var = tkinter.BooleanVar(value=True)
-        self._ssl_var.trace("w", self._guess_port_based_on_ssl)
-        self._ssl_checkbox = ttk.Checkbutton(
-            self, text="Use SSL", variable=self._ssl_var
-        )
 
         # big row makes sure that this is always below everything
         self._statuslabel = ttk.Label(self)
@@ -130,50 +119,15 @@ class _ServerConfigurer(ttk.Frame):
             side="right"
         )
         self._connectbutton = ttk.Button(
-            self._bottomframe, text=connect_button_text, command=self.connect_clicked
+            self._bottomframe, text="Connect!", command=self.connect_clicked
         )
         self._connectbutton.pack(side="right")
 
-        # now everything's ready for _validate()
-        # all of these call validate()
-        self._ssl_var.set(initial_config["ssl"])
-        self._server_entry.var.set(initial_config["host"])
-        self._port_entry.var.set(str(initial_config["port"]))
-        self._nick_entry.var.set(initial_config["nick"])
-        self._password_entry.var.set(initial_config["password"] or "")
-        self._username_entry.var.set(initial_config["username"])
-        self._realname_entry.var.set(initial_config["realname"])
-        self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
-
-        # not shown in gui, but preserve value
-        self._extra_notifications = initial_config["extra_notifications"].copy()
-
-    # TODO: 2nd alternative for nicknames
-    # rest of the code should also handle nickname errors better
-    # https://tools.ietf.org/html/rfc1459#section-4.1.2
-    def _show_more(self, show_more_button: ttk.Button) -> None:
-        show_more_button.destroy()
-
-        ttk.Label(self, text="Port:").grid(row=1, column=0, sticky="w")
-        self._port_entry.grid(row=1, column=1, sticky="we")
-        self._ssl_checkbox.grid(row=1, column=2)
-        self._setup_entry_bindings(self._port_entry)
-
-        self._add_row("Username:", self._username_entry)
-        self._add_row("Real* name:", self._realname_entry)
-
-        infolabel = ttk.Label(
-            self,
-            text=(
-                "* This doesn't need to be your real name.\n"
-                "   You can set this to anything you want."
-            ),
-        )
-        infolabel.grid(
-            row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
-        )
-        self._rownumber += 1
-        self.event_generate("<<MoreOptions>>")
+        # stupid defaults
+        self._server_entry.var.set("irc.libera.chat")
+        self._port_entry.var.set("6697")
+        self._nick_entry.var.set(getuser())
+        self._channel_entry.var.set("##learnpython")
 
     def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
         entry = _EntryWithVar(self, **kwargs)
@@ -189,11 +143,6 @@ class _ServerConfigurer(ttk.Frame):
         widget.grid(row=self._rownumber, column=1, columnspan=2, sticky="we")
         self._setup_entry_bindings(widget)
         self._rownumber += 1
-
-    def _on_nick_changed(self, *junk: object) -> None:
-        # these call self._validate()
-        self._username_entry.var.set(self._nick_entry.get())
-        self._realname_entry.var.set(self._nick_entry.get())
 
     def _guess_port_based_on_ssl(self, *junk: object) -> None:
         self._port_entry.delete(0, "end")
@@ -212,10 +161,6 @@ class _ServerConfigurer(ttk.Frame):
         if not self._nick_entry.get():
             self._statuslabel.config(text="Please specify a nickname.")
             return False
-        if not self._username_entry.get():
-            self._statuslabel.config(text="Please specify a username.")
-            return False
-        # TODO: can realname be empty?
 
         from .backend import NICK_REGEX, CHANNEL_REGEX
 
@@ -254,35 +199,28 @@ class _ServerConfigurer(ttk.Frame):
             "port": int(self._port_entry.get()),
             "ssl": self._ssl_var.get(),
             "nick": self._nick_entry.get(),
-            "username": self._username_entry.get(),
-            "realname": self._realname_entry.get(),
+            "username": self._nick_entry.get(),
+            "realname": self._nick_entry.get(),
             "password": self._password_entry.get() or None,
             "joined_channels": self._channel_entry.get().split(),
-            "extra_notifications": self._extra_notifications,
+            "extra_notifications": [],
         }
         self.winfo_toplevel().destroy()
 
 
 # returns None if user cancel
-def show_server_config_dialog(
+def ask_settings_for_new_server(
     transient_to: tkinter.Tk | tkinter.Toplevel | None,
-    initial_config: ServerConfig,
-    *,
-    title: str = "Connect to IRC",
-    connect_button_text: str = "Connect!",
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
-    content = _ServerConfigurer(dialog, initial_config, connect_button_text)
+    content = _ConnectDialogContent(dialog)
     content.pack(fill="both", expand=True)
 
+    dialog.title("Connect to IRC server")
     dialog.minsize(350, 200)
-    content.bind(
-        "<<MoreOptions>>", lambda junk_event: dialog.minsize(350, 250), add=True
-    )
-
-    dialog.title(title)
     if transient_to is not None:
         dialog.transient(transient_to)
+
     dialog.wait_window()
     return content.result

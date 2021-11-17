@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import functools
 import tkinter
-from getpass import getuser
 from pathlib import Path
 
 from . import gui, config
@@ -35,17 +34,6 @@ def main() -> None:
     if file_config is None:
         server_config = config.show_server_config_dialog(
             transient_to=None,
-            initial_config={
-                "host": "irc.libera.chat",
-                "port": 6697,
-                "ssl": True,
-                "nick": getuser(),
-                "username": getuser(),
-                "realname": getuser(),
-                "password": "",
-                "joined_channels": ["##learnpython"],
-                "extra_notifications": [],
-            },
         )
         if server_config is None:
             return
