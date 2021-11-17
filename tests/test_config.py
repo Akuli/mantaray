@@ -1,4 +1,3 @@
-import pytest
 from tkinter import ttk
 
 from irc_client.config import load_from_file, show_connection_settings_dialog
