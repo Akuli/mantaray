@@ -40,5 +40,7 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
 def test_order_bug(alice, mocker, monkeypatch, wait_until):
     server_view = alice.get_server_views()[0]
     server_view.core.apply_config_and_reconnect(server_view.get_current_config())
-    wait_until(lambda: "Disconnected." in alice.text() and "Connecting to" in alice.text())
+    wait_until(
+        lambda: "Disconnected." in alice.text() and "Connecting to" in alice.text()
+    )
     assert alice.text().index("Disconnected.") < alice.text().index("Connecting to")
