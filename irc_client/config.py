@@ -102,8 +102,11 @@ class _DialogContent(ttk.Frame):
             self.channel_entry = self._create_entry()
             self._add_row("Channels (space-separated):", self.channel_entry)
 
-        self._nick_entry = self._create_entry()
-        self._add_row("Nickname:", self._nick_entry)
+        if not connecting_to_new_server:
+            self._nick_entry = None
+        else:
+            self._nick_entry = self._create_entry()
+            self._add_row("Nickname:", self._nick_entry)
 
         if connecting_to_new_server:
             self._username_entry = None
@@ -162,7 +165,8 @@ class _DialogContent(ttk.Frame):
         self._server_entry.var.set(initial_config["host"])
         self._port_entry.var.set(str(initial_config["port"]))
         self._ssl_var.set(initial_config["ssl"])
-        self._nick_entry.var.set(initial_config["nick"])
+        if self._nick_entry is not None:
+            self._nick_entry.var.set(initial_config["nick"])
         if self._username_entry is not None:
             self._username_entry.var.set(initial_config["username"])
         if self._realname_entry is not None:
@@ -196,7 +200,7 @@ class _DialogContent(ttk.Frame):
         if not self._server_entry.get():
             self._statuslabel.config(text="Please specify a server.")
             return False
-        if not self._nick_entry.get():
+        if self._nick_entry is not None and not self._nick_entry.get():
             self._statuslabel.config(text="Please specify a nickname.")
             return False
         if self._username_entry is not None and not self._username_entry.get():
@@ -206,7 +210,9 @@ class _DialogContent(ttk.Frame):
 
         from .backend import NICK_REGEX, CHANNEL_REGEX
 
-        if not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
+        if self._nick_entry is not None and not re.fullmatch(
+            NICK_REGEX, self._nick_entry.get()
+        ):
             self._statuslabel.config(
                 text=f"'{self._nick_entry.get()}' is not a valid nickname."
             )
@@ -240,20 +246,21 @@ class _DialogContent(ttk.Frame):
 
     def connect_clicked(self, junk_event: object = None) -> None:
         assert self._validate()
+        if self._nick_entry is None:
+            nick = self._initial_config["nick"]
+        else:
+            nick = self._nick_entry.get()
+
         self.result = {
             "host": self._server_entry.get(),
             "port": int(self._port_entry.get()),
             "ssl": self._ssl_var.get(),
-            "nick": self._nick_entry.get(),
+            "nick": nick,
             "username": (
-                self._nick_entry.get()
-                if self._username_entry is None
-                else self._username_entry.get()
+                nick if self._username_entry is None else self._username_entry.get()
             ),
             "realname": (
-                self._nick_entry.get()
-                if self._realname_entry is None
-                else self._realname_entry.get()
+                nick if self._realname_entry is None else self._realname_entry.get()
             ),
             "password": self._password_entry.get() or None,
             "joined_channels": (
@@ -269,7 +276,8 @@ class _DialogContent(ttk.Frame):
 # returns None if user cancel
 # TODO: 2nd alternative for nicknames
 def show_connection_settings_dialog(
-    transient_to: tkinter.Tk | tkinter.Toplevel | None, initial_config: ServerConfig | None
+    transient_to: tkinter.Tk | tkinter.Toplevel | None,
+    initial_config: ServerConfig | None,
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
