@@ -95,7 +95,7 @@ class View:
             self.log_file = None
 
     def open_log_file(self) -> None:
-        self.close_log_file()
+        assert self.log_file is None
 
         name = self.get_log_name()
         if name is None:
