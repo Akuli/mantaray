@@ -309,11 +309,3 @@ def show_connection_settings_dialog(
         dialog.transient(transient_to)
     dialog.wait_window()
     return content.result
-
-
-if __name__ == "__main__":
-    tkinter.Tk().withdraw()
-    s = show_connection_settings_dialog(transient_to=None, initial_config=None)
-    print(s)
-    if s is not None:
-        print(show_connection_settings_dialog(transient_to=None, initial_config=s))
