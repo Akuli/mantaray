@@ -163,8 +163,8 @@ class _DialogContent(ttk.Frame):
 
         # now everything's ready for _validate()
         self._server_entry.var.set(initial_config["host"])
+        self._ssl_var.set(initial_config["ssl"])  # must be before port
         self._port_entry.var.set(str(initial_config["port"]))
-        self._ssl_var.set(initial_config["ssl"])
         if self._nick_entry is not None:
             self._nick_entry.var.set(initial_config["nick"])
         if self._username_entry is not None:
