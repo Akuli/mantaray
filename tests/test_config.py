@@ -1,4 +1,7 @@
-from irc_client.config import load_from_file
+import pytest
+from tkinter import ttk
+
+from irc_client.config import load_from_file, show_connection_settings_dialog
 
 
 def test_old_config_format(tmp_path):
@@ -55,3 +58,69 @@ def test_changing_host(alice, mocker, wait_until):
     assert alice.view_selector.item(server_view.view_id, "text") == "127.0.0.1"
     assert (alice.log_dir / "localhost" / "#autojoin.log").exists()
     assert (alice.log_dir / "127.0.0.1" / "#autojoin.log").exists()
+
+
+def click(window, button_text):
+    widgets = [window]
+    while True:
+        w = widgets.pop()
+        if isinstance(w, ttk.Button) and w["text"] == button_text:
+            w.invoke()
+            return
+        widgets.extend(w.winfo_children())
+
+
+def test_cancel(alice, mocker, monkeypatch, wait_until):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Cancel"))
+    server_view = alice.get_server_views()[0]
+    server_view.show_config_dialog()
+
+    # Ensure nothing happened
+    alice.entry.insert("end", "lolwatwut")
+    alice.on_enter_pressed()
+    wait_until(lambda: "lolwatwut" in alice.text())
+    assert "Disconnected" not in alice.text()
+
+
+def test_reconnect(alice, mocker, monkeypatch, wait_until):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
+    server_view = alice.get_server_views()[0]
+    server_view.show_config_dialog()
+    wait_until(lambda: "Disconnected" in alice.text())
+
+
+def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
+    sample_config = {
+        "host": "example.com",
+        "port": 1234,
+        "ssl": False,
+        "nick": "AzureDiamond",
+        "password": "hunter2",
+        "username": "azure69",
+        "realname": "xd lol",
+        "joined_channels": ["#lol", "#wut"],
+        "extra_notifications": ["#wut"],
+    }
+    assert (
+        show_connection_settings_dialog(
+            transient_to=root_window, initial_config=sample_config
+        )
+        == sample_config
+    )
+
+
+def test_default_settings(root_window, monkeypatch):
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Connect!"))
+    config = show_connection_settings_dialog(
+        transient_to=root_window, initial_config=None
+    )
+    assert config.pop("nick") == config.pop("username") == config.pop("realname")
+    assert config == {
+        "extra_notifications": [],
+        "host": "irc.libera.chat",
+        "joined_channels": ["##learnpython"],
+        "password": None,
+        "port": 6697,
+        "ssl": True,
+    }
