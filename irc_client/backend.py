@@ -301,7 +301,6 @@ class IrcCore:
                     acknowledged = set(msg.args[-1].split())
 
                     if "sasl" in acknowledged:
-                        print("SASL was acknowleged.")
                         self._send_soon("AUTHENTICATE", "PLAIN")
                 elif subcommand == "NAK":
                     rejected = set(msg.args[-1].split())
@@ -469,9 +468,9 @@ class IrcCore:
         sock = self._sock
         self._sock = None
         if sock is not None:
+            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
             sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
             sock.close()
-            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
         old_nick = self.nick
