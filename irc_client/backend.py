@@ -301,7 +301,6 @@ class IrcCore:
                     acknowledged = set(msg.args[-1].split())
 
                     if "sasl" in acknowledged:
-                        print("SASL was acknowleged.")
                         self._send_soon("AUTHENTICATE", "PLAIN")
                 elif subcommand == "NAK":
                     rejected = set(msg.args[-1].split())
