@@ -1,6 +1,6 @@
 from tkinter import ttk
 
-from irc_client.config import load_from_file, show_connection_settings_dialog
+from mantaray.config import load_from_file, show_connection_settings_dialog
 
 
 def test_old_config_format(tmp_path):
@@ -44,7 +44,7 @@ def reconnect_with_change(server_view, mocker, key, old, new):
     assert new_config[key] == old
     new_config[key] = new
     mocker.patch(
-        "irc_client.config.show_connection_settings_dialog"
+        "mantaray.config.show_connection_settings_dialog"
     ).return_value = new_config
     server_view.show_config_dialog()
 

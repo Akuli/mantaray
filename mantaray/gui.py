@@ -11,8 +11,8 @@ from typing import Any
 from pathlib import Path
 from functools import partial
 
-from irc_client import config, commands
-from irc_client.views import View, ServerView, ChannelView, PMView
+from mantaray import config, commands
+from mantaray.views import View, ServerView, ChannelView, PMView
 
 
 def _show_popup(title: str, text: str) -> None:

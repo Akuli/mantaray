@@ -2,8 +2,8 @@
 from __future__ import annotations
 import re
 from typing import Callable, TypeVar
-from irc_client.views import View, ChannelView, PMView
-from irc_client.backend import IrcCore
+from mantaray.views import View, ChannelView, PMView
+from mantaray.backend import IrcCore
 
 
 _CommandT = TypeVar("_CommandT", bound=Callable[..., None])
