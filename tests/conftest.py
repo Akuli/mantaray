@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from irc_client import gui
+from mantaray import gui
 
 import pytest
 
@@ -85,7 +85,7 @@ def hircd():
 
 @pytest.fixture
 def alice_and_bob(hircd, root_window, wait_until, mocker):
-    mocker.patch("irc_client.gui._show_popup")
+    mocker.patch("mantaray.gui._show_popup")
 
     widgets = {}
     for name in ["Alice", "Bob"]:

@@ -29,7 +29,7 @@ def main() -> None:
     root = tkinter.Tk()
     root.withdraw()
 
-    config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
+    config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
     file_config = None if args.no_config else config.load_from_file(config_dir)
     if file_config is None:
         server_config = config.show_connection_settings_dialog(

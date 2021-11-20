@@ -9,10 +9,10 @@ import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
 
-from irc_client import backend, colors, config
+from mantaray import backend, colors, config
 
 if TYPE_CHECKING:
-    from irc_client.gui import IrcWidget
+    from mantaray.gui import IrcWidget
 
 
 class _UserList:

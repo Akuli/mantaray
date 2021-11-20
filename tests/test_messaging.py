@@ -1,6 +1,6 @@
 import re
 
-from irc_client import gui
+from mantaray import gui
 
 
 def test_basic(alice, bob, wait_until):

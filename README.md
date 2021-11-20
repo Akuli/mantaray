@@ -1,17 +1,17 @@
-# irc-client
+# Mantaray
 
-A fun IRC client written in Python with Tkinter and ttk.
+This is an IRC client written in Python with tkinter and ttk.
 
 ![Screenshot](screenshot.png)
 
-You can run this IRC client like this:
+You can run it like this:
 
     $ sudo apt install libnotify-bin   # skip this on MacOS
-    $ git clone https://github.com/Akuli/irc-client
-    $ cd irc-client
+    $ git clone https://github.com/Akuli/mantaray
+    $ cd mantaray
     $ python3 -m venv env
     $ source env/bin/activate
     $ pip install -r requirements.txt
-    $ python3 -m irc_client
+    $ python3 -m mantaray
 
 For developing, you may want to also run `pip install -r requirements-dev.txt`.

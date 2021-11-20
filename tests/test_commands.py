@@ -1,6 +1,6 @@
 import pytest
 
-from irc_client.views import ServerView
+from mantaray.views import ServerView
 
 
 @pytest.mark.parametrize("part_command", ["/part", "/part #lol"])

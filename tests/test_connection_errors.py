@@ -16,7 +16,7 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
 
 
 def test_server_dies(alice, hircd, monkeypatch, wait_until):
-    monkeypatch.setattr("irc_client.backend.RECONNECT_SECONDS", 2)
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
     hircd.stop()
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())

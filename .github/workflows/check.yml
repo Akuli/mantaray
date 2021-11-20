@@ -19,7 +19,7 @@ jobs:
       with:
         python-version: "3.10"
     - run: pip install -r requirements-dev.txt
-    - run: pyflakes irc_client tests
+    - run: pyflakes mantaray tests
   black:
     runs-on: ubuntu-latest
     steps:
@@ -28,7 +28,7 @@ jobs:
       with:
         python-version: "3.10"
     - run: pip install -r requirements-dev.txt
-    - run: python3 -m black --check irc_client tests
+    - run: python3 -m black --check mantaray tests
   mypy:
     runs-on: ubuntu-latest
     steps:
@@ -37,7 +37,7 @@ jobs:
       with:
         python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
     - run: pip install -r requirements-dev.txt
-    - run: mypy irc_client
+    - run: mypy mantaray
   pytest:
     runs-on: ubuntu-latest
     steps:
