@@ -5,6 +5,7 @@ import tkinter
 import sys
 from pathlib import Path
 from tkinter import ttk
+from tkinter.font import Font
 from getpass import getuser
 from typing import Any, TYPE_CHECKING
 
@@ -31,6 +32,14 @@ class ServerConfig(TypedDict):
 
 class Config(TypedDict):
     servers: list[ServerConfig]
+    font_family: str
+    font_size: int
+
+
+# requires tkinter root window to exist
+def get_default_fixed_font() -> tuple[str, int]:
+    font = Font(name="TkFixedFont", exists=True)
+    return (font["family"], font["size"])
 
 
 def load_from_file(config_dir: Path) -> Config | None:
@@ -42,6 +51,8 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("ssl", True)
                 server.setdefault("extra_notifications", [])
                 server.setdefault("password", None)
+            if "font_family" not in result or "font_size" not in result:
+                result["font_family"], result["font_size"] = get_default_fixed_font()
             return result
     except FileNotFoundError:
         return None
