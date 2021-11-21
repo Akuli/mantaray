@@ -4,6 +4,7 @@ import argparse
 import functools
 import sys
 import tkinter
+import traceback
 from pathlib import Path
 
 from . import gui, config
@@ -11,9 +12,11 @@ from . import gui, config
 try:
     import appdirs
     from ttkthemes import ThemedTk
-except ImportError as e:
-    print(e)
-    print("See README for installation instructions.")
+except ImportError:
+    traceback.print_exc()
+    print()
+    print('You need to create a venv and install the dependencies into it with "pip".')
+    print("See README.md for instructions.")
     sys.exit(1)
 
 

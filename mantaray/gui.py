@@ -147,9 +147,12 @@ class IrcWidget(ttk.PanedWindow):
         self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
 
-        # FIXME: cursor not visible
         self.entry = tkinter.Entry(
-            entryframe, font=self.font, fg=colors.FOREGROUND, bg=colors.BACKGROUND
+            entryframe,
+            font=self.font,
+            fg=colors.FOREGROUND,
+            bg=colors.BACKGROUND,
+            insertbackground=colors.FOREGROUND,
         )
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
