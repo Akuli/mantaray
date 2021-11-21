@@ -7,6 +7,7 @@ import sys
 import tkinter
 import traceback
 from tkinter import ttk
+from tkinter.font import Font
 from typing import Any
 from pathlib import Path
 from functools import partial
@@ -101,6 +102,12 @@ class IrcWidget(ttk.PanedWindow):
         super().__init__(master, orient="horizontal")
         self.log_dir = log_dir
 
+        self.font = Font(
+            family=file_config["font_family"], size=file_config["font_size"]
+        )
+        if not self.font.metrics("fixed"):
+            self.font.config(family=config.get_default_fixed_font()[0])
+
         images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
             file=(images_dir / "hashtagbubble-20x20.png")
@@ -138,7 +145,7 @@ class IrcWidget(ttk.PanedWindow):
         # TODO: add a tooltip to the button, it's not very obvious
         self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
-        self.entry = ttk.Entry(entryframe)
+        self.entry = ttk.Entry(entryframe, font=self.font)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)
@@ -199,6 +206,13 @@ class IrcWidget(ttk.PanedWindow):
 
     def _scroll_down(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(1, "pages")
+
+    def bigger_font_size(self, junk_event: object) -> None:
+        self.font["size"] += 1
+
+    def smaller_font_size(self, junk_event: object) -> None:
+        if self.font["size"] > 3:
+            self.font["size"] -= 1
 
     def _get_flat_list_of_item_ids(self) -> list[str]:
         result = []
@@ -421,5 +435,7 @@ class IrcWidget(ttk.PanedWindow):
             "servers": [
                 server_view.get_current_config()
                 for server_view in self.get_server_views()
-            ]
+            ],
+            "font_family": self.font["family"],
+            "font_size": self.font["size"],
         }

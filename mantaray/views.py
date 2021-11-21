@@ -76,9 +76,13 @@ class View:
         self.irc_widget = irc_widget
         self.view_id = irc_widget.view_selector.insert(parent_view_id, "end")
 
-        # width and height are minimums, can stretch bigger
         self.textwidget = tkinter.Text(
-            irc_widget, width=1, height=1, state="disabled", takefocus=True
+            irc_widget,
+            width=1,  # minimum, can stretch bigger
+            height=1,  # minimum, can stretch bigger
+            font=irc_widget.font,
+            state="disabled",
+            takefocus=True,
         )
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         colors.config_tags(self.textwidget)
