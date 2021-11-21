@@ -15,7 +15,7 @@ try:
 except ImportError:
     traceback.print_exc()
     print()
-    print('You need to create a venv and install the dependencies into it with "pip".')
+    print("You need to create a venv and install the dependencies into it with pip.")
     print("See README.md for instructions.")
     sys.exit(1)
 
