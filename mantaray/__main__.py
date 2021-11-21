@@ -4,11 +4,20 @@ import argparse
 import functools
 import sys
 import tkinter
+import traceback
 from pathlib import Path
 
 from . import gui, config
 
-import appdirs
+try:
+    import appdirs
+    from ttkthemes import ThemedTk
+except ImportError:
+    traceback.print_exc()
+    print()
+    print('You need to create a venv and install the dependencies into it with "pip".')
+    print("See README.md for instructions.")
+    sys.exit(1)
 
 
 def update_title(
@@ -27,7 +36,7 @@ def main() -> None:
 
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
-    root = tkinter.Tk()
+    root = ThemedTk(theme="black")
     root.withdraw()
 
     if args.no_config:
