@@ -8,6 +8,7 @@ from pathlib import Path
 from . import gui, config
 
 import appdirs
+from ttkthemes import ThemedTk
 
 
 def update_title(
@@ -26,7 +27,7 @@ def main() -> None:
 
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
-    root = tkinter.Tk()
+    root = ThemedTk(theme="black")
     root.withdraw()
 
     config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
