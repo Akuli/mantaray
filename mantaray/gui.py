@@ -12,7 +12,7 @@ from typing import Any
 from pathlib import Path
 from functools import partial
 
-from mantaray import config, commands
+from mantaray import config, commands, colors
 from mantaray.views import View, ServerView, ChannelView, PMView
 
 
@@ -142,10 +142,12 @@ class IrcWidget(ttk.PanedWindow):
 
         entryframe = ttk.Frame(self._middle_pane)
         entryframe.pack(side="bottom", fill="x")
+
         # TODO: add a tooltip to the button, it's not very obvious
         self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
-        self.entry = ttk.Entry(entryframe, font=self.font)
+
+        self.entry = tkinter.Entry(entryframe, font=self.font, fg=colors.FOREGROUND, bg=colors.BACKGROUND)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)

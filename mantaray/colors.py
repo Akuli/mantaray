@@ -23,6 +23,9 @@ _MIRC_COLORS = {
     15: "#d2d2d2",
 }
 
+FOREGROUND = _MIRC_COLORS[0]
+BACKGROUND = _MIRC_COLORS[1]
+
 
 def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
     style_regex = r"\x02|\x1f|\x03[0-9]{1,2}(?:,[0-9]{1,2})?|\x0f"
@@ -86,7 +89,7 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
 
 
 def config_tags(textwidget: tkinter.Text) -> None:
-    textwidget.config(fg=_MIRC_COLORS[0], bg=_MIRC_COLORS[1])
+    textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
     textwidget.tag_configure("underline", underline=True)
     textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
