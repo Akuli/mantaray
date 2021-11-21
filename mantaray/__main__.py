@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import sys
 import tkinter
 from pathlib import Path
 
@@ -38,7 +39,12 @@ def main() -> None:
         )
         if server_config is None:
             return
-        file_config = {"servers": [server_config]}
+        default_family, default_size = config.get_default_fixed_font()
+        file_config = {
+            "servers": [server_config],
+            "font_family": default_family,
+            "font_size": default_size,
+        }
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
         if event.widget == root:
@@ -56,6 +62,12 @@ def main() -> None:
     irc_widget = gui.IrcWidget(root, file_config, config_dir / "logs")
     irc_widget.pack(fill="both", expand=True)
     irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
+    if sys.platform == "darwin":
+        root.bind("<Command-plus>", irc_widget.bigger_font_size)
+        root.bind("<Command-minus>", irc_widget.smaller_font_size)
+    else:
+        root.bind("<Control-plus>", irc_widget.bigger_font_size)
+        root.bind("<Control-minus>", irc_widget.smaller_font_size)
     root.bind("<FocusIn>", on_any_widget_focused)
     root.protocol("WM_DELETE_WINDOW", save_config_and_quit_all_servers)
 

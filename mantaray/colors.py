@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 import tkinter
-import tkinter.font as tkfont
 from typing import Iterator
 
 # https://www.mirc.com/colors.html
@@ -35,7 +34,6 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
 
     fg = None
     bg = None
-    bold = False
     underline = False
 
     for style_spec, substring in zip(parts[0::2], parts[1::2]):
@@ -43,7 +41,9 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
             # beginning of text
             pass
         elif style_spec == "\x02":
-            bold = True
+            # Bold not supported, because requires setting custom font in a tag
+            # And then the tag's font would need to stay in sync with the main font
+            pass
         elif style_spec == "\x1f":
             underline = True
         elif style_spec.startswith("\x03"):
@@ -68,8 +68,9 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
                 if bg not in _MIRC_COLORS:
                     bg = None
         elif style_spec == "\x0f":
-            fg = bg = None
-            bold = underline = False
+            fg = None
+            bg = None
+            underline = False
         else:
             raise ValueError("unexpected regex match: " + repr(style_spec))
 
@@ -79,8 +80,6 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
                 tags.append("foreground-%d" % fg)
             if bg is not None:
                 tags.append("background-%d" % bg)
-            if bold:
-                tags.append("bold")
             if underline:
                 tags.append("underline")
             yield (substring, tags)
@@ -88,11 +87,6 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
 
 def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.config(fg=_MIRC_COLORS[0], bg=_MIRC_COLORS[1])
-
-    # tags support underlining, but no bolding (lol)
-    # TODO: user can choose custom font?
-    font = tkfont.Font(name=textwidget["font"], exists=True)
-    textwidget.tag_configure("bold", font=(font["family"], font["size"], "bold"))
 
     textwidget.tag_configure("underline", underline=True)
     textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
