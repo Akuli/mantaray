@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 import tkinter
-import tkinter.font as tkfont
 from typing import Iterator
 
 # https://www.mirc.com/colors.html
@@ -44,7 +43,7 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
         elif style_spec == "\x02":
             # Bold not supported, because requires setting custom font in a tag
             # And then the tag's font would need to stay in sync with the main font
-            pass  
+            pass
         elif style_spec == "\x1f":
             underline = True
         elif style_spec.startswith("\x03"):
