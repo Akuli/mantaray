@@ -1,9 +1,10 @@
 from tkinter import ttk
+from tkinter.font import Font
 
 from mantaray.config import load_from_file, show_connection_settings_dialog
 
 
-def test_old_config_format(tmp_path):
+def test_old_config_format(tmp_path, root_window):
     (tmp_path / "config.json").write_text(
         """
         {
@@ -35,7 +36,9 @@ def test_old_config_format(tmp_path):
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],  # added
             }
-        ]
+        ],
+        "font_family": Font(name="TkFixedFont", exists=True)["family"],  # added
+        "font_size": Font(name="TkFixedFont", exists=True)["size"],  # added
     }
 
 

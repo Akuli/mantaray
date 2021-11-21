@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from mantaray import gui
+from mantaray import config, gui
 
 import pytest
 
@@ -104,7 +104,9 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
                         "joined_channels": ["#autojoin"],
                         "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
                     }
-                ]
+                ],
+                "font_family": "this font does not exist",  # falls back to default font
+                "font_size": 11,
             },
             Path(tempfile.mkdtemp()),
         )
