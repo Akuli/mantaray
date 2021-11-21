@@ -148,7 +148,9 @@ class IrcWidget(ttk.PanedWindow):
         self.nickbutton.pack(side="left")
 
         # FIXME: cursor not visible
-        self.entry = tkinter.Entry(entryframe, font=self.font, fg=colors.FOREGROUND, bg=colors.BACKGROUND)
+        self.entry = tkinter.Entry(
+            entryframe, font=self.font, fg=colors.FOREGROUND, bg=colors.BACKGROUND
+        )
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)

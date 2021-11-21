@@ -8,8 +8,13 @@ from pathlib import Path
 
 from . import gui, config
 
-import appdirs
-from ttkthemes import ThemedTk
+try:
+    import appdirs
+    from ttkthemes import ThemedTk
+except ImportError as e:
+    print(e)
+    print("See README for installation instructions.")
+    sys.exit(1)
 
 
 def update_title(
