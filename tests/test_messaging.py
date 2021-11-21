@@ -22,10 +22,11 @@ def test_colors(alice, bob, wait_until):
         return set(bob.get_current_view().textwidget.tag_names(index))
 
     assert tags("cyan on red") == {"foreground-11", "background-4"}
-    assert tags("bold") == {"bold"}
+    assert tags("bold") == set()  # bolding not supported
     assert tags("underline") == {"underline"}
-    assert tags("everything") == {"foreground-11", "background-4", "bold", "underline"}
+    assert tags("everything") == {"foreground-11", "background-4", "underline"}
     assert tags("nothing") == set()
+    assert "cyan on red bold underline everything nothing" in bob.text()
 
 
 def test_nick_autocompletion(alice, bob):
