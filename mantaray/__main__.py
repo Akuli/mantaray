@@ -30,8 +30,16 @@ def main() -> None:
     root = tkinter.Tk()
     root.withdraw()
 
-    config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
-    file_config = None if args.no_config else config.load_from_file(config_dir)
+    if args.no_config:
+        file_config = None
+    else:
+        legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
+        config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
+        if legacy_config_dir.exists() and not config_dir.exists():
+            print("Renaming:", legacy_config_dir, "-->", config_dir)
+            legacy_config_dir.rename(config_dir)
+        file_config = config.load_from_file(config_dir)
+
     if file_config is None:
         server_config = config.show_connection_settings_dialog(
             transient_to=None, initial_config=None
