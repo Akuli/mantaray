@@ -21,16 +21,16 @@ def test_colors(alice, bob, wait_until):
         index = bob.get_current_view().textwidget.search(search_string, "1.0")
         return set(bob.get_current_view().textwidget.tag_names(index))
 
-    assert tags("cyan on red") == {"received-privmsg", "foreground-11", "background-4"}
-    assert tags("bold") == {"received-privmsg"}  # bolding not supported
-    assert tags("underline") == {"received-privmsg", "underline"}
+    assert tags("cyan on red") == {"received_privmsg", "foreground-11", "background-4"}
+    assert tags("bold") == {"received_privmsg"}  # bolding not supported
+    assert tags("underline") == {"received_privmsg", "underline"}
     assert tags("everything") == {
-        "received-privmsg",
+        "received_privmsg",
         "foreground-11",
         "background-4",
         "underline",
     }
-    assert tags("nothing") == {"received-privmsg"}
+    assert tags("nothing") == {"received_privmsg"}
     assert "cyan on red bold underline everything nothing" in bob.text()
 
 
@@ -97,8 +97,8 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
 
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 6 chars")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
-    assert set(hey_tags) == {"received-privmsg", "pinged"}
-    assert set(bob_tags) == {"received-privmsg", "pinged", "self-nick"}
+    assert set(hey_tags) == {"received_privmsg", "pinged"}
+    assert set(bob_tags) == {"received_privmsg", "pinged", "self-nick"}
 
 
 def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
@@ -119,10 +119,18 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
 
 
 def test_history(alice, bob, wait_until):
+    # Alice presses first arrow up, then arrow down
     assert not alice.entry.get()
     alice.previous_message_to_entry()
     assert not alice.entry.get()
     alice.next_message_to_entry()
+    assert not alice.entry.get()
+
+    # Bob presses first arrow down, then arrow up
+    assert not alice.entry.get()
+    alice.next_message_to_entry()
+    assert not alice.entry.get()
+    alice.previous_message_to_entry()
     assert not alice.entry.get()
 
     alice.entry.insert(0, "first message")
@@ -166,3 +174,5 @@ def test_history(alice, bob, wait_until):
     alice.previous_message_to_entry()
     alice.next_message_to_entry()
     assert alice.entry.get() == "//escaped message"
+
+    alice.mainloop()
