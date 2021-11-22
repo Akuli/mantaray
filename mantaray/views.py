@@ -65,7 +65,7 @@ def _parse_privmsg(
             tags = base_tags.copy()
             if nick_tag is not None:
                 tags.append(nick_tag)
-            tags.append("sent_privmsg" if sent else "received_privmsg")
+            tags.append("sent-privmsg" if sent else "received-privmsg")
             chunks.append((subsubstring, tags))
 
     if pinged:
