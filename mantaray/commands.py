@@ -69,10 +69,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         func(
             view,
             core,
-            **{
-                name.strip("[<>]"): arg
-                for name, arg in zip(usage.split()[1:], args)
-            },
+            **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)},
         )
         return True
 
