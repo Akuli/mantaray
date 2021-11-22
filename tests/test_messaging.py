@@ -61,6 +61,28 @@ def test_enter_press_with_no_text(alice, bob, wait_until):
     assert "Alice" not in bob.text()
 
 
+def test_multiline_sending(alice, bob, wait_until, mocker):
+    mock = mocker.patch("tkinter.messagebox.askyesno")
+    mock.return_value = True
+    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.on_enter_pressed()
+    assert not alice.entry.get()
+    mock.assert_called_once()
+
+    wait_until(lambda: "four" in bob.text())
+    i = bob.text().index
+    assert i("one") < i("two") < i("three") < i("four")
+
+
+def test_multiline_not_sending(alice, bob, wait_until, mocker):
+    mock = mocker.patch("tkinter.messagebox.askyesno")
+    mock.return_value = False
+    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.on_enter_pressed()
+    mock.assert_called_once()
+    assert alice.entry.get() == "one\ntwo\nthree\nfour"
+
+
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
     # TODO: "/msg bob asdf" with lowercase bob causes two bugs:

@@ -209,9 +209,9 @@ class IrcWidget(ttk.PanedWindow):
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
-        commands.handle_command(view, view.server_view.core, self.entry.get())
-        self.entry.delete(0, "end")
-        view.textwidget.tag_remove("history-selection", "1.0", "end")
+        if commands.handle_command(view, view.server_view.core, self.entry.get()):
+            self.entry.delete(0, "end")
+            view.textwidget.tag_remove("history-selection", "1.0", "end")
 
     def _put_sent_message_to_entry(
         self, textwidget: tkinter.Text, tag_range: tuple[str, str]
