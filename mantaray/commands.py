@@ -57,22 +57,23 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             view.add_message(
                 "*", (f"No command named '{entry_content.split()[0]}'", [])
             )
-        else:
-            # Last arg can contain spaces
-            # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-            args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
-            if len(args) < usage.count(" <") or len(args) > usage.count(" "):
-                view.add_message("*", ("Usage: " + usage, []))
-            else:
-                func(
-                    view,
-                    core,
-                    **{
-                        name.strip("[<>]"): arg
-                        for name, arg in zip(usage.split()[1:], args)
-                    },
-                )
+            return False
 
+        # Last arg can contain spaces
+        # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
+        args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
+        if len(args) < usage.count(" <") or len(args) > usage.count(" "):
+            view.add_message("*", ("Usage: " + usage, []))
+            return False
+
+        func(
+            view,
+            core,
+            **{
+                name.strip("[<>]"): arg
+                for name, arg in zip(usage.split()[1:], args)
+            },
+        )
         return True
 
     if entry_content.startswith("//"):
@@ -98,6 +99,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
     for line in lines:
         _send_privmsg(view, core, line)
+    return True
 
 
 def _add_default_commands() -> None:
