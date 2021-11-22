@@ -2,6 +2,8 @@
 from __future__ import annotations
 import re
 from typing import Callable, TypeVar
+from tkinter import messagebox
+
 from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
@@ -44,35 +46,58 @@ def escape_message(s: str) -> str:
     return s
 
 
-def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
+def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
     if not entry_content:
-        return
+        return False
 
-    if not re.fullmatch("/[a-z]+( .*)?", entry_content):
-        if entry_content.startswith("//"):
-            message = entry_content[1:]
+    if re.fullmatch("/[a-z]+( .*)?", entry_content):
+        try:
+            usage, func = _commands[entry_content.split()[0]]
+        except KeyError:
+            view.add_message(
+                "*", (f"No command named '{entry_content.split()[0]}'", [])
+            )
         else:
-            message = entry_content
-        _send_privmsg(view, core, message)
-        return
+            # Last arg can contain spaces
+            # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
+            args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
+            if len(args) < usage.count(" <") or len(args) > usage.count(" "):
+                view.add_message("*", ("Usage: " + usage, []))
+            else:
+                func(
+                    view,
+                    core,
+                    **{
+                        name.strip("[<>]"): arg
+                        for name, arg in zip(usage.split()[1:], args)
+                    },
+                )
 
-    try:
-        usage, func = _commands[entry_content.split()[0]]
-    except KeyError:
-        view.add_message("*", (f"No command named '{entry_content.split()[0]}'", []))
-        return
+        return True
 
-    # Last arg can contain spaces
-    # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-    args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
-    if len(args) < usage.count(" <") or len(args) > usage.count(" "):
-        view.add_message("*", ("Usage: " + usage, []))
+    if entry_content.startswith("//"):
+        lines = entry_content[1:].splitlines()
     else:
-        func(
-            view,
-            core,
-            **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)},
+        lines = entry_content.splitlines()
+
+    if len(lines) > 3:
+        # TODO: add button that pastebins?
+        result = messagebox.askyesno(
+            "Send multiple lines",
+            "Do you really want to send many lines of text as separate messages?",
+            detail=(
+                f"You are about to send the {len(lines)} lines of text."
+                f" It will be sent as {len(lines)} separate messages, one line per message."
+                " Sending many messages like this is usually considered bad style,"
+                " and it's often better to use a pastebin site instead."
+                " Are you sure you want to do it?"
+            ),
         )
+        if not result:
+            return False
+
+    for line in lines:
+        _send_privmsg(view, core, line)
 
 
 def _add_default_commands() -> None:
