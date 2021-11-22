@@ -221,12 +221,14 @@ class IrcWidget(ttk.PanedWindow):
         textwidget.tag_add("history-selection", start, end)
 
         self.entry.delete(0, "end")
-        self.entry.insert(0, commands.escape_message(textwidget.get("history-selection.first", "history-selection.last")))
+        self.entry.insert(0, commands.escape_message(textwidget.get(start, end)))
 
     def previous_message_to_entry(self, junk_event: object = None) -> None:
         textwidget = self.get_current_view().textwidget
         try:
-            tag_range = textwidget.tag_prevrange("sent_privmsg", "history-selection.first")
+            tag_range = textwidget.tag_prevrange(
+                "sent_privmsg", "history-selection.first"
+            )
         except tkinter.TclError:
             tag_range = textwidget.tag_prevrange("sent_privmsg", "end")
 
@@ -236,7 +238,9 @@ class IrcWidget(ttk.PanedWindow):
     def next_message_to_entry(self, junk_event: object = None) -> None:
         textwidget = self.get_current_view().textwidget
         try:
-            tag_range = textwidget.tag_nextrange("sent_privmsg", "history-selection.first + 1 line")
+            tag_range = textwidget.tag_nextrange(
+                "sent_privmsg", "history-selection.first + 1 line"
+            )
         except tkinter.TclError:
             return
 
