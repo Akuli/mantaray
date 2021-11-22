@@ -283,7 +283,7 @@ class IrcWidget(ttk.PanedWindow):
         if not isinstance(view, ChannelView):
             return
 
-        cursor_pos = self.entry.index('insert')
+        cursor_pos = self.entry.index("insert")
         match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self.entry.get()[:cursor_pos])
         if match is None:
             return
