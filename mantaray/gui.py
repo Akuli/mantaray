@@ -220,20 +220,24 @@ class IrcWidget(ttk.PanedWindow):
         except tkinter.TclError:
             previous_start = "end"
 
-        try:
-            start, end = view.textwidget.tag_prevrange("sent-privmsg", previous_start)
-        except ValueError:
+        tag_range = view.textwidget.tag_prevrange("sent-privmsg", previous_start)
+        if not tag_range:
             return
+        start, end = tag_range
+
         self.entry.delete(0, "end")
         self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
         view.textwidget.mark_set("historymarker", start)
 
     def next_message_to_entry(self, junk_event: object = None) -> None:
         view = self.get_current_view()
-        try:
-            start, end = view.textwidget.tag_nextrange("sent-privmsg", "historymarker + 1 line")
-        except ValueError:
+        tag_range = view.textwidget.tag_nextrange(
+            "sent-privmsg", "historymarker + 1 line"
+        )
+        if not tag_range:
             return
+        start, end = tag_range
+
         self.entry.delete(0, "end")
         self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
         view.textwidget.mark_set("historymarker", start)

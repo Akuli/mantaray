@@ -24,7 +24,12 @@ def test_colors(alice, bob, wait_until):
     assert tags("cyan on red") == {"received-privmsg", "foreground-11", "background-4"}
     assert tags("bold") == {"received-privmsg"}  # bolding not supported
     assert tags("underline") == {"received-privmsg", "underline"}
-    assert tags("everything") == {"received-privmsg", "foreground-11", "background-4", "underline"}
+    assert tags("everything") == {
+        "received-privmsg",
+        "foreground-11",
+        "background-4",
+        "underline",
+    }
     assert tags("nothing") == {"received-privmsg"}
     assert "cyan on red bold underline everything nothing" in bob.text()
 
