@@ -283,7 +283,8 @@ class IrcWidget(ttk.PanedWindow):
         if not isinstance(view, ChannelView):
             return
 
-        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self.entry.get())
+        cursor_pos = self.entry.index("insert")
+        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self.entry.get()[:cursor_pos])
         if match is None:
             return
         preceding_text, last_word = match.groups()  # preceding_text can be None
@@ -305,9 +306,9 @@ class IrcWidget(ttk.PanedWindow):
             new_text = preceding_text + completion + " "
         else:
             new_text = completion + ": "
-        self.entry.delete(0, "end")
+        self.entry.delete(0, cursor_pos)
         self.entry.insert(0, new_text)
-        self.entry.icursor("end")
+        self.entry.icursor(len(new_text))
 
     def _current_view_changed(self, event: object) -> None:
         new_view = self.get_current_view()
