@@ -24,7 +24,7 @@ def update_title(
     root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
 ) -> None:
     number = irc_widget.not_seen_count()
-    root.title("IRC" if number == 0 else f"({number}) IRC")
+    root.title("Mantaray" if number == 0 else f"({number}) Mantaray")
 
 
 def main() -> None:
