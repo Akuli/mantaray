@@ -38,6 +38,12 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         )
 
 
+def escape_message(s: str) -> str:
+    if s.startswith("/"):
+        return "/" + s
+    return s
+
+
 def handle_command(view: View, core: IrcCore, entry_content: str) -> None:
     if not entry_content:
         return

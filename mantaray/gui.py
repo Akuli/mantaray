@@ -177,6 +177,9 @@ class IrcWidget(ttk.PanedWindow):
                     f"<Control-Key-{n}>", partial(self._select_by_number, n)
                 )
 
+        self.entry.bind("<Up>", self.previous_message_to_entry, add=True)
+        self.entry.bind("<Down>", self.next_message_to_entry, add=True)
+
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
@@ -208,6 +211,32 @@ class IrcWidget(ttk.PanedWindow):
         view = self.get_current_view()
         commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
+        view.textwidget.mark_unset("historymarker")
+
+    def previous_message_to_entry(self, junk_event: object) -> None:
+        view = self.get_current_view()
+        try:
+            previous_start = view.textwidget.index("historymarker")
+        except tkinter.TclError:
+            previous_start = "end"
+
+        try:
+            start, end = view.textwidget.tag_prevrange("sent-privmsg", previous_start)
+        except ValueError:
+            return
+        self.entry.delete(0, "end")
+        self.entry.insert(0, view.textwidget.get(start, end))
+        view.textwidget.mark_set("historymarker", start)
+
+    def next_message_to_entry(self, junk_event: object) -> None:
+        view = self.get_current_view()
+        try:
+            start, end = view.textwidget.tag_prevrange("sent-privmsg", "historymarker + 1 line")
+        except ValueError:
+            return
+        self.entry.delete(0, "end")
+        self.entry.insert(0, view.textwidget.get(start, end))
+        view.textwidget.mark_set("historymarker", start)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")

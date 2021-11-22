@@ -111,3 +111,7 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
         "#bobnotify", "<Alice> this should cause notification"
     )
     assert not bob.get_current_view().textwidget.tag_ranges("pinged")
+
+
+def test_history(alice, bob):
+    alice.mainloop()

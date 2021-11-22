@@ -46,11 +46,12 @@ def _parse_privmsg(
     *,
     pinged: bool = False,
 ) -> tuple[str, list[tuple[str, list[str]]]]:
+    sent = sender.lower() == self_nick.lower()
     chunks = []
 
     # /me asdf --> "\x01ACTION asdf\x01"
     if message.startswith("\x01ACTION ") and message.endswith("\x01"):
-        if sender.lower() == self_nick.lower():
+        if sent:
             chunks.append((sender, ["self-nick"]))
         else:
             chunks.append((sender, ["other-nick"]))
@@ -64,6 +65,7 @@ def _parse_privmsg(
             tags = base_tags.copy()
             if nick_tag is not None:
                 tags.append(nick_tag)
+            tags.append("sent-privmsg" if sent else "received-privmsg")
             chunks.append((subsubstring, tags))
 
     if pinged:
