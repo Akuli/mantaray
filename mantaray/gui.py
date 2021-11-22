@@ -213,7 +213,7 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.delete(0, "end")
         view.textwidget.mark_unset("historymarker")
 
-    def previous_message_to_entry(self, junk_event: object) -> None:
+    def previous_message_to_entry(self, junk_event: object = None) -> None:
         view = self.get_current_view()
         try:
             previous_start = view.textwidget.index("historymarker")
@@ -225,17 +225,17 @@ class IrcWidget(ttk.PanedWindow):
         except ValueError:
             return
         self.entry.delete(0, "end")
-        self.entry.insert(0, view.textwidget.get(start, end))
+        self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
         view.textwidget.mark_set("historymarker", start)
 
-    def next_message_to_entry(self, junk_event: object) -> None:
+    def next_message_to_entry(self, junk_event: object = None) -> None:
         view = self.get_current_view()
         try:
-            start, end = view.textwidget.tag_prevrange("sent-privmsg", "historymarker + 1 line")
+            start, end = view.textwidget.tag_nextrange("sent-privmsg", "historymarker + 1 line")
         except ValueError:
             return
         self.entry.delete(0, "end")
-        self.entry.insert(0, view.textwidget.get(start, end))
+        self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
         view.textwidget.mark_set("historymarker", start)
 
     def _scroll_up(self, junk_event: object) -> None:
