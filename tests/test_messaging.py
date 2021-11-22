@@ -172,5 +172,6 @@ def test_history(alice, bob, wait_until):
     alice.previous_message_to_entry()
     assert alice.entry.get() == "//escaped message"
     alice.previous_message_to_entry()
+    assert alice.entry.get() == "second message"
     alice.next_message_to_entry()
     assert alice.entry.get() == "//escaped message"
