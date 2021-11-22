@@ -34,6 +34,15 @@ def test_nick_autocompletion(alice, bob):
     alice.autocomplete()
     # space at the end is important, so alice can easily finish the sentence
     assert alice.entry.get() == "i think Bob "
+    assert alice.entry.index("insert") == len("i think Bob ")
+
+
+def test_nick_autocompletion_after_entering_message(alice, bob):
+    alice.entry.insert("end", "bhello there")
+    alice.entry.icursor(1)
+    alice.autocomplete()
+    assert alice.entry.get() == "Bob: hello there"
+    assert alice.entry.index("insert") == len("Bob: ")
 
 
 def test_escaped_slash(alice, bob, wait_until):
