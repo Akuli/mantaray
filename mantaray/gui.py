@@ -211,36 +211,32 @@ class IrcWidget(ttk.PanedWindow):
         view = self.get_current_view()
         commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
-        view.textwidget.mark_unset("historymarker")
+        view.textwidget.mark_unset("historymark")
+
+    def _put_sent_message_to_entry(
+        self, textwidget: tkinter.Text, tag_range: tuple[str, str]
+    ) -> None:
+        start, end = tag_range
+        self.entry.delete(0, "end")
+        self.entry.insert(0, commands.escape_message(textwidget.get(start, end)))
+        textwidget.mark_set("historymark", start)
 
     def previous_message_to_entry(self, junk_event: object = None) -> None:
-        view = self.get_current_view()
+        textwidget = self.get_current_view().textwidget
         try:
-            previous_start = view.textwidget.index("historymarker")
+            previous_start = textwidget.index("historymark")
         except tkinter.TclError:
             previous_start = "end"
 
-        tag_range = view.textwidget.tag_prevrange("sent-privmsg", previous_start)
-        if not tag_range:
-            return
-        start, end = tag_range
-
-        self.entry.delete(0, "end")
-        self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
-        view.textwidget.mark_set("historymarker", start)
+        tag_range = textwidget.tag_prevrange("sent-privmsg", previous_start)
+        if tag_range:
+            self._put_sent_message_to_entry(textwidget, tag_range)
 
     def next_message_to_entry(self, junk_event: object = None) -> None:
-        view = self.get_current_view()
-        tag_range = view.textwidget.tag_nextrange(
-            "sent-privmsg", "historymarker + 1 line"
-        )
-        if not tag_range:
-            return
-        start, end = tag_range
-
-        self.entry.delete(0, "end")
-        self.entry.insert(0, commands.escape_message(view.textwidget.get(start, end)))
-        view.textwidget.mark_set("historymarker", start)
+        textwidget = self.get_current_view().textwidget
+        tag_range = textwidget.tag_nextrange("sent-privmsg", "historymark + 1 line")
+        if tag_range:
+            self._put_sent_message_to_entry(textwidget, tag_range)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
