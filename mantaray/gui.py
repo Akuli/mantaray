@@ -177,6 +177,9 @@ class IrcWidget(ttk.PanedWindow):
                     f"<Control-Key-{n}>", partial(self._select_by_number, n)
                 )
 
+        self.entry.bind("<Up>", self.previous_message_to_entry, add=True)
+        self.entry.bind("<Down>", self.next_message_to_entry, add=True)
+
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
@@ -208,6 +211,41 @@ class IrcWidget(ttk.PanedWindow):
         view = self.get_current_view()
         commands.handle_command(view, view.server_view.core, self.entry.get())
         self.entry.delete(0, "end")
+        view.textwidget.tag_remove("history-selection", "1.0", "end")
+
+    def _put_sent_message_to_entry(
+        self, textwidget: tkinter.Text, tag_range: tuple[str, str]
+    ) -> None:
+        start, end = tag_range
+        textwidget.tag_remove("history-selection", "1.0", "end")
+        textwidget.tag_add("history-selection", start, end)
+
+        self.entry.delete(0, "end")
+        self.entry.insert(0, commands.escape_message(textwidget.get(start, end)))
+
+    def previous_message_to_entry(self, junk_event: object = None) -> None:
+        textwidget = self.get_current_view().textwidget
+        try:
+            tag_range = textwidget.tag_prevrange(
+                "sent-privmsg", "history-selection.first"
+            )
+        except tkinter.TclError:
+            tag_range = textwidget.tag_prevrange("sent-privmsg", "end")
+
+        if tag_range:
+            self._put_sent_message_to_entry(textwidget, tag_range)
+
+    def next_message_to_entry(self, junk_event: object = None) -> None:
+        textwidget = self.get_current_view().textwidget
+        try:
+            tag_range = textwidget.tag_nextrange(
+                "sent-privmsg", "history-selection.first + 1 line"
+            )
+        except tkinter.TclError:
+            return
+
+        if tag_range:
+            self._put_sent_message_to_entry(textwidget, tag_range)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
