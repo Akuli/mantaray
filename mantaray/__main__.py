@@ -39,11 +39,11 @@ def main() -> None:
     root = ThemedTk(theme="black")
     root.withdraw()
 
+    config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
     if args.no_config:
         file_config = None
     else:
         legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
-        config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
         if legacy_config_dir.exists() and not config_dir.exists():
             print("Renaming:", legacy_config_dir, "-->", config_dir)
             legacy_config_dir.rename(config_dir)
