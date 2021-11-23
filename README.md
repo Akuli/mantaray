@@ -23,7 +23,7 @@ You can run Mantaray like this:
     $ pip install -r requirements.txt
     $ python3 -m mantaray
     
-For Windows users the procedure type these commands in Command Prompt:
+On Windows, run these commands in Command Prompt:
 
     $ git clone https://github.com/Akuli/mantaray
     $ cd mantaray
