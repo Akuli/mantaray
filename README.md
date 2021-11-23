@@ -22,5 +22,14 @@ You can run Mantaray like this:
     $ source env/bin/activate
     $ pip install -r requirements.txt
     $ python3 -m mantaray
+    
+For Windows users the procedure type these commands in Command Prompt:
+
+    $ git clone https://github.com/Akuli/mantaray
+    $ cd mantaray
+    $ py -m venv env
+    $ env\Scripts\activate
+    $ pip install -r requirements.txt
+    $ py -m mantaray
 
 For developing, you may want to also run `pip install -r requirements-dev.txt`.
