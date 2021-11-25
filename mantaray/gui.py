@@ -159,24 +159,6 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Tab>", self._tab_event_handler)
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
-
-        # Control instead of Command should be ok, seems like macs don't have page up/down keys
-        self.entry.bind("<Control-Prior>", self._select_previous_view)
-        self.entry.bind("<Control-Next>", self._select_next_view)
-        self.entry.bind("<Control-Shift-Prior>", self._move_view_up)
-        self.entry.bind("<Control-Shift-Next>", self._move_view_down)
-
-        # Don't use alt+n, because some windows users use it for entering characters
-        for n in range(10):
-            if sys.platform == "darwin":
-                self.entry.bind(
-                    f"<Command-Key-{n}>", partial(self._select_by_number, n)
-                )
-            else:
-                self.entry.bind(
-                    f"<Control-Key-{n}>", partial(self._select_by_number, n)
-                )
-
         self.entry.bind("<Up>", self.previous_message_to_entry, add=True)
         self.entry.bind("<Down>", self.next_message_to_entry, add=True)
 
@@ -253,10 +235,10 @@ class IrcWidget(ttk.PanedWindow):
     def _scroll_down(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(1, "pages")
 
-    def bigger_font_size(self, junk_event: object) -> None:
+    def bigger_font_size(self) -> None:
         self.font["size"] += 1
 
-    def smaller_font_size(self, junk_event: object) -> None:
+    def smaller_font_size(self) -> None:
         if self.font["size"] > 3:
             self.font["size"] -= 1
 
@@ -267,20 +249,20 @@ class IrcWidget(ttk.PanedWindow):
             result.extend(self.view_selector.get_children(server_id))
         return result
 
-    def _select_by_number(self, index: int, junk_event: object) -> None:
+    def select_by_number(self, index: int) -> None:
         ids = self._get_flat_list_of_item_ids()
         try:
             self.view_selector.selection_set(ids[index])
         except IndexError:
             pass
 
-    def _select_previous_view(self, junk_event: object) -> None:
+    def select_previous_view(self) -> None:
         ids = self._get_flat_list_of_item_ids()
         index = ids.index(self.get_current_view().view_id) - 1
         if index >= 0:
             self.view_selector.selection_set(ids[index])
 
-    def _select_next_view(self, junk_event: object) -> None:
+    def select_next_view(self) -> None:
         ids = self._get_flat_list_of_item_ids()
         index = ids.index(self.get_current_view().view_id) + 1
         if index < len(ids):
@@ -295,7 +277,7 @@ class IrcWidget(ttk.PanedWindow):
             else:
                 self.view_selector.selection_set(ids[index - 1])
 
-    def _move_view_up(self, junk_event: object) -> None:
+    def move_view_up(self) -> None:
         view_id = self.get_current_view().view_id
         self.view_selector.move(
             view_id,
@@ -303,7 +285,7 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.index(view_id) - 1,
         )
 
-    def _move_view_down(self, junk_event: object) -> None:
+    def move_view_down(self) -> None:
         view_id = self.get_current_view().view_id
         self.view_selector.move(
             view_id,
