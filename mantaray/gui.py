@@ -10,7 +10,6 @@ from tkinter import ttk
 from tkinter.font import Font
 from typing import Any
 from pathlib import Path
-from functools import partial
 
 from mantaray import config, commands, colors
 from mantaray.views import View, ServerView, ChannelView, PMView
