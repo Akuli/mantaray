@@ -5,7 +5,9 @@ import functools
 import sys
 import tkinter
 import traceback
+from functools import partial
 from pathlib import Path
+from typing import Callable
 
 from . import gui, config
 
@@ -78,12 +80,33 @@ def main() -> None:
     irc_widget = gui.IrcWidget(root, file_config, config_dir / "logs")
     irc_widget.pack(fill="both", expand=True)
     irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
-    if sys.platform == "darwin":
-        root.bind("<Command-plus>", irc_widget.bigger_font_size)
-        root.bind("<Command-minus>", irc_widget.smaller_font_size)
-    else:
-        root.bind("<Control-plus>", irc_widget.bigger_font_size)
-        root.bind("<Control-minus>", irc_widget.smaller_font_size)
+
+    def add_binding(binding: str, callback: Callable[[], None]) -> None:
+        def actual_callback(event: object) -> str:
+            callback()
+            return "break"
+
+        if sys.platform == "darwin":
+            binding = binding.format(ControlOrCommand="Command")
+        else:
+            binding = binding.format(ControlOrCommand="Control")
+
+        # Must be bound on entry, otherwise Ctrl+PageUp runs PageUp code
+        root.bind(binding, actual_callback)
+        irc_widget.entry.bind(binding, actual_callback)
+
+    # Don't bind to alt+n, some windows users use it for entering characters as "alt codes"
+    add_binding("<{ControlOrCommand}-plus>", irc_widget.bigger_font_size)
+    add_binding("<{ControlOrCommand}-minus>", irc_widget.smaller_font_size)
+    add_binding("<{ControlOrCommand}-Shift-Prior>", irc_widget.move_view_up)
+    add_binding("<{ControlOrCommand}-Shift-Next>", irc_widget.move_view_down)
+    add_binding("<{ControlOrCommand}-Prior>", irc_widget.select_previous_view)
+    add_binding("<{ControlOrCommand}-Next>", irc_widget.select_next_view)
+    for n in range(10):
+        add_binding(
+            "<{ControlOrCommand}-Key-%d>" % n, partial(irc_widget.select_by_number, n)
+        )
+
     root.bind("<FocusIn>", on_any_widget_focused)
     root.protocol("WM_DELETE_WINDOW", save_config_and_quit_all_servers)
 

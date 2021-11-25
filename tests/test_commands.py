@@ -18,7 +18,7 @@ def test_join_and_part(alice, bob, wait_until, part_command):
         "#lol",
     ]
 
-    bob._move_view_up(None)
+    bob.move_view_up()
     assert bob.get_current_config()["servers"][0]["joined_channels"] == [
         "#lol",
         "#autojoin",
