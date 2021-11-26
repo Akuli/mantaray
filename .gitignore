@@ -89,3 +89,7 @@ ENV/
 .ropeproject
 
 tests/hircd
+
+# python3 -m mantaray --config-dir .
+config.json
+logs/
