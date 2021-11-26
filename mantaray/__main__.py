@@ -30,27 +30,35 @@ def update_title(
 
 
 def main() -> None:
+    default_config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
+    legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--no-config", action="store_true", help="do not read or write the config file"
+        "--config-dir",
+        type=Path,
+        default=default_config_dir,
+        help=(
+            "path to folder containing config.json and logs folder"
+            + f" (default: {default_config_dir})"
+        ),
     )
     args = parser.parse_args()
+
+    if (
+        args.config_dir == default_config_dir
+        and legacy_config_dir.exists()
+        and not default_config_dir.exists()
+    ):
+        print("Renaming:", legacy_config_dir, "-->", default_config_dir)
+        legacy_config_dir.rename(default_config_dir)
 
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
     root = ThemedTk(theme="black")
     root.withdraw()
 
-    config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
-    if args.no_config:
-        file_config = None
-    else:
-        legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
-        if legacy_config_dir.exists() and not config_dir.exists():
-            print("Renaming:", legacy_config_dir, "-->", config_dir)
-            legacy_config_dir.rename(config_dir)
-        file_config = config.load_from_file(config_dir)
-
+    file_config = config.load_from_file(args.config_dir)
     if file_config is None:
         server_config = config.show_connection_settings_dialog(
             transient_to=None, initial_config=None
@@ -71,13 +79,11 @@ def main() -> None:
             root.after_idle(irc_widget.entry.focus)
 
     def save_config_and_quit_all_servers() -> None:
-        if not args.no_config:
-            config.save_to_file(config_dir, irc_widget.get_current_config())
-
+        config.save_to_file(args.config_dir, irc_widget.get_current_config())
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 
-    irc_widget = gui.IrcWidget(root, file_config, config_dir / "logs")
+    irc_widget = gui.IrcWidget(root, file_config, args.config_dir / "logs")
     irc_widget.pack(fill="both", expand=True)
     irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
 
