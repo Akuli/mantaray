@@ -74,6 +74,8 @@ def main() -> None:
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
         if event.widget == root:
+            irc_widget.get_current_view().mark_seen()
+
             # Focus the entry, even if a different widget is clicked
             # If you click the widget twice, this won't steal the focus second time
             root.after_idle(irc_widget.entry.focus)

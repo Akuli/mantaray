@@ -331,6 +331,7 @@ class IrcWidget(ttk.PanedWindow):
         new_view.textwidget.pack(
             in_=self._middle_pane, side="top", fill="both", expand=True
         )
+        new_view.mark_seen()
 
         self._previous_view = new_view
 

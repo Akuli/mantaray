@@ -14,6 +14,7 @@ from mantaray import backend, colors, config
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
+    from typing_extensions import Literal
 
 
 class _UserList:
@@ -113,7 +114,9 @@ class View:
         self.log_file: IO[str] | None = None
 
     def _update_view_selector(self) -> None:
-        self.irc_widget.view_selector.item(self.view_id, text=f"{self.name} ({self.notification_count})")
+        self.irc_widget.view_selector.item(
+            self.view_id, text=f"{self.name} ({self.notification_count})"
+        )
 
     @property
     def view_name(self) -> str:  # e.g. channel name, server host, other nick of PM
@@ -136,10 +139,29 @@ class View:
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
         _show_popup(self.view_name, popup_text)
 
-    def clear_notifications(self) -> None:
+    def mark_seen(self) -> None:
         self.notification_count = 0
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
+
+        old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
+        self.irc_widget.view_selector.item(
+            self.view_id,
+            tags=[t for t in old_tags if t != "new_message" and t != "ping"],
+        )
+
+    def add_tag(self, tag: Literal["new_message", "ping"]) -> None:
+        if self.irc_widget.get_current_view() == self:
+            return
+
+        old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
+        if "ping" in old_tags:  # Adding tag does not unping
+            return
+
+        self.irc_widget.view_selector.item(
+            self.view_id,
+            tags=([t for t in old_tags if t != "new_message" and t != "ping"] + [tag]),
+        )
 
     def close_log_file(self) -> None:
         if self.log_file is not None:
@@ -392,6 +414,7 @@ class ServerView(View):
                         pm_view = PMView(self, event.sender)
                         self.irc_widget.add_view(pm_view)
                     pm_view.on_privmsg(event.sender, event.text)
+                    pm_view.add_tag("new_message")
                     channel_view.add_notification(event.text)
 
                 else:
@@ -399,15 +422,14 @@ class ServerView(View):
                     assert channel_view is not None
 
                     pinged = any(
-                        tag == "self-nick" 
+                        tag == "self-nick"
                         for substring, tag in backend.find_nicks(
                             event.text, self.core.nick, [self.core.nick]
                         )
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    if pinged or (
-                        channel_view.view_name in self.extra_notifications
-                    ):
+                    pm_view.add_tag("ping" if pinged else "new_message")
+                    if pinged or (channel_view.view_name in self.extra_notifications):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
@@ -478,7 +500,9 @@ class ChannelView(View):
     userlist: _UserList  # no idea why this is needed to avoid mypy error
 
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
-        super().__init__(server_view.irc_widget, channel_name, parent_view_id=server_view.view_id)
+        super().__init__(
+            server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
+        )
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.channel_image
         )
@@ -553,7 +577,9 @@ class ChannelView(View):
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
     def __init__(self, server_view: ServerView, nick: str):
-        super().__init__(server_view.irc_widget, nick, parent_view_id=server_view.view_id)
+        super().__init__(
+            server_view.irc_widget, nick, parent_view_id=server_view.view_id
+        )
         self.open_log_file()
 
     def on_privmsg(self, sender: str, message: str) -> None:
