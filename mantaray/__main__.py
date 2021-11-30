@@ -43,6 +43,11 @@ def main() -> None:
             + f" (default: {default_config_dir})"
         ),
     )
+    parser.add_argument(
+        "--dont-save-config",
+        action="store_true",
+        help="do not write to config.json in the config dir",
+    )
     args = parser.parse_args()
 
     if (
@@ -81,7 +86,8 @@ def main() -> None:
             root.after_idle(irc_widget.entry.focus)
 
     def save_config_and_quit_all_servers() -> None:
-        config.save_to_file(args.config_dir, irc_widget.get_current_config())
+        if not args.dont_save_config:
+            config.save_to_file(args.config_dir, irc_widget.get_current_config())
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 

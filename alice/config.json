@@ -1,0 +1,15 @@
+{
+  "servers": [
+    {
+      "host": "localhost",
+      "port": 6667,
+      "ssl": false,
+      "nick": "Alice",
+      "username": "Alice",
+      "realname": "Alice's real name",
+      "joined_channels": [
+        "#autojoin"
+      ]
+    }
+  ]
+}
