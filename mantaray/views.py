@@ -156,14 +156,14 @@ class View:
         if self.irc_widget.get_current_view() == self:
             return
 
-        old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
+        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
         if "pinged" in old_tags:  # Adding tag does not unping
             return
 
         self.irc_widget.view_selector.item(
             self.view_id,
             tags=(
-                [t for t in old_tags if t != "new_message" and t != "pinged"] + [tag]
+                list((old_tags - {"new_message", "pinged"}) | {tag})
             ),
         )
 
