@@ -116,7 +116,7 @@ class View:
             file = path.open("a", encoding="utf-8")
             if sys.platform != "win32":
                 path.chmod(0o600)
-            print("*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+            print("\n\n\n*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
             self.log_file = file
         except OSError:
             traceback.print_exc()
