@@ -121,7 +121,8 @@ class IrcWidget(ttk.PanedWindow):
 
         _fix_tag_coloring_bug()
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
-        self.view_selector.tag_configure("new_message", foreground="red")
+        self.view_selector.tag_configure("ping", foreground="#00ff00")
+        self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
         self._contextmenu = tkinter.Menu(tearoff=False)
 
@@ -390,10 +391,10 @@ class IrcWidget(ttk.PanedWindow):
 
             def on_change(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
-                view.server_view.extra_notifications ^= {view.channel_name}
+                view.server_view.extra_notifications ^= {view.view_name}
 
             var = tkinter.BooleanVar(
-                value=(view.channel_name in view.server_view.extra_notifications)
+                value=(view.view_name in view.server_view.extra_notifications)
             )
             var.trace_add("write", on_change)
             self._garbage_collection_is_lol = var
@@ -424,11 +425,7 @@ class IrcWidget(ttk.PanedWindow):
     def new_message_notify(
         self, view: ChannelView | PMView, message_with_sender: str
     ) -> None:
-        if isinstance(view, ChannelView):
-            channel_name_or_nick = view.channel_name
-        else:
-            channel_name_or_nick = view.other_nick
-
+        channel_name_or_nick = view.view_name
         if not self._window_has_focus():
             _show_popup(channel_name_or_nick, message_with_sender)
 

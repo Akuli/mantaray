@@ -74,9 +74,10 @@ def _parse_privmsg(
 
 
 class View:
-    def __init__(self, irc_widget: IrcWidget, *, parent_view_id: str = ""):
+    def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
-        self.view_id = irc_widget.view_selector.insert(parent_view_id, "end")
+        self.view_id = irc_widget.view_selector.insert(parent_view_id, "end", text=name)
+        self._name = name
 
         self.textwidget = tkinter.Text(
             irc_widget,
@@ -91,8 +92,14 @@ class View:
 
         self.log_file: IO[str] | None = None
 
-    def get_log_name(self) -> str | None:
-        return None
+    @property
+    def view_name(self) -> str:  # e.g. channel name, server host, other nick of PM
+        return self._name
+
+    @view_name.setter
+    def view_name(self, new_name: str) -> None:
+        self._name = new_name
+        self.irc_widget.view_selector.item(self.view_id, text=new_name)
 
     def close_log_file(self) -> None:
         if self.log_file is not None:
@@ -103,12 +110,8 @@ class View:
     def open_log_file(self) -> None:
         assert self.log_file is None
 
-        name = self.get_log_name()
-        if name is None:
-            return
-
         # Unlikely to create name conflicts in practice, but it is possible
-        name = re.sub("[^A-Za-z0-9-_#]", "_", name.lower())
+        name = re.sub("[^A-Za-z0-9-_#]", "_", self.view_name.lower())
         path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
 
         try:
@@ -219,14 +222,17 @@ class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
 
     def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
-        super().__init__(irc_widget)
-        irc_widget.view_selector.item(self.view_id, text=server_config["host"])
+        super().__init__(irc_widget, server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
         self.core.start()
         self.handle_events()
+
+    # Do not log server stuff
+    def open_log_file(self) -> None:
+        pass
 
     @property
     def server_view(self) -> ServerView:
@@ -248,14 +254,14 @@ class ServerView(View):
 
     def find_channel(self, name: str) -> ChannelView | None:
         for view in self.get_subviews():
-            if isinstance(view, ChannelView) and view.channel_name == name:
+            if isinstance(view, ChannelView) and view.view_name == name:
                 return view
         return None
 
     def find_pm(self, nick: str) -> PMView | None:
         for view in self.get_subviews():
             # TODO: case insensitive
-            if isinstance(view, PMView) and view.other_nick == nick:
+            if isinstance(view, PMView) and view.view_name == nick:
                 return view
         return None
 
@@ -346,7 +352,6 @@ class ServerView(View):
                         pm_view = PMView(self, event.sender)
                         self.irc_widget.add_view(pm_view)
                     pm_view.on_privmsg(event.sender, event.text)
-                    self.irc_widget.new_message_notify(pm_view, event.text)
 
                 else:
                     channel_view = self.find_channel(event.recipient)
@@ -360,7 +365,7 @@ class ServerView(View):
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
                     if pinged or (
-                        channel_view.channel_name in self.extra_notifications
+                        channel_view.view_name in self.extra_notifications
                     ):
                         self.irc_widget.new_message_notify(
                             channel_view, f"<{event.sender}> {event.text}"
@@ -381,7 +386,7 @@ class ServerView(View):
                 channel_view.on_topic_changed(event.who_changed, event.topic)
 
             elif isinstance(event, backend.HostChanged):
-                self.irc_widget.view_selector.item(self.view_id, text=event.new)
+                self.view_name = event.new
                 for subview in self.get_subviews():
                     subview.close_log_file()
                     subview.open_log_file()
@@ -393,7 +398,7 @@ class ServerView(View):
 
     def get_current_config(self) -> config.ServerConfig:
         channels = [
-            view.channel_name
+            view.view_name
             for view in self.get_subviews()
             if isinstance(view, ChannelView)
         ]
@@ -425,7 +430,7 @@ class ServerView(View):
             for subview in self.get_subviews():
                 if (
                     isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
+                    and subview.view_name not in self.core.autojoin
                 ):
                     self.irc_widget.remove_view(subview)
 
@@ -433,25 +438,18 @@ class ServerView(View):
 class ChannelView(View):
     userlist: _UserList  # no idea why this is needed to avoid mypy error
 
-    def __init__(self, server_view: ServerView, name: str, nicks: list[str]):
-        super().__init__(server_view.irc_widget, parent_view_id=server_view.view_id)
+    def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
+        super().__init__(server_view.irc_widget, channel_name, parent_view_id=server_view.view_id)
         self.irc_widget.view_selector.item(
-            self.view_id, text=name, image=server_view.irc_widget.channel_image
+            self.view_id, image=server_view.irc_widget.channel_image
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
         self.open_log_file()
 
-    def get_log_name(self) -> str:
-        return self.channel_name
-
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()
-
-    @property
-    def channel_name(self) -> str:
-        return self.irc_widget.view_selector.item(self.view_id, "text")
 
     def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
         sender, chunks = _parse_privmsg(
@@ -464,7 +462,7 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, ["other-nick"]),
-            (f" joined {self.channel_name}.", []),
+            (f" joined {self.view_name}.", []),
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
@@ -477,7 +475,7 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, ["other-nick"]),
-            (f" left {self.channel_name}." + extra, []),
+            (f" left {self.view_name}." + extra, []),
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
@@ -499,7 +497,7 @@ class ChannelView(View):
         self.userlist.remove_user(nick)
 
     def show_topic(self, topic: str) -> None:
-        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
+        self.add_message("*", (f"The topic of {self.view_name} is: {topic}", []))
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         if nick == self.server_view.core.nick:
@@ -509,43 +507,33 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, [nick_tag]),
-            (f" changed the topic of {self.channel_name}: {topic}", []),
+            (f" changed the topic of {self.view_name}: {topic}", []),
         )
 
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
     def __init__(self, server_view: ServerView, nick: str):
-        super().__init__(server_view.irc_widget, parent_view_id=server_view.view_id)
-        self.irc_widget.view_selector.item(
-            self.view_id, text=nick, image=self.irc_widget.pm_image
-        )
+        super().__init__(server_view.irc_widget, nick, parent_view_id=server_view.view_id)
         self.open_log_file()
-
-    @property
-    def other_nick(self) -> str:
-        return self.irc_widget.view_selector.item(self.view_id, "text")
-
-    def get_log_name(self) -> str:
-        return self.other_nick
 
     def on_privmsg(self, sender: str, message: str) -> None:
         sender, chunks = _parse_privmsg(
             sender,
             message,
             self.server_view.core.nick,
-            [self.server_view.core.nick, self.other_nick],
+            [self.server_view.core.nick, self.view_name],
         )
         self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user
     def get_relevant_nicks(self) -> list[str]:
-        return [self.other_nick]
+        return [self.view_name]
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
-        self.irc_widget.view_selector.item(self.view_id, text=new)
+        self.name = new
 
         self.close_log_file()
         self.open_log_file()
