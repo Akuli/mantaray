@@ -160,7 +160,7 @@ class View:
             return
 
         self.irc_widget.view_selector.item(
-            self.view_id, tags=(list((old_tags - {"new_message", "pinged"}) | {tag}))
+            self.view_id, tags=list((old_tags - {"new_message", "pinged"}) | {tag})
         )
 
     def close_log_file(self) -> None:
