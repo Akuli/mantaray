@@ -103,7 +103,10 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
                         "realname": f"{name}'s real name",
                         "joined_channels": ["#autojoin"],
                         "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
-                        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
+                        "join_leave_hiding": {
+                            "show_by_default": True,
+                            "exception_nicks": [],
+                        },
                     }
                 ],
                 "font_family": "this font does not exist",  # falls back to default font

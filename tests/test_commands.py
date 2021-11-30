@@ -119,4 +119,3 @@ def test_incorrect_usage(alice, wait_until, command, error):
     alice.on_enter_pressed()
     wait_until(lambda: alice.text().endswith(error + "\n"))
     assert alice.entry.get() == command  # give user chance to correct easily
-

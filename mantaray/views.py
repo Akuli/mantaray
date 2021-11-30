@@ -132,7 +132,11 @@ class View:
         return parent_view
 
     def add_message(
-        self, sender: str, *chunks: tuple[str, list[str]], pinged: bool = False, show_in_gui: bool = True
+        self,
+        sender: str,
+        *chunks: tuple[str, list[str]],
+        pinged: bool = False,
+        show_in_gui: bool = True,
     ) -> None:
         if show_in_gui:
             # scroll down all the way if the user hasn't scrolled up manually
@@ -203,8 +207,11 @@ class View:
             extra = ""
         else:
             extra = " (" + reason + ")"
-        self.add_message("*", (nick, ["other-nick"]), (" quit." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick)
+        self.add_message(
+            "*",
+            (nick, ["other-nick"]),
+            (" quit." + extra, []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
 
@@ -318,7 +325,9 @@ class ServerView(View):
             elif isinstance(event, backend.SentPrivmsg):
                 channel_view = self.find_channel(event.recipient)
                 if channel_view is None:
-                    assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient), event.recipient
+                    assert not re.fullmatch(
+                        backend.CHANNEL_REGEX, event.recipient
+                    ), event.recipient
                     pm_view = self.find_pm(event.recipient)
                     if pm_view is None:
                         # start of a new PM conversation
@@ -453,8 +462,10 @@ class ChannelView(View):
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
         self.add_message(
-            "*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick)
+            "*",
+            (nick, ["other-nick"]),
+            (f" joined {self.channel_name}.", []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
     def on_part(self, nick: str, reason: str | None) -> None:
@@ -464,8 +475,10 @@ class ChannelView(View):
         else:
             extra = " (" + reason + ")"
         self.add_message(
-            "*", (nick, ["other-nick"]), (f" left {self.channel_name}." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick)
+            "*",
+            (nick, ["other-nick"]),
+            (f" left {self.channel_name}." + extra, []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:

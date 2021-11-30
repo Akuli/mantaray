@@ -57,10 +57,10 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("ssl", True)
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
-                server.setdefault("join_leave_hiding", {
-                    "show_by_default": True,
-                    "exception_nicks": [],
-                })
+                server.setdefault(
+                    "join_leave_hiding",
+                    {"show_by_default": True, "exception_nicks": []},
+                )
             if "font_family" not in result or "font_size" not in result:
                 result["font_family"], result["font_size"] = get_default_fixed_font()
             return result
@@ -100,14 +100,14 @@ class _JoinLeaveWidget(ttk.Frame):
             value=True,
             text="Show join/part/quit messages for all nicks except:",
         ).pack(fill="x")
-        self._hide_these_users_entry.pack(fill="x", padx=[20,50])
+        self._hide_these_users_entry.pack(fill="x", padx=[20, 50])
         ttk.Radiobutton(
             self,
             variable=self._show_by_default_var,
             value=False,
             text="Hide join/part/quit messages for all nicks except:",
         ).pack(fill="x")
-        self._show_these_users_entry.pack(fill="x", padx=[20,50])
+        self._show_these_users_entry.pack(fill="x", padx=[20, 50])
 
         self._show_by_default_var.trace_add("write", self._update_entry_disableds)
 
@@ -122,20 +122,19 @@ class _JoinLeaveWidget(ttk.Frame):
     def set_from_config(self, config: JoinLeaveHidingConfig) -> None:
         self._show_by_default_var.set(config["show_by_default"])
         if config["show_by_default"]:
-            self._hide_these_users_entry.var.set(
-                " ".join(config["exception_nicks"])
-            )
+            self._hide_these_users_entry.var.set(" ".join(config["exception_nicks"]))
         else:
-            self._show_these_users_entry.var.set(
-                " ".join(config["exception_nicks"])
-            )
+            self._show_these_users_entry.var.set(" ".join(config["exception_nicks"]))
 
     def get_config(self) -> JoinLeaveHidingConfig:
         if self._show_by_default_var.get():
             exceptions = self._hide_these_users_entry.get().split()
         else:
             exceptions = self._show_these_users_entry.get().split()
-        return {"show_by_default": self._show_by_default_var.get(), "exception_nicks": exceptions}
+        return {
+            "show_by_default": self._show_by_default_var.get(),
+            "exception_nicks": exceptions,
+        }
 
 
 class _DialogContent(ttk.Frame):
@@ -356,7 +355,7 @@ class _DialogContent(ttk.Frame):
                 self._initial_config["join_leave_hiding"]
                 if self._join_part_quit is None
                 else self._join_part_quit.get_config()
-            )
+            ),
         }
         self.winfo_toplevel().destroy()
 
