@@ -132,21 +132,6 @@ def test_default_settings(root_window, monkeypatch):
     }
 
 
-def test_join_part_quit_messages(alice, bob, wait_until, monkeypatch):
-    bob.entry.insert("end", "/join #lol")
-    bob.on_enter_pressed()
-    wait_until(lambda: "The topic of #lol is:" in bob.text())
-
-    alice.entry.insert("end", "/join #lol")
-    alice.on_enter_pressed()
-    wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "/part #lol")
-    alice.on_enter_pressed()
-
-    wait_until(lambda: "Alice joined #lol." in bob.text())
-    wait_until(lambda: "Alice left #lol." in bob.text())
-
-
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     bob.entry.insert("end", "/join #lol")
     bob.on_enter_pressed()
