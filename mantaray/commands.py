@@ -23,10 +23,8 @@ def add_command(usage: str) -> Callable[[_CommandT], _CommandT]:
 
 
 def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
-    if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message)
-    elif isinstance(view, PMView):
-        core.send_privmsg(view.other_nick, message)
+    if isinstance(view, (ChannelView, PMView)):
+        core.send_privmsg(view.view_name, message)
     else:
         view.add_message(
             "*",
@@ -111,7 +109,7 @@ def _add_default_commands() -> None:
         if channel is not None:
             core.part_channel(channel)
         elif isinstance(view, ChannelView):
-            core.part_channel(view.channel_name)
+            core.part_channel(view.view_name)
         else:
             view.add_message("*", ("Usage: /part [<channel>]", []))
             view.add_message(
@@ -130,7 +128,7 @@ def _add_default_commands() -> None:
     @add_command("/topic <new_topic>")
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):
-            core.change_topic(view.channel_name, new_topic)
+            core.change_topic(view.view_name, new_topic)
         else:
             view.add_message("*", ("You must be on a channel to change its topic.", []))
 

@@ -93,7 +93,7 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     alice.entry.insert("end", "/ns identify Alice hunter2")
     alice.on_enter_pressed()
     wait_until(lambda: "identify Alice hunter2\n" in bob.text())
-    assert bob.get_current_view().other_nick == "Alice"
+    assert bob.get_current_view().view_name == "Alice"
 
     bob.get_server_views()[0].core.change_nick("MemoServ")
     wait_until(lambda: "You are now known as MemoServ.\n" in bob.text())

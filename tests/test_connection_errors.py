@@ -6,7 +6,7 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     wait_until(
         lambda: "Error while receiving: Server closed the connection!" in alice.text()
     )
-    assert alice.get_current_view().channel_name == "#autojoin"
+    assert alice.get_current_view().view_name == "#autojoin"
 
     start = time.monotonic()
     alice.get_server_views()[0].core.quit()

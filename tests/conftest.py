@@ -1,5 +1,4 @@
 import time
-import tkinter
 import sys
 import subprocess
 from pathlib import Path
@@ -9,11 +8,12 @@ import tempfile
 from mantaray import gui
 
 import pytest
+from ttkthemes import ThemedTk
 
 
 @pytest.fixture(scope="session")
 def root_window():
-    root = tkinter.Tk()
+    root = ThemedTk(theme="black")
     yield root
     root.destroy()
 
@@ -85,7 +85,7 @@ def hircd():
 
 @pytest.fixture
 def alice_and_bob(hircd, root_window, wait_until, mocker):
-    mocker.patch("mantaray.gui._show_popup")
+    mocker.patch("mantaray.views._show_popup")
 
     widgets = {}
     for name in ["Alice", "Bob"]:
