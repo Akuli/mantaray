@@ -6,6 +6,7 @@ import time
 import itertools
 import sys
 import tkinter
+import subprocess
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
 
@@ -36,6 +37,24 @@ class _UserList:
         self.treeview.delete(*self.treeview.get_children(""))
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
+
+
+def _show_popup(title: str, text: str) -> None:
+    try:
+        if sys.platform == "win32":
+            print("Sorry, no popups on windows yet :(")  # FIXME
+        elif sys.platform == "darwin":
+            # https://stackoverflow.com/a/41318195
+            command = (
+                "on run argv\n"
+                "  display notification (item 2 of argv) with title (item 1 of argv)\n"
+                "end run\n"
+            )
+            subprocess.call(["osascript", "-e", command, title, text])
+        else:
+            subprocess.call(["notify-send", f"[{title}] {text}"])
+    except OSError:
+        traceback.print_exc()
 
 
 def _parse_privmsg(
@@ -78,6 +97,7 @@ class View:
         self.irc_widget = irc_widget
         self.view_id = irc_widget.view_selector.insert(parent_view_id, "end", text=name)
         self._name = name
+        self.notification_count = 0
 
         self.textwidget = tkinter.Text(
             irc_widget,
@@ -92,6 +112,9 @@ class View:
 
         self.log_file: IO[str] | None = None
 
+    def _update_view_selector(self) -> None:
+        self.irc_widget.view_selector.item(self.view_id, text=f"{self.name} ({self.notification_count})")
+
     @property
     def view_name(self) -> str:  # e.g. channel name, server host, other nick of PM
         return self._name
@@ -99,7 +122,24 @@ class View:
     @view_name.setter
     def view_name(self, new_name: str) -> None:
         self._name = new_name
-        self.irc_widget.view_selector.item(self.view_id, text=new_name)
+        self._update_view_selector()
+
+    def _window_has_focus(self) -> bool:
+        return bool(self.irc_widget.tk.eval("focus"))
+
+    def add_notification(self, popup_text: str) -> None:
+        if self.irc_widget.get_current_view() == self and self._window_has_focus():
+            return
+
+        self.notification_count += 1
+        self._update_view_selector()
+        self.irc_widget.event_generate("<<NotificationCountChanged>>")
+        _show_popup(self.view_name, popup_text)
+
+    def clear_notifications(self) -> None:
+        self.notification_count = 0
+        self._update_view_selector()
+        self.irc_widget.event_generate("<<NotificationCountChanged>>")
 
     def close_log_file(self) -> None:
         if self.log_file is not None:
@@ -352,13 +392,14 @@ class ServerView(View):
                         pm_view = PMView(self, event.sender)
                         self.irc_widget.add_view(pm_view)
                     pm_view.on_privmsg(event.sender, event.text)
+                    channel_view.add_notification(event.text)
 
                 else:
                     channel_view = self.find_channel(event.recipient)
                     assert channel_view is not None
 
-                    pinged = "self-nick" in (
-                        tag
+                    pinged = any(
+                        tag == "self-nick" 
                         for substring, tag in backend.find_nicks(
                             event.text, self.core.nick, [self.core.nick]
                         )
@@ -367,9 +408,7 @@ class ServerView(View):
                     if pinged or (
                         channel_view.view_name in self.extra_notifications
                     ):
-                        self.irc_widget.new_message_notify(
-                            channel_view, f"<{event.sender}> {event.text}"
-                        )
+                        channel_view.add_notification(f"<{event.sender}> {event.text}")
 
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(

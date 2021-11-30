@@ -2,10 +2,8 @@
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
 import re
-import subprocess
 import sys
 import tkinter
-import traceback
 from tkinter import ttk
 from tkinter.font import Font
 from typing import Any
@@ -13,24 +11,6 @@ from pathlib import Path
 
 from mantaray import config, commands, colors
 from mantaray.views import View, ServerView, ChannelView, PMView
-
-
-def _show_popup(title: str, text: str) -> None:
-    try:
-        if sys.platform == "win32":
-            print("Sorry, no popups on windows yet :(")  # FIXME
-        elif sys.platform == "darwin":
-            # https://stackoverflow.com/a/41318195
-            command = (
-                "on run argv\n"
-                "  display notification (item 2 of argv) with title (item 1 of argv)\n"
-                "end run\n"
-            )
-            subprocess.call(["osascript", "-e", command, title, text])
-        else:
-            subprocess.call(["notify-send", f"[{title}] {text}"])
-    except OSError:
-        traceback.print_exc()
 
 
 def _fix_tag_coloring_bug() -> None:
@@ -418,42 +398,6 @@ class IrcWidget(ttk.PanedWindow):
         self._contextmenu.delete(0, "end")
         self._fill_menu()
         self._contextmenu.tk_popup(event.x_root + 5, event.y_root)
-
-    def _window_has_focus(self) -> bool:
-        return bool(self.tk.eval("focus"))
-
-    def new_message_notify(
-        self, view: ChannelView | PMView, message_with_sender: str
-    ) -> None:
-        channel_name_or_nick = view.view_name
-        if not self._window_has_focus():
-            _show_popup(channel_name_or_nick, message_with_sender)
-
-        if view != self.get_current_view():
-            # TODO: don't clear other tags, if there will be any
-            self.view_selector.item(view.view_id, tags="new_message")
-            self.event_generate("<<NotSeenCountChanged>>")
-
-    def _mark_seen(self) -> None:
-        view = self.get_current_view()
-        if isinstance(view, (ChannelView, PMView)):
-            # TODO: don't erase all tags if there will be other tags later
-            self.view_selector.item(view.view_id, tags="")
-            self.event_generate("<<NotSeenCountChanged>>")
-
-    def not_seen_count(self) -> int:
-        """Returns the number of channel-likes that are shown in red.
-
-        A <<NotSeenCountChanged>> event is generated when the value may
-        have changed.
-        """
-        result = 0
-        for view in self.views_by_id.values():
-            if isinstance(view, (ServerView, PMView)):
-                tags = self.view_selector.item(view.view_id, "tags")
-                if "new_message" in tags:
-                    result += 1
-        return result
 
     def get_current_config(self) -> config.Config:
         return {

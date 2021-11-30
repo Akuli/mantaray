@@ -25,7 +25,7 @@ except ImportError:
 def update_title(
     root: tkinter.Tk, irc_widget: gui.IrcWidget, junk_event: object = None
 ) -> None:
-    number = irc_widget.not_seen_count()
+    number = sum(v.notification_count for v in irc_widget.views_by_id.values())
     root.title("Mantaray" if number == 0 else f"({number}) Mantaray")
 
 
@@ -118,7 +118,7 @@ def main() -> None:
 
     update_the_title = functools.partial(update_title, root, irc_widget)
     update_the_title()
-    irc_widget.bind("<<NotSeenCountChanged>>", update_the_title)
+    irc_widget.bind("<<NotificationCountChanged>>", update_the_title)
 
     root.deiconify()  # unhide
     root.mainloop()
