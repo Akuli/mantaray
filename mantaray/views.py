@@ -146,10 +146,10 @@ class View:
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
 
-        old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
+        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
         self.irc_widget.view_selector.item(
             self.view_id,
-            tags=[t for t in old_tags if t != "new_message" and t != "pinged"],
+            tags=list(old_tags - {"new_message", "pinged"}),
         )
 
     def add_tag(self, tag: Literal["new_message", "pinged"]) -> None:
