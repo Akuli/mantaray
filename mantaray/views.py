@@ -149,20 +149,20 @@ class View:
         old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
         self.irc_widget.view_selector.item(
             self.view_id,
-            tags=[t for t in old_tags if t != "new_message" and t != "ping"],
+            tags=[t for t in old_tags if t != "new_message" and t != "pinged"],
         )
 
-    def add_tag(self, tag: Literal["new_message", "ping"]) -> None:
+    def add_tag(self, tag: Literal["new_message", "pinged"]) -> None:
         if self.irc_widget.get_current_view() == self:
             return
 
         old_tags = self.irc_widget.view_selector.item(self.view_id, "tags")
-        if "ping" in old_tags:  # Adding tag does not unping
+        if "pinged" in old_tags:  # Adding tag does not unping
             return
 
         self.irc_widget.view_selector.item(
             self.view_id,
-            tags=([t for t in old_tags if t != "new_message" and t != "ping"] + [tag]),
+            tags=([t for t in old_tags if t != "new_message" and t != "pinged"] + [tag]),
         )
 
     def close_log_file(self) -> None:
@@ -430,7 +430,7 @@ class ServerView(View):
                         )
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    channel_view.add_tag("ping" if pinged else "new_message")
+                    channel_view.add_tag("pinged" if pinged else "new_message")
                     if pinged or (channel_view.view_name in self.extra_notifications):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 

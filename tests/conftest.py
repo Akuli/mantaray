@@ -1,5 +1,4 @@
 import time
-import tkinter
 import sys
 import subprocess
 from pathlib import Path
@@ -9,11 +8,12 @@ import tempfile
 from mantaray import gui
 
 import pytest
+from ttkthemes import ThemedTk
 
 
 @pytest.fixture(scope="session")
 def root_window():
-    root = tkinter.Tk()
+    root = ThemedTk(theme="black")
     yield root
     root.destroy()
 

@@ -4,7 +4,7 @@ import pytest
 from mantaray import views
 
 
-def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch):
+def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
 
     alice.entry.insert(0, "hey bob")  # bob vs Bob shouldn't matter
@@ -26,7 +26,7 @@ def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch
 
 
 @pytest.mark.parametrize("window_focused", [True, False])
-def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch, window_focused):
+def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused):
     alice.get_server_views()[0].core.join_channel("#bobnotify")
     bob.get_server_views()[0].core.join_channel("#bobnotify")
     wait_until(lambda: alice.get_current_view().view_name == "#bobnotify")
@@ -48,3 +48,29 @@ def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch, window
             "#bobnotify", "<Alice> this should cause notification"
         )
     assert not bob.get_current_view().textwidget.tag_ranges("pinged")
+
+
+def test_new_message_tags(alice, bob, wait_until):
+    alice_autojoin = alice.get_current_view()
+    alice.get_server_views()[0].core.join_channel("#lol")
+    wait_until(lambda: "The topic of #lol is" in alice.text())
+    assert not alice.view_selector.item(alice.get_current_view().view_id, "tags")
+
+    bob.entry.insert(0, "blah blah")
+    bob.on_enter_pressed()
+    wait_until(lambda: "blah blah" in alice_autojoin.textwidget.get(1.0, "end"))
+    assert alice.view_selector.item(alice_autojoin.view_id, "tags") == ('new_message',)
+
+    bob.entry.insert(0, "hey alice")
+    bob.on_enter_pressed()
+    wait_until(lambda: "hey alice" in alice_autojoin.textwidget.get(1.0, "end"))
+    assert alice.view_selector.item(alice_autojoin.view_id, "tags") == ('pinged',)
+
+    bob.entry.insert(0, "blah blah 2")
+    bob.on_enter_pressed()
+    wait_until(lambda: "blah blah 2" in alice_autojoin.textwidget.get(1.0, "end"))
+    assert alice.view_selector.item(alice_autojoin.view_id, "tags") == ('pinged',)
+
+    alice.view_selector.selection_set(alice_autojoin.view_id)
+    alice.update()
+    assert not alice.view_selector.item(alice_autojoin.view_id, "tags")
