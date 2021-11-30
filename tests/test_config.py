@@ -158,6 +158,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     alice.entry.insert("end", "Hello Bob")
     alice.on_enter_pressed()
     alice.entry.insert("end", "/quit")
+    alice.on_enter_pressed()
     wait_until(lambda: not alice.winfo_exists())
 
     wait_until(
