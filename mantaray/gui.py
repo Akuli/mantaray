@@ -416,7 +416,7 @@ class IrcWidget(ttk.PanedWindow):
 
         self._contextmenu.delete(0, "end")
         self._fill_menu()
-        self._contextmenu.tk_popup(event.x_root, event.y_root)
+        self._contextmenu.tk_popup(event.x_root + 5, event.y_root)
 
     def _window_has_focus(self) -> bool:
         return bool(self.tk.eval("focus"))
