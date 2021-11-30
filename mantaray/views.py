@@ -602,7 +602,7 @@ class PMView(View):
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
-        self.name = new
+        self.view_name = new
 
         self.close_log_file()
         self.open_log_file()
