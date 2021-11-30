@@ -36,7 +36,7 @@ def test_old_config_format(tmp_path, root_window):
                 "password": None,
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
-                "hide_join_part_quit": [],
+                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             }
         ],
         "font_family": Font(name="TkFixedFont", exists=True)["family"],
@@ -132,21 +132,6 @@ def test_default_settings(root_window, monkeypatch):
     }
 
 
-def test_join_part_quit_messages(alice, bob, wait_until, monkeypatch):
-    bob.entry.insert("end", "/join #lol")
-    bob.on_enter_pressed()
-    wait_until(lambda: "The topic of #lol is:" in bob.text())
-
-    alice.entry.insert("end", "/join #lol")
-    alice.on_enter_pressed()
-    wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "/part #lol")
-    alice.on_enter_pressed()
-
-    wait_until(lambda: "Alice joined #lol." in bob.text())
-    wait_until(lambda: "Alice left #lol." in bob.text())
-
-
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     bob.entry.insert("end", "/join #lol")
     bob.on_enter_pressed()
@@ -179,5 +164,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
         lambda: "Hello Bob" in bob.text()
         and "Alice" not in bob.get_current_view().userlist.get_nicks()
     )
-    assert "Alice joined #lol." not in bob.text()
-    assert "Alice left #lol." not in bob.text()
+    assert "joined" not in bob.text()
+    assert "left" not in bob.text()
+    assert "parted" not in bob.text()
+    assert "quit" not in bob.text()

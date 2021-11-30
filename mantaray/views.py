@@ -209,9 +209,7 @@ class View:
 
 
 class ServerView(View):
-    # no idea why mypy need these
-    core: backend.IrcCore
-    hide_join_part_quit: set[str]
+    core: backend.IrcCore  # no idea why mypy need this
 
     def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget)
