@@ -390,7 +390,7 @@ def show_connection_settings_dialog(
         dialog.minsize(450, 200)
     else:
         content = _DialogContent(dialog, initial_config, connecting_to_new_server=False)
-        dialog.title("Connection settings")
+        dialog.title("Server settings")
         dialog.minsize(450, 300)
 
     content.pack(fill="both", expand=True)
