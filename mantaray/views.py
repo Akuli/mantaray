@@ -162,7 +162,9 @@ class View:
 
         self.irc_widget.view_selector.item(
             self.view_id,
-            tags=([t for t in old_tags if t != "new_message" and t != "pinged"] + [tag]),
+            tags=(
+                [t for t in old_tags if t != "new_message" and t != "pinged"] + [tag]
+            ),
         )
 
     def close_log_file(self) -> None:
