@@ -1,8 +1,3 @@
-import re
-
-from mantaray import gui
-
-
 def test_basic(alice, bob, wait_until):
     alice.entry.insert(0, "Hello there")
     alice.on_enter_pressed()
@@ -100,44 +95,6 @@ def test_private_messages(alice, bob, wait_until):
     bob.on_enter_pressed()
     wait_until(lambda: "Hey Alice" in alice.text())
     wait_until(lambda: "Hey Alice" in bob.text())
-
-
-def test_notification_when_mentioned(alice, bob, wait_until, mocker, monkeypatch):
-    monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
-
-    alice.entry.insert(0, "hey bob")  # bob vs Bob shouldn't matter
-    alice.on_enter_pressed()
-    alice.entry.insert(0, "this unrelated message shouldn't cause notifications")
-    alice.on_enter_pressed()
-    wait_until(lambda: "unrelated" in bob.text())
-
-    assert re.fullmatch(
-        r"\[\d\d:\d\d\]            Alice \| hey bob\n",
-        bob.get_current_view().textwidget.get("pinged.first", "pinged.last"),
-    )
-    gui._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
-
-    hey_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 6 chars")
-    bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
-    assert set(hey_tags) == {"received-privmsg", "pinged"}
-    assert set(bob_tags) == {"received-privmsg", "pinged", "self-nick"}
-
-
-def test_extra_notifications(alice, bob, wait_until, mocker, monkeypatch):
-    monkeypatch.setattr(bob, "_window_has_focus", (lambda: False))
-
-    alice.get_server_views()[0].core.join_channel("#bobnotify")
-    bob.get_server_views()[0].core.join_channel("#bobnotify")
-    wait_until(lambda: alice.get_current_view().channel_name == "#bobnotify")
-    wait_until(lambda: bob.get_current_view().channel_name == "#bobnotify")
-
-    alice.entry.insert(0, "this should cause notification")
-    alice.on_enter_pressed()
-    wait_until(lambda: "this should cause notification" in bob.text())
-    gui._show_popup.assert_called_once_with(
-        "#bobnotify", "<Alice> this should cause notification"
-    )
-    assert not bob.get_current_view().textwidget.tag_ranges("pinged")
 
 
 def test_history(alice, bob, wait_until):

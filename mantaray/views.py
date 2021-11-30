@@ -114,9 +114,11 @@ class View:
         self.log_file: IO[str] | None = None
 
     def _update_view_selector(self) -> None:
-        self.irc_widget.view_selector.item(
-            self.view_id, text=f"{self.view_name} ({self.notification_count})"
-        )
+        if self.notification_count == 0:
+            text = self.view_name
+        else:
+            text = f"{self.view_name} ({self.notification_count})"
+        self.irc_widget.view_selector.item(self.view_id, text=text)
 
     @property
     def view_name(self) -> str:  # e.g. channel name, server host, other nick of PM

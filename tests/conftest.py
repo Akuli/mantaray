@@ -85,7 +85,7 @@ def hircd():
 
 @pytest.fixture
 def alice_and_bob(hircd, root_window, wait_until, mocker):
-    mocker.patch("mantaray.gui._show_popup")
+    mocker.patch("mantaray.views._show_popup")
 
     widgets = {}
     for name in ["Alice", "Bob"]:
