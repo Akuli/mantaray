@@ -403,7 +403,7 @@ class IrcWidget(ttk.PanedWindow):
 
         elif isinstance(view, ServerView):
             self._contextmenu.add_command(
-                label="Connection settings...", command=view.show_config_dialog
+                label="Server settings...", command=view.show_config_dialog
             )
 
     def _view_selector_right_click(

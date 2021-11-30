@@ -1,3 +1,4 @@
+import copy
 from tkinter import ttk
 from tkinter.font import Font
 
@@ -28,17 +29,18 @@ def test_old_config_format(tmp_path, root_window):
             {
                 "host": "irc.libera.chat",
                 "port": 6697,
-                "ssl": True,  # added
+                "ssl": True,
                 "nick": "Akuli2",
                 "username": "Akuli2",
                 "realname": "Akuli2",
-                "password": None,  # added
+                "password": None,
                 "joined_channels": ["##learnpython"],
-                "extra_notifications": [],  # added
+                "extra_notifications": [],
+                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             }
         ],
-        "font_family": Font(name="TkFixedFont", exists=True)["family"],  # added
-        "font_size": Font(name="TkFixedFont", exists=True)["size"],  # added
+        "font_family": Font(name="TkFixedFont", exists=True)["family"],
+        "font_size": Font(name="TkFixedFont", exists=True)["size"],
     }
 
 
@@ -103,6 +105,7 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
         "realname": "xd lol",
         "joined_channels": ["#lol", "#wut"],
         "extra_notifications": ["#wut"],
+        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
     assert (
         show_connection_settings_dialog(
@@ -119,10 +122,50 @@ def test_default_settings(root_window, monkeypatch):
     )
     assert config.pop("nick") == config.pop("username") == config.pop("realname")
     assert config == {
-        "extra_notifications": [],
         "host": "irc.libera.chat",
         "joined_channels": ["##learnpython"],
         "password": None,
         "port": 6697,
         "ssl": True,
+        "extra_notifications": [],
+        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
+
+
+def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
+    bob.entry.insert("end", "/join #lol")
+    bob.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in bob.text())
+
+    # Configure Bob to ignore Alice joining/quitting
+    def bob_config(transient_to, initial_config):
+        new_config = copy.deepcopy(initial_config)
+        new_config["join_leave_hiding"]["exception_nicks"].append("aLiCe")
+        return new_config
+
+    monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)
+    bob.get_server_views()[0].show_config_dialog()
+
+    alice.entry.insert("end", "/join #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+    alice.entry.insert("end", "/part #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: not alice.get_server_views()[0].find_channel("#lol"))
+    alice.entry.insert("end", "/join #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+    alice.entry.insert("end", "Hello Bob")
+    alice.on_enter_pressed()
+    alice.entry.insert("end", "/quit")
+    alice.on_enter_pressed()
+    wait_until(lambda: not alice.winfo_exists())
+
+    wait_until(
+        lambda: "Hello Bob" in bob.text()
+        and "Alice" not in bob.get_current_view().userlist.get_nicks()
+    )
+    assert "joined" not in bob.text()
+    assert "left" not in bob.text()
+    assert "parted" not in bob.text()
+    assert "quit" not in bob.text()

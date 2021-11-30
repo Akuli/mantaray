@@ -132,36 +132,44 @@ class View:
         return parent_view
 
     def add_message(
-        self, sender: str, *chunks: tuple[str, list[str]], pinged: bool = False
+        self,
+        sender: str,
+        *chunks: tuple[str, list[str]],
+        pinged: bool = False,
+        show_in_gui: bool = True,
     ) -> None:
-        # scroll down all the way if the user hasn't scrolled up manually
-        do_the_scroll = self.textwidget.yview()[1] == 1.0
+        if show_in_gui:
+            # scroll down all the way if the user hasn't scrolled up manually
+            do_the_scroll = self.textwidget.yview()[1] == 1.0
 
-        # nicks are limited to 16 characters at least on freenode
-        # len(sender) > 16 is not a problem:
-        #    >>> ' ' * (-3)
-        #    ''
-        padding = " " * (16 - len(sender))
+            # nicks are limited to 16 characters at least on freenode
+            # len(sender) > 16 is not a problem:
+            #    >>> ' ' * (-3)
+            #    ''
+            padding = " " * (16 - len(sender))
 
-        if sender == "*":
-            sender_tags = []
-        elif sender == self.server_view.core.nick:
-            sender_tags = ["self-nick"]
-        else:
-            sender_tags = ["other-nick"]
+            if sender == "*":
+                sender_tags = []
+            elif sender == self.server_view.core.nick:
+                sender_tags = ["self-nick"]
+            else:
+                sender_tags = ["other-nick"]
 
-        self.textwidget.config(state="normal")
-        start = self.textwidget.index("end - 1 char")
-        self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-        self.textwidget.insert("end", sender, sender_tags)
-        self.textwidget.insert("end", " | ")
-        flatten = itertools.chain.from_iterable
-        if chunks:
-            self.textwidget.insert("end", *flatten(chunks))  # type: ignore
-        self.textwidget.insert("end", "\n")
-        if pinged:
-            self.textwidget.tag_add("pinged", start, "end - 1 char")
-        self.textwidget.config(state="disabled")
+            self.textwidget.config(state="normal")
+            start = self.textwidget.index("end - 1 char")
+            self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
+            self.textwidget.insert("end", sender, sender_tags)
+            self.textwidget.insert("end", " | ")
+            flatten = itertools.chain.from_iterable
+            if chunks:
+                self.textwidget.insert("end", *flatten(chunks))  # type: ignore
+            self.textwidget.insert("end", "\n")
+            if pinged:
+                self.textwidget.tag_add("pinged", start, "end - 1 char")
+            self.textwidget.config(state="disabled")
+
+            if do_the_scroll:
+                self.textwidget.see("end")
 
         if self.log_file is not None:
             print(
@@ -172,9 +180,6 @@ class View:
                 file=self.log_file,
                 flush=True,
             )
-
-        if do_the_scroll:
-            self.textwidget.see("end")
 
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
@@ -202,7 +207,12 @@ class View:
             extra = ""
         else:
             extra = " (" + reason + ")"
-        self.add_message("*", (nick, ["other-nick"]), (" quit." + extra, []))
+        self.add_message(
+            "*",
+            (nick, ["other-nick"]),
+            (" quit." + extra, []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
+        )
 
 
 class ServerView(View):
@@ -213,6 +223,7 @@ class ServerView(View):
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
+        self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
         self.core.start()
         self.handle_events()
@@ -220,6 +231,12 @@ class ServerView(View):
     @property
     def server_view(self) -> ServerView:
         return self
+
+    def should_show_join_leave_message(self, nick: str) -> bool:
+        is_exceptional = nick.lower() in (
+            n.lower() for n in self._join_leave_hiding_config["exception_nicks"]
+        )
+        return self._join_leave_hiding_config["show_by_default"] ^ is_exceptional
 
     def get_subviews(self, *, include_server: bool = False) -> list[View]:
         result: list[View] = []
@@ -308,7 +325,9 @@ class ServerView(View):
             elif isinstance(event, backend.SentPrivmsg):
                 channel_view = self.find_channel(event.recipient)
                 if channel_view is None:
-                    assert not re.fullmatch(backend.CHANNEL_REGEX, event.recipient)
+                    assert not re.fullmatch(
+                        backend.CHANNEL_REGEX, event.recipient
+                    ), event.recipient
                     pm_view = self.find_pm(event.recipient)
                     if pm_view is None:
                         # start of a new PM conversation
@@ -391,6 +410,7 @@ class ServerView(View):
                 key=(lambda chan: channels.index(chan) if chan in channels else -1),
             ),
             "extra_notifications": list(self.extra_notifications),
+            "join_leave_hiding": self._join_leave_hiding_config,
         }
 
     def show_config_dialog(self) -> None:
@@ -399,6 +419,7 @@ class ServerView(View):
             initial_config=self.get_current_config(),
         )
         if new_config is not None:
+            self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
@@ -441,7 +462,10 @@ class ChannelView(View):
     def on_join(self, nick: str) -> None:
         self.userlist.add_user(nick)
         self.add_message(
-            "*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", [])
+            "*",
+            (nick, ["other-nick"]),
+            (f" joined {self.channel_name}.", []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
     def on_part(self, nick: str, reason: str | None) -> None:
@@ -451,7 +475,10 @@ class ChannelView(View):
         else:
             extra = " (" + reason + ")"
         self.add_message(
-            "*", (nick, ["other-nick"]), (f" left {self.channel_name}." + extra, [])
+            "*",
+            (nick, ["other-nick"]),
+            (f" left {self.channel_name}." + extra, []),
+            show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
