@@ -105,7 +105,7 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
         "realname": "xd lol",
         "joined_channels": ["#lol", "#wut"],
         "extra_notifications": ["#wut"],
-        "show_join_part_quit": {"show_by_default": True, "exception_nicks": []},
+        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
     assert (
         show_connection_settings_dialog(
@@ -128,7 +128,7 @@ def test_default_settings(root_window, monkeypatch):
         "port": 6697,
         "ssl": True,
         "extra_notifications": [],
-        "show_join_part_quit": {"show_by_default": True, "exception_nicks": []},
+        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
 
 
@@ -155,7 +155,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     # Configure Bob to ignore Alice joining/quitting
     def bob_config(transient_to, initial_config):
         new_config = copy.deepcopy(initial_config)
-        new_config["show_join_part_quit"]["exception_nicks"].append("aLiCe")
+        new_config["join_leave_hiding"]["exception_nicks"].append("aLiCe")
         return new_config
 
     monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)

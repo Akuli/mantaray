@@ -18,7 +18,7 @@ else:
         TypedDict = object
 
 
-class ShowJoinPartQuitConfig(TypedDict):
+class JoinLeaveHidingConfig(TypedDict):
     show_by_default: bool
     exception_nicks: list[str]
 
@@ -33,7 +33,7 @@ class ServerConfig(TypedDict):
     password: str | None
     joined_channels: list[str]
     extra_notifications: list[str]  # channels to notify for all messages
-    show_join_part_quit: ShowJoinPartQuitConfig
+    join_leave_hiding: JoinLeaveHidingConfig
 
 
 class Config(TypedDict):
@@ -57,7 +57,7 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("ssl", True)
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
-                server.setdefault("show_join_part_quit", {
+                server.setdefault("join_leave_hiding", {
                     "show_by_default": True,
                     "exception_nicks": [],
                 })
@@ -119,7 +119,7 @@ class _JoinPartQuitSettings(ttk.Frame):
             self._show_these_users_entry.config(state="normal")
             self._hide_these_users_entry.config(state="disabled")
 
-    def set_from_config(self, config: ShowJoinPartQuitConfig) -> None:
+    def set_from_config(self, config: JoinLeaveHidingConfig) -> None:
         self._show_by_default_var.set(config["show_by_default"])
         if config["show_by_default"]:
             self._hide_these_users_entry.var.set(
@@ -130,7 +130,7 @@ class _JoinPartQuitSettings(ttk.Frame):
                 " ".join(config["exception_nicks"])
             )
 
-    def get_config(self) -> ShowJoinPartQuitConfig:
+    def get_config(self) -> JoinLeaveHidingConfig:
         if self._show_by_default_var.get():
             exceptions = self._hide_these_users_entry.get().split()
         else:
@@ -256,7 +256,7 @@ class _DialogContent(ttk.Frame):
         if self._channel_entry is not None:
             self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
         if self._join_part_quit is not None:
-            self._join_part_quit.set_from_config(initial_config["show_join_part_quit"])
+            self._join_part_quit.set_from_config(initial_config["join_leave_hiding"])
 
     def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
         entry = _EntryWithVar(self, **kwargs)
@@ -352,8 +352,8 @@ class _DialogContent(ttk.Frame):
                 else self._channel_entry.get().split()
             ),
             "extra_notifications": self._initial_config["extra_notifications"],
-            "show_join_part_quit": (
-                self._initial_config["show_join_part_quit"]
+            "join_leave_hiding": (
+                self._initial_config["join_leave_hiding"]
                 if self._join_part_quit is None
                 else self._join_part_quit.get_config()
             )
@@ -382,7 +382,7 @@ def show_connection_settings_dialog(
                 "password": None,
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
-                "show_join_part_quit": {"show_by_default": True, "exception_nicks": []},
+                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             },
             connecting_to_new_server=True,
         )

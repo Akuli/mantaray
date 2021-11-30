@@ -218,7 +218,7 @@ class ServerView(View):
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
-        self._join_part_quit_config = server_config["show_join_part_quit"]
+        self._join_part_quit_config = server_config["join_leave_hiding"]
 
         self.core.start()
         self.handle_events()
@@ -403,7 +403,7 @@ class ServerView(View):
                 key=(lambda chan: channels.index(chan) if chan in channels else -1),
             ),
             "extra_notifications": list(self.extra_notifications),
-            "show_join_part_quit": self._join_part_quit_config,
+            "join_leave_hiding": self._join_part_quit_config,
         }
 
     def show_config_dialog(self) -> None:
@@ -412,7 +412,7 @@ class ServerView(View):
             initial_config=self.get_current_config(),
         )
         if new_config is not None:
-            self._join_part_quit_config = new_config["show_join_part_quit"]
+            self._join_part_quit_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
