@@ -164,10 +164,16 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "Hello Bob")
-    alice.on_enter_pressed()
     alice.entry.insert("end", "/part #lol")
     alice.on_enter_pressed()
+    wait_until(lambda: not alice.get_server_views()[0].find_channel("#lol"))
+    alice.entry.insert("end", "/join #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+    alice.entry.insert("end", "Hello Bob")
+    alice.on_enter_pressed()
+    alice.entry.insert("end", "/quit")
+    wait_until(lambda: not alice.winfo_exists())
 
     wait_until(
         lambda: "Hello Bob" in bob.text()
