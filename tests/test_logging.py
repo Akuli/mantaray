@@ -28,7 +28,8 @@ def test_basic(alice, bob, wait_until):
 
     check_log(
         alice.log_dir / "localhost" / "#autojoin.log",
-        """\
+        """
+
 *** LOGGING BEGINS <time>
 <time>  *       The topic of #autojoin is: No topic
 <time>  *       Bob joined #autojoin.
@@ -58,7 +59,8 @@ def test_pm_logs(alice, bob, wait_until):
 
     check_log(
         alice.log_dir / "localhost" / "#autojoin.log",
-        """\
+        """
+
 *** LOGGING BEGINS <time>
 <time>  *       The topic of #autojoin is: No topic
 <time>  *       Bob joined #autojoin.
@@ -68,7 +70,8 @@ def test_pm_logs(alice, bob, wait_until):
     )
     check_log(
         alice.log_dir / "localhost" / "bob.log",
-        """\
+        """
+
 *** LOGGING BEGINS <time>
 <time>  Alice   hey
 <time>  *       Bob is now known as blabla.
@@ -77,7 +80,8 @@ def test_pm_logs(alice, bob, wait_until):
     )
     check_log(
         alice.log_dir / "localhost" / "blabla.log",
-        """\
+        """
+
 *** LOGGING BEGINS <time>
 <time>  Alice   its ur new nick
 *** LOGGING ENDS <time>
@@ -95,7 +99,8 @@ def test_funny_filenames(alice, bob, wait_until):
 
     check_log(
         bob.log_dir / "localhost" / "_bruh_.log",
-        """\
+        """
+
 *** LOGGING BEGINS <time>
 <time>  {Bruh}  blah
 """,
