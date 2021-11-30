@@ -87,7 +87,7 @@ class _EntryWithVar(ttk.Entry):
         self.var = var
 
 
-class _JoinPartQuitSettings(ttk.Frame):
+class _JoinLeaveWidget(ttk.Frame):
     def __init__(self, master: tkinter.Misc):
         super().__init__(master)
         self._show_by_default_var = tkinter.BooleanVar()
@@ -198,7 +198,7 @@ class _DialogContent(ttk.Frame):
         if connecting_to_new_server:
             self._join_part_quit = None
         else:
-            self._join_part_quit = _JoinPartQuitSettings(self)
+            self._join_part_quit = _JoinLeaveWidget(self)
             self._join_part_quit.grid(
                 row=self._rownumber, column=0, columnspan=3, sticky="we"
             )

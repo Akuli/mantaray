@@ -204,7 +204,7 @@ class View:
         else:
             extra = " (" + reason + ")"
         self.add_message("*", (nick, ["other-nick"]), (" quit." + extra, []),
-            show_in_gui=self.server_view.should_show_join_part_quit(nick)
+            show_in_gui=self.server_view.should_show_join_leave_message(nick)
         )
 
 
@@ -218,7 +218,7 @@ class ServerView(View):
         irc_widget.view_selector.item(self.view_id, text=server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
-        self._join_part_quit_config = server_config["join_leave_hiding"]
+        self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
         self.core.start()
         self.handle_events()
@@ -227,11 +227,11 @@ class ServerView(View):
     def server_view(self) -> ServerView:
         return self
 
-    def should_show_join_part_quit(self, nick: str) -> bool:
+    def should_show_join_leave_message(self, nick: str) -> bool:
         is_exceptional = nick.lower() in (
-            n.lower() for n in self._join_part_quit_config["exception_nicks"]
+            n.lower() for n in self._join_leave_hiding_config["exception_nicks"]
         )
-        return self._join_part_quit_config["show_by_default"] ^ is_exceptional
+        return self._join_leave_hiding_config["show_by_default"] ^ is_exceptional
 
     def get_subviews(self, *, include_server: bool = False) -> list[View]:
         result: list[View] = []
@@ -403,7 +403,7 @@ class ServerView(View):
                 key=(lambda chan: channels.index(chan) if chan in channels else -1),
             ),
             "extra_notifications": list(self.extra_notifications),
-            "join_leave_hiding": self._join_part_quit_config,
+            "join_leave_hiding": self._join_leave_hiding_config,
         }
 
     def show_config_dialog(self) -> None:
@@ -412,7 +412,7 @@ class ServerView(View):
             initial_config=self.get_current_config(),
         )
         if new_config is not None:
-            self._join_part_quit_config = new_config["join_leave_hiding"]
+            self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
@@ -456,7 +456,7 @@ class ChannelView(View):
         self.userlist.add_user(nick)
         self.add_message(
             "*", (nick, ["other-nick"]), (f" joined {self.channel_name}.", []),
-            show_in_gui=self.server_view.should_show_join_part_quit(nick)
+            show_in_gui=self.server_view.should_show_join_leave_message(nick)
         )
 
     def on_part(self, nick: str, reason: str | None) -> None:
@@ -467,7 +467,7 @@ class ChannelView(View):
             extra = " (" + reason + ")"
         self.add_message(
             "*", (nick, ["other-nick"]), (f" left {self.channel_name}." + extra, []),
-            show_in_gui=self.server_view.should_show_join_part_quit(nick)
+            show_in_gui=self.server_view.should_show_join_leave_message(nick)
         )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
