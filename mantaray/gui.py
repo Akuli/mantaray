@@ -101,7 +101,7 @@ class IrcWidget(ttk.PanedWindow):
 
         _fix_tag_coloring_bug()
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
-        self.view_selector.tag_configure("ping", foreground="#00ff00")
+        self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
         self._contextmenu = tkinter.Menu(tearoff=False)
