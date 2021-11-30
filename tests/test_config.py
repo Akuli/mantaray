@@ -36,7 +36,7 @@ def test_old_config_format(tmp_path, root_window):
                 "password": None,
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
-                "hide_join_part_quit": [],
+                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             }
         ],
         "font_family": Font(name="TkFixedFont", exists=True)["family"],
