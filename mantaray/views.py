@@ -148,8 +148,7 @@ class View:
 
         old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
         self.irc_widget.view_selector.item(
-            self.view_id,
-            tags=list(old_tags - {"new_message", "pinged"}),
+            self.view_id, tags=list(old_tags - {"new_message", "pinged"})
         )
 
     def add_tag(self, tag: Literal["new_message", "pinged"]) -> None:
@@ -161,10 +160,7 @@ class View:
             return
 
         self.irc_widget.view_selector.item(
-            self.view_id,
-            tags=(
-                list((old_tags - {"new_message", "pinged"}) | {tag})
-            ),
+            self.view_id, tags=(list((old_tags - {"new_message", "pinged"}) | {tag}))
         )
 
     def close_log_file(self) -> None:
