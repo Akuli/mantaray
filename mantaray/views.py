@@ -115,7 +115,7 @@ class View:
 
     def _update_view_selector(self) -> None:
         self.irc_widget.view_selector.item(
-            self.view_id, text=f"{self.name} ({self.notification_count})"
+            self.view_id, text=f"{self.view_name} ({self.notification_count})"
         )
 
     @property
@@ -415,7 +415,7 @@ class ServerView(View):
                         self.irc_widget.add_view(pm_view)
                     pm_view.on_privmsg(event.sender, event.text)
                     pm_view.add_tag("new_message")
-                    channel_view.add_notification(event.text)
+                    pm_view.add_notification(event.text)
 
                 else:
                     channel_view = self.find_channel(event.recipient)
@@ -428,7 +428,7 @@ class ServerView(View):
                         )
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    pm_view.add_tag("ping" if pinged else "new_message")
+                    channel_view.add_tag("ping" if pinged else "new_message")
                     if pinged or (channel_view.view_name in self.extra_notifications):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
