@@ -100,14 +100,14 @@ class _JoinLeaveWidget(ttk.Frame):
             value=True,
             text="Show join/part/quit messages for all nicks except:",
         ).pack(fill="x")
-        self._hide_these_users_entry.pack(fill="x", padx=[20, 50])
+        self._hide_these_users_entry.pack(fill="x", padx=(20, 50))
         ttk.Radiobutton(
             self,
             variable=self._show_by_default_var,
             value=False,
             text="Hide join/part/quit messages for all nicks except:",
         ).pack(fill="x")
-        self._show_these_users_entry.pack(fill="x", padx=[20, 50])
+        self._show_these_users_entry.pack(fill="x", padx=(20, 50))
 
         self._show_by_default_var.trace_add("write", self._update_entry_disableds)
 
