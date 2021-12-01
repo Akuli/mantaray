@@ -1,11 +1,11 @@
 import time
 import sys
 import subprocess
-from pathlib import Path
 import shutil
 import tempfile
+from pathlib import Path
 
-from mantaray import gui
+from mantaray import gui, config
 
 import pytest
 from ttkthemes import ThemedTk
@@ -88,31 +88,9 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
     mocker.patch("mantaray.views._show_popup")
 
     widgets = {}
-    for name in ["Alice", "Bob"]:
+    for name in ["alice", "bob"]:
         widgets[name] = gui.IrcWidget(
-            root_window,
-            {
-                "servers": [
-                    {
-                        "host": "localhost",
-                        "port": 6667,
-                        "ssl": False,
-                        "nick": name,
-                        "password": None,
-                        "username": name,
-                        "realname": f"{name}'s real name",
-                        "joined_channels": ["#autojoin"],
-                        "extra_notifications": ["#bobnotify"] if name == "Bob" else [],
-                        "join_leave_hiding": {
-                            "show_by_default": True,
-                            "exception_nicks": [],
-                        },
-                    }
-                ],
-                "font_family": "this font does not exist",  # falls back to default font
-                "font_size": 11,
-            },
-            Path(tempfile.mkdtemp()),
+            root_window, config.load_from_file(Path(name)), Path(tempfile.mkdtemp(prefix="mantaray-tests-"))
         )
         widgets[name].pack(fill="both", expand=True)
         wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
@@ -129,9 +107,9 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
 
 @pytest.fixture
 def alice(alice_and_bob):
-    return alice_and_bob["Alice"]
+    return alice_and_bob["alice"]
 
 
 @pytest.fixture
 def bob(alice_and_bob):
-    return alice_and_bob["Bob"]
+    return alice_and_bob["bob"]

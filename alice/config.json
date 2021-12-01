@@ -7,9 +7,7 @@
       "nick": "Alice",
       "username": "Alice",
       "realname": "Alice's real name",
-      "joined_channels": [
-        "#autojoin"
-      ]
+      "joined_channels": ["#autojoin"]
     }
   ]
 }
