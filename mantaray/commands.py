@@ -152,8 +152,9 @@ def _add_default_commands() -> None:
         return msg(view, core, "MemoServ", message)
 
     @add_command("/kick <nick> [<reason>]")
-    def kick(view: View, core: IrcCore, nick: str, reason: str) -> None:
-        core.kick(view.view_name, nick, reason)
+    def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
+        if isinstance(view, ChannelView):
+            core.kick(view.view_name, nick, reason)
 
     # TODO: /kick, /ban etc... lots of commands to add
 
