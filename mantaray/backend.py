@@ -505,15 +505,18 @@ class IrcCore:
 
     def kick(self, channel: str, nick: str, reason: str | None = None) -> None:
         if reason is None:
-            reason=''
-            
-        print(channel, nick, reason)
-        self._send_soon(
-            "KICK",
-            channel,
-            nick,
-            " Reason:" + reason
-            )
+            self._send_soon(
+                "KICK",
+                channel,
+                nick
+                )
+        else:
+            reason is None:
+            self._send_soon(
+                "KICK",
+                channel,
+                nick,
+                ':' + reason)
 
     # emits SelfChangedNick event on success
             
