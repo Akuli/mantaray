@@ -511,7 +511,6 @@ class IrcCore:
                 nick
                 )
         else:
-            reason is None:
             self._send_soon(
                 "KICK",
                 channel,
