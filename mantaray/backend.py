@@ -503,6 +503,19 @@ class IrcCore:
         )
 
     # emits SelfChangedNick event on success
+
+    def kick(self, channel: str, nick: str, reason: str | None = None) -> None:
+        if reason is None:
+            reason=''
+            
+        print(channel, nick, reason)
+        self._send_soon(
+            "KICK",
+            channel,
+            nick,
+            ":" + reason
+            )
+            
     def change_nick(self, new_nick: str) -> None:
         self._send_soon("NICK", new_nick)
 
