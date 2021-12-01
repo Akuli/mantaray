@@ -3,7 +3,7 @@ import re
 
 def _remove_timestamps(string):
     return re.sub(
-        r"[A-Z][a-z][a-z] [A-Z][a-z][a-z] \d\d \d\d:\d\d:\d\d \d\d\d\d",
+        r"[A-Z][a-z][a-z] [A-Z][a-z][a-z] [ \d]\d \d\d:\d\d:\d\d \d\d\d\d",
         "<time>",
         string,
     )
