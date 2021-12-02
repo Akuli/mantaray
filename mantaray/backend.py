@@ -303,8 +303,7 @@ class IrcCore:
             channel = msg.args[0]
             nick = msg.args[1]
             self.event_queue.put(Kick(channel, nick, reason)
-            
-
+          
         if msg.sender_is_server:
             if msg.command == "CAP":
                 subcommand = msg.args[1]
