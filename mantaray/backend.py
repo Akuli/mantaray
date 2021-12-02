@@ -302,7 +302,7 @@ class IrcCore:
             assert msg.sender is not None
             channel = msg.args[0]
             nick = msg.args[1]
-            self.event_queue.put(Kick(channel, nick, reason)
+            self.event_queue.put(Kick(channel, nick, reason))
           
         if msg.sender_is_server:
             if msg.command == "CAP":
