@@ -84,10 +84,12 @@ class UserParted:
     nick: str
     channel: str
     reason: str | None
+@dataclasses.dataclass
 class Kick:
+    user: str
     channel: str
     nick: str
-    reason: str
+    reason: str | None
 @dataclasses.dataclass
 class UserQuit:
     nick: str
@@ -300,9 +302,11 @@ class IrcCore:
 
         if msg.command == "KICK":
             assert msg.sender is not None
+            user = self.username
             channel = msg.args[0]
             nick = msg.args[1]
-            self.event_queue.put(Kick(channel, nick, reason))
+            reason = msg.args[2]
+            self.event_queue.put(Kick(user, channel, nick, reason or None))
           
         if msg.sender_is_server:
             if msg.command == "CAP":
@@ -526,7 +530,8 @@ class IrcCore:
                 "KICK",
                 channel,
                 nick,
-                ':' + reason)
+                ':' + reason
+                )
 
     # emits SelfChangedNick event on success
             
