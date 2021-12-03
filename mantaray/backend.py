@@ -86,9 +86,9 @@ class UserParted:
     reason: str | None
 @dataclasses.dataclass
 class Kick:
-    user: str
+    kicker_nick: str
     channel: str
-    nick: str
+    kicked_nick: str
     reason: str | None
 @dataclasses.dataclass
 class UserQuit:
@@ -302,11 +302,11 @@ class IrcCore:
 
         if msg.command == "KICK":
             assert msg.sender is not None
-            user = self.username
+            kicker_nick = self.nick
             channel = msg.args[0]
-            nick = msg.args[1]
+            kicked_nick = msg.args[1]
             reason = msg.args[2]
-            self.event_queue.put(Kick(user, channel, nick, reason or None))
+            self.event_queue.put(Kick(kicker_nick, channel, kicked_nick, reason or None))
           
         if msg.sender_is_server:
             if msg.command == "CAP":
@@ -518,18 +518,18 @@ class IrcCore:
         )
 
 
-    def kick(self, channel: str, nick: str, reason: str | None = None) -> None:
+    def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:
             self._send_soon(
                 "KICK",
                 channel,
-                nick
+                kicked_nick
                 )
         else:
             self._send_soon(
                 "KICK",
                 channel,
-                nick,
+                kicked_nick,
                 ':' + reason
                 )
 
