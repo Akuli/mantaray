@@ -90,7 +90,9 @@ def alice_and_bob(hircd, root_window, wait_until, mocker):
     widgets = {}
     for name in ["alice", "bob"]:
         widgets[name] = gui.IrcWidget(
-            root_window, config.load_from_file(Path(name)), Path(tempfile.mkdtemp(prefix="mantaray-tests-"))
+            root_window,
+            config.load_from_file(Path(name)),
+            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
         )
         widgets[name].pack(fill="both", expand=True)
         wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
