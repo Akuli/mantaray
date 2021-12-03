@@ -35,7 +35,12 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
-    assert lines[-1].endswith("Connection refused")
+    if sys.platform == "win32":
+        assert lines[-1].endswith(
+            "No connection could be made because the target machine actively refused it"
+        )
+    else:
+        assert lines[-1].endswith("Connection refused")
 
     hircd.start()
     wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
