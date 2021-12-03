@@ -580,6 +580,9 @@ class PMView(View):
         super().__init__(
             server_view.irc_widget, nick, parent_view_id=server_view.view_id
         )
+        self.irc_widget.view_selector.item(
+            self.view_id, image=server_view.irc_widget.pm_image
+        )
         self.open_log_file()
 
     def on_privmsg(self, sender: str, message: str) -> None:
