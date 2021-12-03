@@ -45,7 +45,8 @@ jobs:
   pytest:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        # TODO: use macos once it has recent enough version of Tk
+        os: ["ubuntu-latest", "windows-latest"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
