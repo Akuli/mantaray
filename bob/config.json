@@ -7,9 +7,8 @@
       "nick": "Bob",
       "username": "Bob",
       "realname": "Bob's real name",
-      "joined_channels": [
-        "#autojoin"
-      ]
+      "joined_channels": ["#autojoin"],
+      "extra_notifications": ["#bobnotify"]
     }
   ]
 }

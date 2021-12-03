@@ -1,5 +1,6 @@
 import copy
 import sys
+from pathlib import Path
 from tkinter import ttk
 from tkinter.font import Font
 
@@ -98,18 +99,7 @@ def test_reconnect(alice, mocker, monkeypatch, wait_until):
 
 def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
-    sample_config = {
-        "host": "example.com",
-        "port": 1234,
-        "ssl": False,
-        "nick": "AzureDiamond",
-        "password": "hunter2",
-        "username": "azure69",
-        "realname": "xd lol",
-        "joined_channels": ["#lol", "#wut"],
-        "extra_notifications": ["#wut"],
-        "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
-    }
+    sample_config = load_from_file(Path("alice"))["servers"][0]
     assert (
         show_connection_settings_dialog(
             transient_to=root_window, initial_config=sample_config
