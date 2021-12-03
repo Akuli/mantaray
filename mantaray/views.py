@@ -383,7 +383,7 @@ class ServerView(View):
             elif isinstance(event, backend.Kick):
                 channel_view = self.find_channel(event.channel)
                 assert channel_view is not None
-                channel_view.on_kick(event.user, event.channel, event.nick, event.reason)
+                channel_view.on_kick(event.channel, event.kicker_nick, event.kicked_nick, event.reason)
 
             elif isinstance(event, backend.UserQuit):
                 for view in self.get_subviews(include_server=True):
@@ -547,19 +547,19 @@ class ChannelView(View):
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
-    def on_kick(self, channel: str, user: str, nick: str, reason: str | None) -> None:
-        self.userlist.remove_user(nick)
+    def on_kick(self, channel: str, kicker_nick: str, kicked_nick: str, reason: str | None) -> None:
+        self.userlist.remove_user(kicked_nick)
         if reason is None:
             extra = ""
         else:
             extra = " " + reason + ""
         self.add_message(
             "*",
-            (user, ["self-nick"]),
+            (kicker_nick, ["self-nick"]),
             (' kicked ', []),
-            (nick, ["other-nick"]),
+            (kicked_nick, ["other-nick"]),
             (" from the channel." + f"     (Reason: {extra})", []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
+            show_in_gui=self.server_view.should_show_join_leave_message(kicked_nick),
         )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
