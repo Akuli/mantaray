@@ -302,7 +302,7 @@ class IrcCore:
 
         if msg.command == "KICK":
             assert msg.sender is not None
-            kicker_nick = self.nick
+            kicker_nick = msg.sender
             channel = msg.args[0]
             kicked_nick = msg.args[1]
             reason = msg.args[2]
@@ -516,7 +516,6 @@ class IrcCore:
             ":" + text,
             done_event=SentPrivmsg(nick_or_channel, text),
         )
-
 
     def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:
