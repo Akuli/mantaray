@@ -156,7 +156,7 @@ def _add_default_commands() -> None:
         if isinstance(view, ChannelView):
             core.kick(view.view_name, nick, reason)
         else:
-            view.add_message('You can use /kick only on a channel')
+            view.add_message('You can use /kick only on a channel.')
 
     # TODO: /kick, /ban etc... lots of commands to add
 
