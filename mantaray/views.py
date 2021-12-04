@@ -555,7 +555,6 @@ class ChannelView(View):
            kicker_tag = 'self-nick'
         else:
            kicker_tag = 'other-nick'
-        kicked_tag=[]
         if kicked_nick == self.server_view.core.nick:
            kicked_tag = 'self-nick'
         else:
