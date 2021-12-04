@@ -86,7 +86,7 @@ class UserParted:
     reason: str | None
 @dataclasses.dataclass
 class Kick:
-    kicker_nick: str
+    kicker: str
     channel: str
     kicked_nick: str
     reason: str | None
@@ -302,11 +302,11 @@ class IrcCore:
 
         if msg.command == "KICK":
             assert msg.sender is not None
-            kicker_nick = msg.sender
+            kicker = msg.sender
             channel = msg.args[0]
             kicked_nick = msg.args[1]
             reason = msg.args[2]
-            self.event_queue.put(Kick(kicker_nick, channel, kicked_nick, reason or None))
+            self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
           
         if msg.sender_is_server:
             if msg.command == "CAP":
