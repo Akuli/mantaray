@@ -303,9 +303,7 @@ class IrcCore:
         if msg.command == "KICK":
             assert msg.sender is not None
             kicker = msg.sender
-            channel = msg.args[0]
-            kicked_nick = msg.args[1]
-            reason = msg.args[2]
+            channel, kicked_nick, reason = msg.args
             self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
           
         if msg.sender_is_server:
