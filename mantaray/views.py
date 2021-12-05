@@ -551,21 +551,22 @@ class ChannelView(View):
         self.userlist.remove_user(kicked_nick)
         if reason is None:
             reason = ''
+        message_tag = None
         if kicker == self.server_view.core.nick:
-           kicker_tag = 'self-nick'
+            kicker_tag = 'self-nick'
         else:
-           kicker_tag = 'other-nick'
-        kicked_tag=[]
+            kicker_tag = 'other-nick'
         if kicked_nick == self.server_view.core.nick:
-           kicked_tag = 'self-nick'
+            kicked_tag = 'self-nick'
+            message_tag = 'error'
         else:
            kicked_tag = 'other-nick'
         self.add_message(
             "*",
             (kicker, [kicker_tag]),
-            (' has kicked ' , []),
+            (' has kicked ' , [message_tag]),
             (kicked_nick, [kicked_tag]),
-            (" from the channel." + f"     (Reason: {reason})", []))
+            (f" from the channel. (Reason: {reason})", [message_tag]))
             
             
     def on_self_changed_nick(self, old: str, new: str) -> None:
