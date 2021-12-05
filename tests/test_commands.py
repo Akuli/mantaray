@@ -3,6 +3,7 @@ import pytest
 from mantaray.views import ServerView
 
 
+# TODO: should test entering channel name case insensitively, but hircd is case sensitive :(
 @pytest.mark.parametrize("part_command", ["/part", "/part #lol"])
 def test_join_and_part(alice, bob, wait_until, part_command):
     alice.entry.insert("end", "/join #lol")
