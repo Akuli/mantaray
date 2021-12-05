@@ -316,7 +316,7 @@ class ServerView(View):
 
     def find_channel(self, name: str) -> ChannelView | None:
         for view in self.get_subviews():
-            if isinstance(view, ChannelView) and view.view_name == name:
+            if isinstance(view, ChannelView) and view.view_name.lower() == name.lower():
                 return view
         return None
 

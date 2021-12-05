@@ -324,7 +324,7 @@ class IrcCore:
                 channel, names = msg.args[-2:]
 
                 # TODO: don't ignore @ and + prefixes
-                self._joining_in_progress[channel].nicks.extend(
+                self._joining_in_progress[channel.lower()].nicks.extend(
                     name.lstrip("@+") for name in names.split()
                 )
                 return  # don't spam server view with nicks
@@ -332,7 +332,7 @@ class IrcCore:
             elif msg.command == _RPL_ENDOFNAMES:
                 # joining a channel finished
                 channel, human_readable_message = msg.args[-2:]
-                join = self._joining_in_progress.pop(channel)
+                join = self._joining_in_progress.pop(channel.lower())
                 # join.topic is None, when creating channel on libera
                 self.event_queue.put(
                     SelfJoined(channel, join.topic or "(no topic)", join.nicks)
@@ -345,7 +345,7 @@ class IrcCore:
 
             elif msg.command == "TOPIC":
                 channel, topic = msg.args
-                self._joining_in_progress[channel].topic = topic
+                self._joining_in_progress[channel.lower()].topic = topic
 
             self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
             return
@@ -484,7 +484,7 @@ class IrcCore:
             self.event_queue.put(HostChanged(old_host, self.host))
 
     def join_channel(self, channel: str) -> None:
-        self._joining_in_progress[channel] = _JoinInProgress(None, [])
+        self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
         self._send_soon("JOIN", channel)
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
