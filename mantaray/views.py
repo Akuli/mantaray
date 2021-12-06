@@ -573,7 +573,7 @@ class ChannelView(View):
                 (kicker, [kicker_tag]),
                 (' has kicked ' , []),
                 (kicked_nick, [kicked_tag]),
-                (' from #', []),
+                (' from ', []),
                 (self.view_name, ['channel']),
                 (f'. (Reason: {reason})', []))
 
