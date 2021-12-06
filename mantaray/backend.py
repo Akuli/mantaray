@@ -306,7 +306,7 @@ class IrcCore:
             channel, kicked_nick, reason = msg.args
             self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
             return
-          
+
         if msg.sender_is_server:
             if msg.command == "CAP":
                 subcommand = msg.args[1]
@@ -518,21 +518,12 @@ class IrcCore:
 
     def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:
-            self._send_soon(
-                "KICK",
-                channel,
-                kicked_nick
-                )
+            self._send_soon("KICK", channel, kicked_nick)
         else:
-            self._send_soon(
-                "KICK",
-                channel,
-                kicked_nick,
-                ':' + reason
-                )
+            self._send_soon("KICK", channel, kicked_nick, ":" + reason)
 
     # emits SelfChangedNick event on success
-            
+
     def change_nick(self, new_nick: str) -> None:
         self._send_soon("NICK", new_nick)
 

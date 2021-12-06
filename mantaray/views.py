@@ -383,7 +383,9 @@ class ServerView(View):
             elif isinstance(event, backend.Kick):
                 channel_view = self.find_channel(event.channel)
                 assert channel_view is not None
-                channel_view.on_kick(event.channel, event.kicker, event.kicked_nick, event.reason)
+                channel_view.on_kick(
+                    event.channel, event.kicker, event.kicked_nick, event.reason
+                )
 
             elif isinstance(event, backend.UserQuit):
                 for view in self.get_subviews(include_server=True):
@@ -547,35 +549,36 @@ class ChannelView(View):
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
-    def on_kick(self, channel: str, kicker: str, kicked_nick: str, reason: str | None) -> None:
+    def on_kick(
+        self, channel: str, kicker: str, kicked_nick: str, reason: str | None
+    ) -> None:
         self.userlist.remove_user(kicked_nick)
         if reason is None:
-            reason = ''
-        if kicked_nick == self.server_view.core.nick:
-            kicked_tag = 'self-nick'
-        else:
-           kicked_tag = 'other-nick'
+            reason = ""
         if kicker == self.server_view.core.nick:
-            kicker_tag = 'self-nick'
+            kicker_tag = "self-nick"
         else:
-            kicker_tag = 'other-nick'
+            kicker_tag = "other-nick"
         if kicked_nick == self.server_view.core.nick:
             self.add_message(
                 "*",
                 (kicker, [kicker_tag]),
-                (' has kicked you from ', ['error']),
-                (self.view_name, ['channel']),
-                ('. You can still join by typing ', ['error']),
-                (f'/join {self.view_name}', ['pinged']), ('.', ['error']))
+                (" has kicked you from ", ["error"]),
+                (self.view_name, ["channel"]),
+                (". You can still join by typing ", ["error"]),
+                (f"/join {self.view_name}", ["pinged"]),
+                (".", ["error"]),
+            )
         else:
             self.add_message(
                 "*",
                 (kicker, [kicker_tag]),
-                (' has kicked ' , []),
-                (kicked_nick, ['other-nick']),
-                (' from ', []),
-                (self.view_name, ['channel']),
-                (f'. (Reason: {reason})', []))
+                (" has kicked ", []),
+                (kicked_nick, ["other-nick"]),
+                (" from ", []),
+                (self.view_name, ["channel"]),
+                (f". (Reason: {reason})", []),
+            )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         super().on_self_changed_nick(old, new)
