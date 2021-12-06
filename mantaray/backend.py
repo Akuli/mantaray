@@ -85,6 +85,12 @@ class UserParted:
     channel: str
     reason: str | None
 @dataclasses.dataclass
+class Kick:
+    kicker: str
+    channel: str
+    kicked_nick: str
+    reason: str | None
+@dataclasses.dataclass
 class UserQuit:
     nick: str
     reason: str | None
@@ -129,6 +135,7 @@ _IrcEvent = Union[
     SelfParted,
     SelfQuit,
     UserJoined,
+    Kick,
     UserChangedNick,
     UserParted,
     UserQuit,
@@ -291,6 +298,13 @@ class IrcCore:
             assert msg.sender is not None
             reason = msg.args[0] if msg.args else None
             self.event_queue.put(UserQuit(msg.sender, reason or None))
+            return
+
+        if msg.command == "KICK":
+            assert msg.sender is not None
+            kicker = msg.sender
+            channel, kicked_nick, reason = msg.args
+            self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
             return
 
         if msg.sender_is_server:
@@ -502,7 +516,14 @@ class IrcCore:
             done_event=SentPrivmsg(nick_or_channel, text),
         )
 
+    def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
+        if reason is None:
+            self._send_soon("KICK", channel, kicked_nick)
+        else:
+            self._send_soon("KICK", channel, kicked_nick, ":" + reason)
+
     # emits SelfChangedNick event on success
+
     def change_nick(self, new_nick: str) -> None:
         self._send_soon("NICK", new_nick)
 

@@ -96,6 +96,7 @@ def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.tag_configure("error", foreground=_MIRC_COLORS[4])
     textwidget.tag_configure("info", foreground=_MIRC_COLORS[11])
     textwidget.tag_configure("history-selection", background=_MIRC_COLORS[12])
+    textwidget.tag_configure("channel", foreground=_MIRC_COLORS[13])
     # TODO: make nicks clickable
     textwidget.tag_configure("self-nick", foreground=_MIRC_COLORS[11], underline=True)
     textwidget.tag_configure("other-nick", foreground=_MIRC_COLORS[10], underline=True)
