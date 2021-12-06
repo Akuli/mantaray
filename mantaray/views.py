@@ -564,7 +564,7 @@ class ChannelView(View):
                 "*",
                 (kicker, [kicker_tag]),
                 (' has kicked you from ', ['error']),
-                (f'#{self.view_name}', ['channel']),
+                (self.view_name, ['channel']),
                 ('. You can still join by typing ', ['error']),
                 (f'/join {self.view_name}', ['pinged']), ('.', ['error']))
         else:
