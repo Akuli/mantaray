@@ -44,26 +44,20 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             )
             return False
 
-        view_arg, core_arg, *parameters = inspect.signature(func).parameters.values()
-        assert all(
-            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-            for param in parameters
-        )
-        arg_count_min = [param.default for param in parameters].count(
-            inspect.Parameter.empty
-        )
-        arg_count_max = len(parameters) - arg_count_min
+        view_arg, core_arg, *params = inspect.signature(func).parameters.values()
+        assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
+        required_params = [p.default for p in params]
 
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        command_name, *args = entry_content.split(maxsplit=max(arg_count_min, 1))
-        if len(args) < arg_count_min or len(args) > arg_count_max:
+        command_name, *args = entry_content.split(maxsplit=max(len(params), 1))
+        if len(args) < len(required_params) or len(args) > len(params):
             usage = command_name
-            for param in parameters:
-                if param.default == inspect.Parameter.empty:
-                    usage += f" <{param.name}>"
+            for p in params:
+                if p.default == inspect.Parameter.empty:
+                    usage += f" <{p.name}>"
                 else:
-                    usage += f" [<{param.name}>]"
+                    usage += f" [<{p.name}>]"
             view.add_message("*", ("Usage: " + usage, []))
             return False
 
