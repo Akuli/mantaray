@@ -54,7 +54,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         if len(args) < len(required_params) or len(args) > len(params):
             usage = command_name
             for p in params:
-                if p.default == inspect.Parameter.empty:
+                if p in required_params:
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
