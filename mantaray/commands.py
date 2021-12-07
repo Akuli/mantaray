@@ -46,7 +46,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
-        required_params = [p.default for p in params]
+        required_params = [p for p in params if p.default == inspect.Parameter.empty]
 
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
