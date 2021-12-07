@@ -99,7 +99,6 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     bob.get_server_views()[0].core.change_nick("MemoServ")
     wait_until(lambda: "You are now known as MemoServ.\n" in bob.text())
 
-    # FIXME: show password with *** in Alice's client?
     alice.entry.insert("end", "/ms send Bob hello there")
     alice.on_enter_pressed()
     wait_until(lambda: "send Bob hello there\n" in bob.text())
