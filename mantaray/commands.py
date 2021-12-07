@@ -45,8 +45,13 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             return False
 
         view_arg, core_arg, *parameters = inspect.signature(func).parameters.values()
-        assert all(param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for param in parameters)
-        arg_count_min = [param.default for param in parameters].count(inspect.Parameter.empty)
+        assert all(
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            for param in parameters
+        )
+        arg_count_min = [param.default for param in parameters].count(
+            inspect.Parameter.empty
+        )
         arg_count_max = len(parameters) - arg_count_min
 
         # Last arg can contain spaces
