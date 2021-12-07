@@ -113,6 +113,8 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
         ("/msg", "Usage: /msg <nick> <message>"),
         ("/msg Bob", "Usage: /msg <nick> <message>"),
         ("/quit asdf", "Usage: /quit"),  # no arguments expected is special-cased
+        # TODO: tests for kick, once find irc server that support kick
+        ("/kick", "Usage: /kick <nick> [<reason>]"),
     ],
 )
 def test_incorrect_usage(alice, wait_until, command, error):
