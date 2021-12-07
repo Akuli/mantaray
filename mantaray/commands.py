@@ -2,15 +2,11 @@
 from __future__ import annotations
 import inspect
 import re
-from typing import Callable, TypeVar
+from typing import Callable
 from tkinter import messagebox
 
 from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
-
-
-_CommandT = TypeVar("_CommandT", bound=Callable[..., None])
-_commands: dict[str, Callable[..., None]] = {}
 
 
 def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
