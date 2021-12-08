@@ -1,25 +1,12 @@
 """This file handles commands like /join."""
 from __future__ import annotations
+import inspect
 import re
-from typing import Callable, TypeVar
+from typing import Callable
 from tkinter import messagebox
 
 from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
-
-
-_CommandT = TypeVar("_CommandT", bound=Callable[..., None])
-_commands: dict[str, tuple[str, Callable[..., None]]] = {}
-
-
-def add_command(usage: str) -> Callable[[_CommandT], _CommandT]:
-    assert re.fullmatch(r"/[a-z]+( <[a-z_]+>)*( \[<[a-z_]+>\])*", usage)
-
-    def do_it(func: _CommandT) -> _CommandT:
-        _commands[usage.split()[0]] = (usage, func)
-        return func
-
-    return do_it
 
 
 def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
@@ -50,25 +37,31 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
     if re.fullmatch("/[a-z]+( .*)?", entry_content):
         try:
-            usage, func = _commands[entry_content.split()[0]]
+            func = _commands[entry_content.split()[0]]
         except KeyError:
             view.add_message(
                 "*", (f"No command named '{entry_content.split()[0]}'", [])
             )
             return False
 
+        view_arg, core_arg, *params = inspect.signature(func).parameters.values()
+        assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
+        required_params = [p for p in params if p.default == inspect.Parameter.empty]
+
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        args = entry_content.split(maxsplit=max(usage.count(" "), 1))[1:]
-        if len(args) < usage.count(" <") or len(args) > usage.count(" "):
+        command_name, *args = entry_content.split(maxsplit=max(len(params), 1))
+        if len(args) < len(required_params) or len(args) > len(params):
+            usage = command_name
+            for p in params:
+                if p in required_params:
+                    usage += f" <{p.name}>"
+                else:
+                    usage += f" [<{p.name}>]"
             view.add_message("*", ("Usage: " + usage, []))
             return False
 
-        func(
-            view,
-            core,
-            **{name.strip("[<>]"): arg for name, arg in zip(usage.split()[1:], args)},
-        )
+        func(view, core, *args)
         return True
 
     if entry_content.startswith("//"):
@@ -97,14 +90,11 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
     return True
 
 
-def _add_default_commands() -> None:
-    @add_command("/join <channel>")
+def _define_commands() -> dict[str, Callable[..., None]]:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
-        # currently kicks are not handled yet anyway :(
         core.join_channel(channel)
 
-    @add_command("/part [<channel>]")
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
             core.part_channel(channel)
@@ -116,49 +106,53 @@ def _add_default_commands() -> None:
                 "*", ("Channel is needed unless you are currently on a channel.", [])
             )
 
-    # TODO: specifying a reason
-    @add_command("/quit")
+    # Doesn't support specifying a reason, because when talking about these commands, I
+    # often type "/quit is a command" without thinking about it much.
     def quit(view: View, core: IrcCore) -> None:
         core.quit()
 
-    @add_command("/nick <new_nick>")
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.change_nick(new_nick)
 
-    @add_command("/topic <new_topic>")
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):
             core.change_topic(view.view_name, new_topic)
         else:
             view.add_message("*", ("You must be on a channel to change its topic.", []))
 
-    @add_command("/me <message>")
     def me(view: View, core: IrcCore, message: str) -> None:
         _send_privmsg(view, core, "\x01ACTION " + message + "\x01")
 
     # TODO: /msg <nick>, should open up PMView
-    @add_command("/msg <nick> <message>")
     def msg(view: View, core: IrcCore, nick: str, message: str) -> None:
         core.send_privmsg(nick, message)
 
-    @add_command("/ns <message>")
-    @add_command("/nickserv <message>")
     def msg_nickserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "NickServ", message)
 
-    @add_command("/ms <message>")
-    @add_command("/memoserv <message>")
     def msg_memoserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "MemoServ", message)
 
-    @add_command("/kick <nick> [<reason>]")
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
             core.kick(view.view_name, nick, reason)
         else:
             view.add_message("You can use /kick only on a channel.")
 
-    # TODO: /kick, /ban etc... lots of commands to add
+    return {
+        "/join": join,
+        "/part": part,
+        "/quit": quit,
+        "/nick": nick,
+        "/topic": topic,
+        "/me": me,
+        "/msg": msg,
+        "/ns": msg_nickserv,
+        "/nickserv": msg_nickserv,
+        "/ms": msg_memoserv,
+        "/memoserv": msg_memoserv,
+        "/kick": kick,
+    }
 
 
-_add_default_commands()
+_commands = _define_commands()
