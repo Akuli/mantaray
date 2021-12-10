@@ -10,8 +10,10 @@ from mantaray.backend import IrcCore
 
 
 def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
-    if isinstance(view, (ChannelView, PMView)):
-        core.send_privmsg(view.view_name, message)
+    if isinstance(view, ChannelView):
+        core.send_privmsg(view.channel_name, message)
+    elif isinstance(view, PMView):
+        core.send_privmsg(view.nick_of_other_user, message)
     else:
         view.add_message(
             "*",
@@ -99,7 +101,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if channel is not None:
             core.part_channel(channel)
         elif isinstance(view, ChannelView):
-            core.part_channel(view.view_name)
+            core.part_channel(view.channel_name)
         else:
             view.add_message("*", ("Usage: /part [<channel>]", []))
             view.add_message(
@@ -116,7 +118,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):
-            core.change_topic(view.view_name, new_topic)
+            core.change_topic(view.channel_name, new_topic)
         else:
             view.add_message("*", ("You must be on a channel to change its topic.", []))
 
@@ -135,7 +137,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
-            core.kick(view.view_name, nick, reason)
+            core.kick(view.channel_name, nick, reason)
         else:
             view.add_message("You can use /kick only on a channel.")
 

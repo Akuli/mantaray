@@ -289,7 +289,7 @@ class ServerView(View):
         self.extra_notifications = set(server_config["extra_notifications"])
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        self.core.start()
+        self.core.start_threads()
         self.handle_events()
 
     # Do not log server stuff
@@ -316,14 +316,14 @@ class ServerView(View):
 
     def find_channel(self, name: str) -> ChannelView | None:
         for view in self.get_subviews():
-            if isinstance(view, ChannelView) and view.view_name.lower() == name.lower():
+            if isinstance(view, ChannelView) and view.channel_name.lower() == name.lower():
                 return view
         return None
 
     def find_pm(self, nick: str) -> PMView | None:
         for view in self.get_subviews():
             # TODO: case insensitive
-            if isinstance(view, PMView) and view.view_name == nick:
+            if isinstance(view, PMView) and view.nick_of_other_user == nick:
                 return view
         return None
 
@@ -436,7 +436,7 @@ class ServerView(View):
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
                     channel_view.add_tag("pinged" if pinged else "new_message")
-                    if pinged or (channel_view.view_name in self.extra_notifications):
+                    if pinged or (channel_view.channel_name in self.extra_notifications):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
@@ -466,7 +466,7 @@ class ServerView(View):
 
     def get_current_config(self) -> config.ServerConfig:
         channels = [
-            view.view_name
+            view.channel_name
             for view in self.get_subviews()
             if isinstance(view, ChannelView)
         ]
@@ -498,7 +498,7 @@ class ServerView(View):
             for subview in self.get_subviews():
                 if (
                     isinstance(subview, ChannelView)
-                    and subview.view_name not in self.core.autojoin
+                    and subview.channel_name not in self.core.autojoin
                 ):
                     self.irc_widget.remove_view(subview)
 
@@ -517,6 +517,12 @@ class ChannelView(View):
         self.userlist.set_nicks(nicks)
         self.open_log_file()
 
+    # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
+    # Same as view_name, but only channels have this attribute, can clarify things a lot
+    @property
+    def channel_name(self) -> str:
+        return self.view_name
+
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()
@@ -532,7 +538,7 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, ["other-nick"]),
-            (f" joined {self.view_name}.", []),
+            (f" joined {self.channel_name}.", []),
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
@@ -545,7 +551,7 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, ["other-nick"]),
-            (f" left {self.view_name}." + extra, []),
+            (f" left {self.channel_name}." + extra, []),
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
@@ -564,9 +570,9 @@ class ChannelView(View):
                 "*",
                 (kicker, [kicker_tag]),
                 (" has kicked you from ", ["error"]),
-                (self.view_name, ["channel"]),
+                (self.channel_name, ["channel"]),
                 (". You can still join by typing ", ["error"]),
-                (f"/join {self.view_name}", ["pinged"]),
+                (f"/join {self.channel_name}", ["pinged"]),
                 (".", ["error"]),
             )
         else:
@@ -576,7 +582,7 @@ class ChannelView(View):
                 (" has kicked ", []),
                 (kicked_nick, ["other-nick"]),
                 (" from ", []),
-                (self.view_name, ["channel"]),
+                (self.channel_name, ["channel"]),
                 (f". (Reason: {reason})", []),
             )
 
@@ -598,7 +604,7 @@ class ChannelView(View):
         self.userlist.remove_user(nick)
 
     def show_topic(self, topic: str) -> None:
-        self.add_message("*", (f"The topic of {self.view_name} is: {topic}", []))
+        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
 
     def on_topic_changed(self, nick: str, topic: str) -> None:
         if nick == self.server_view.core.nick:
@@ -608,7 +614,7 @@ class ChannelView(View):
         self.add_message(
             "*",
             (nick, [nick_tag]),
-            (f" changed the topic of {self.view_name}: {topic}", []),
+            (f" changed the topic of {self.channel_name}: {topic}", []),
         )
 
 
@@ -623,19 +629,24 @@ class PMView(View):
         )
         self.open_log_file()
 
+    # Same as view_name, but only PM views have this attribute
+    @property
+    def nick_of_other_user(self) -> str:
+        return self.view_name
+
     def on_privmsg(self, sender: str, message: str) -> None:
         sender, chunks = _parse_privmsg(
             sender,
             message,
             self.server_view.core.nick,
-            [self.server_view.core.nick, self.view_name],
+            [self.server_view.core.nick, self.nick_of_other_user],
         )
         self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user
     def get_relevant_nicks(self) -> list[str]:
-        return [self.view_name]
+        return [self.nick_of_other_user]
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)

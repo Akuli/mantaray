@@ -371,10 +371,10 @@ class IrcWidget(ttk.PanedWindow):
 
             def on_change(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
-                view.server_view.extra_notifications ^= {view.view_name}
+                view.server_view.extra_notifications ^= {view.channel_name}
 
             var = tkinter.BooleanVar(
-                value=(view.view_name in view.server_view.extra_notifications)
+                value=(view.channel_name in view.server_view.extra_notifications)
             )
             var.trace_add("write", on_change)
             self._garbage_collection_is_lol = var
