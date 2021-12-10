@@ -256,7 +256,9 @@ class IrcCore:
                 # get ready to connect again
                 self._disconnect()
 
-    def _put_to_send_queue(self, message: str, *, done_event: _IrcEvent | None = None) -> None:
+    def _put_to_send_queue(
+        self, message: str, *, done_event: _IrcEvent | None = None
+    ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
     def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
@@ -509,7 +511,8 @@ class IrcCore:
             self._put_to_send_queue(f"PART {channel} :{reason}")
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self._put_to_send_queue(f"PRIVMSG {nick_or_channel} :{text}",
+        self._put_to_send_queue(
+            f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
 

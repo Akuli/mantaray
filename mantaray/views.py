@@ -316,7 +316,10 @@ class ServerView(View):
 
     def find_channel(self, name: str) -> ChannelView | None:
         for view in self.get_subviews():
-            if isinstance(view, ChannelView) and view.channel_name.lower() == name.lower():
+            if (
+                isinstance(view, ChannelView)
+                and view.channel_name.lower() == name.lower()
+            ):
                 return view
         return None
 
@@ -436,7 +439,9 @@ class ServerView(View):
                     )
                     channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
                     channel_view.add_tag("pinged" if pinged else "new_message")
-                    if pinged or (channel_view.channel_name in self.extra_notifications):
+                    if pinged or (
+                        channel_view.channel_name in self.extra_notifications
+                    ):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
