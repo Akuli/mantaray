@@ -24,7 +24,7 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
 
     start = time.monotonic()
     alice.get_server_views()[0].core.quit()
-    alice.get_server_views()[0].core.wait_until_stopped()
+    alice.get_server_views()[0].core.wait_for_threads_to_stop()
     end = time.monotonic()
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
