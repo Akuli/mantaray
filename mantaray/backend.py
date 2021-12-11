@@ -216,14 +216,14 @@ class IrcCore:
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
 
-    def start(self) -> None:
+    def start_threads(self) -> None:
         assert not self._threads
         self._threads.append(threading.Thread(target=self._send_loop))
         self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
         for thread in self._threads:
             thread.start()
 
-    def wait_until_stopped(self) -> None:
+    def wait_for_threads_to_stop(self) -> None:
         for thread in self._threads:
             thread.join()
 
@@ -256,8 +256,10 @@ class IrcCore:
                 # get ready to connect again
                 self._disconnect()
 
-    def _send_soon(self, *parts: str, done_event: _IrcEvent | None = None) -> None:
-        self._send_queue.put((" ".join(parts).encode("utf-8") + b"\r\n", done_event))
+    def _put_to_send_queue(
+        self, message: str, *, done_event: _IrcEvent | None = None
+    ) -> None:
+        self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
     def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
         if msg.command == "PRIVMSG":
@@ -315,7 +317,7 @@ class IrcCore:
                     acknowledged = set(msg.args[-1].split())
 
                     if "sasl" in acknowledged:
-                        self._send_soon("AUTHENTICATE", "PLAIN")
+                        self._put_to_send_queue("AUTHENTICATE PLAIN")
                 elif subcommand == "NAK":
                     rejected = set(msg.args[-1].split())
                     if "sasl" in rejected:
@@ -326,10 +328,10 @@ class IrcCore:
                 query = f"\0{self.username}\0{self.password}"
                 b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
                 for i in range(0, len(b64_query), 400):
-                    self._send_soon("AUTHENTICATE", b64_query[i : i + 400])
+                    self._put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
 
             elif msg.command == _RPL_LOGGEDIN:
-                self._send_soon("CAP", "END")
+                self._put_to_send_queue("CAP END")
 
             elif msg.command == _RPL_NAMREPLY:
                 # TODO: wtf are the first 2 args?
@@ -373,7 +375,7 @@ class IrcCore:
         self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
 
     @staticmethod
-    def _split_line(line: str) -> _ReceivedAndParsedMessage:
+    def _parse_received_message(line: str) -> _ReceivedAndParsedMessage:
         if not line.startswith(":"):
             sender_is_server = True  # TODO: when does this code run?
             sender = None
@@ -417,10 +419,10 @@ class IrcCore:
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
                 continue
             if line.startswith("PING"):
-                self._send_soon(line.replace("PING", "PONG", 1))
+                self._put_to_send_queue(line.replace("PING", "PONG", 1))
                 continue
 
-            message = self._split_line(line)
+            message = self._parse_received_message(line)
             try:
                 self._handle_received_message(message)
             except Exception:
@@ -471,11 +473,11 @@ class IrcCore:
         self._sock = sock
 
         if self.password is not None:
-            self._send_soon("CAP", "REQ", "sasl")
+            self._put_to_send_queue("CAP REQ sasl")
 
         # TODO: what if nick or user are in use? use alternatives?
-        self._send_soon("NICK", self.nick)
-        self._send_soon("USER", self.username, "0", "*", ":" + self.realname)
+        self._put_to_send_queue(f"NICK {self.nick}")
+        self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
 
     def _disconnect(self) -> None:
         # If at any time self._sock is set, it shouldn't be closed yet
@@ -499,36 +501,34 @@ class IrcCore:
 
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
-        self._send_soon("JOIN", channel)
+        self._put_to_send_queue(f"JOIN {channel}")
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
         if reason is None:
-            self._send_soon("PART", channel)
+            self._put_to_send_queue(f"PART {channel}")
         else:
-            # FIXME: the reason thing doesn't seem to work
-            self._send_soon("PART", channel, ":" + reason)
+            # FIXME: the reason thing doesn't seem to work?
+            self._put_to_send_queue(f"PART {channel} :{reason}")
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self._send_soon(
-            "PRIVMSG",
-            nick_or_channel,
-            ":" + text,
+        self._put_to_send_queue(
+            f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
 
     def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:
-            self._send_soon("KICK", channel, kicked_nick)
+            self._put_to_send_queue(f"KICK {channel} {kicked_nick}")
         else:
-            self._send_soon("KICK", channel, kicked_nick, ":" + reason)
+            self._put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
 
     # emits SelfChangedNick event on success
 
     def change_nick(self, new_nick: str) -> None:
-        self._send_soon("NICK", new_nick)
+        self._put_to_send_queue(f"NICK {new_nick}")
 
     def change_topic(self, channel: str, new_topic: str) -> None:
-        self._send_soon("TOPIC", channel, new_topic)
+        self._put_to_send_queue(f"TOPIC {channel} {new_topic}")
 
     def quit(self) -> None:
         if self._sock is None:
@@ -536,4 +536,4 @@ class IrcCore:
             self.event_queue.put(SelfQuit())
         else:
             # TODO: client can freeze, if it is connected but sending blocks forever
-            self._send_soon("QUIT", done_event=SelfQuit())
+            self._put_to_send_queue("QUIT", done_event=SelfQuit())

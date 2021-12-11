@@ -20,11 +20,11 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     wait_until(
         lambda: ("Error while receiving: " + server_closed_message) in alice.text()
     )
-    assert alice.get_current_view().view_name == "#autojoin"
+    assert alice.get_current_view().channel_name == "#autojoin"
 
     start = time.monotonic()
     alice.get_server_views()[0].core.quit()
-    alice.get_server_views()[0].core.wait_until_stopped()
+    alice.get_server_views()[0].core.wait_for_threads_to_stop()
     end = time.monotonic()
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 

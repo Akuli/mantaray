@@ -29,8 +29,8 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
 def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused):
     alice.get_server_views()[0].core.join_channel("#bobnotify")
     bob.get_server_views()[0].core.join_channel("#bobnotify")
-    wait_until(lambda: alice.get_current_view().view_name == "#bobnotify")
-    wait_until(lambda: bob.get_current_view().view_name == "#bobnotify")
+    wait_until(lambda: alice.get_current_view().channel_name == "#bobnotify")
+    wait_until(lambda: bob.get_current_view().channel_name == "#bobnotify")
 
     monkeypatch.setattr(
         bob.get_current_view(), "_window_has_focus", (lambda: window_focused)
