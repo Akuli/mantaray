@@ -60,3 +60,8 @@ connected to each other.
 This should connect Mantaray to hircd.
 You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `bob` instead of `alice`.
+
+To see what config dir Mantaray uses when `--config-dir` is not specified,
+and what other options you can specify, run:
+
+    $ python3 -m mantaray --help
