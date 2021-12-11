@@ -7,11 +7,12 @@ This is an IRC client written in Python with tkinter and ttk.
 Supported features:
 - SSL
 - SASL authentication
-- Multiple servers
+- Notifications for new messages
 - Multiple channels
+- Multiple servers (if you add them manually in the config file, lol)
 - Private messages
 - `/me`
-- Notifications for new messages
+- `/kick`
 
 You can run Mantaray like this:
 
