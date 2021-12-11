@@ -35,6 +35,7 @@ On Windows, run these commands in Command Prompt:
 
 ## Developing
 
+    $ source env/bin/activate
     $ pip install -r requirements-dev.txt
 
 Running tests: (use `py` instead of `python3` on Windows)
