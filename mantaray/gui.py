@@ -208,6 +208,9 @@ class IrcWidget(ttk.PanedWindow):
 
         if tag_range:
             self._put_sent_message_to_entry(textwidget, tag_range)
+        else:
+            self.entry.delete(0, "end")
+            textwidget.tag_remove("history-selection", "1.0", "end")
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")

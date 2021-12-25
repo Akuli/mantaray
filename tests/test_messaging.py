@@ -119,13 +119,17 @@ def test_history(alice, bob, wait_until):
     assert not alice.entry.get()
     alice.previous_message_to_entry()
     assert alice.entry.get() == "first message"
+    alice.next_message_to_entry()
+    assert not alice.entry.get()
+
+    assert not alice.entry.get()
+    alice.previous_message_to_entry()
+    assert alice.entry.get() == "first message"
     alice.previous_message_to_entry()
     assert alice.entry.get() == "first message"
     alice.next_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
+    assert not alice.entry.get()
 
-    alice.entry.delete(0, "end")
     alice.entry.insert(0, "second message")
     alice.on_enter_pressed()
     wait_until(lambda: "second message" in alice.text())
@@ -140,7 +144,7 @@ def test_history(alice, bob, wait_until):
     alice.next_message_to_entry()
     assert alice.entry.get() == "second message"
     alice.next_message_to_entry()
-    assert alice.entry.get() == "second message"
+    assert not alice.entry.get()
 
     alice.entry.delete(0, "end")
     alice.entry.insert(0, "//escaped message")
