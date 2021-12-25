@@ -122,7 +122,6 @@ def test_history(alice, bob, wait_until):
     alice.next_message_to_entry()
     assert not alice.entry.get()
 
-    assert not alice.entry.get()
     alice.previous_message_to_entry()
     assert alice.entry.get() == "first message"
     alice.previous_message_to_entry()
