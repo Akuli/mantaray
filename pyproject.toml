@@ -1,5 +1,0 @@
-[tool.black]
-skip-magic-trailing-comma = true
-
-[tool.pytest.ini_options]
-addopts = "--capture=no"

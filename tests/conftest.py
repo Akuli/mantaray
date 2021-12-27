@@ -84,36 +84,23 @@ def hircd():
 
 
 @pytest.fixture
-def alice_and_bob(hircd, root_window, wait_until, mocker):
+def alice(hircd, root_window, wait_until, mocker):
     mocker.patch("mantaray.views._show_popup")
 
-    widgets = {}
-    for name in ["alice", "bob"]:
-        widgets[name] = gui.IrcWidget(
-            root_window,
-            config.load_from_file(Path(name)),
-            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
-        )
-        widgets[name].pack(fill="both", expand=True)
-        wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
+    alice = gui.IrcWidget(
+        root_window,
+        config.load_from_file(Path("alice")),
+        Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+    )
+    alice.pack(fill="both", expand=True)
+    wait_until(lambda: "The topic of #autojoin is" in alice.text())
 
-    yield widgets
+    yield alice
 
-    for irc_widget in widgets.values():
-        if irc_widget.winfo_exists():
-            for server_view in irc_widget.get_server_views():
-                server_view.core.quit()
-                server_view.core.wait_for_threads_to_stop()
-        # On windows, we need to wait until log files are closed before removing them
-        wait_until(lambda: not irc_widget.winfo_exists())
-        shutil.rmtree(irc_widget.log_dir)
-
-
-@pytest.fixture
-def alice(alice_and_bob):
-    return alice_and_bob["alice"]
-
-
-@pytest.fixture
-def bob(alice_and_bob):
-    return alice_and_bob["bob"]
+    if alice.winfo_exists():
+        for server_view in alice.get_server_views():
+            server_view.core.quit()
+            server_view.core.wait_for_threads_to_stop()
+    # On windows, we need to wait until log files are closed before removing them
+    wait_until(lambda: not alice.winfo_exists())
+    shutil.rmtree(alice.log_dir)
