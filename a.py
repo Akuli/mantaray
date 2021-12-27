@@ -8,39 +8,34 @@ from tkinter import ttk
 
 
 def ServerView_handle_events() -> None:
-    alice.after(100, ServerView_handle_events)
+    alice.after(100, print)
 
-    while True:
-        try:
-            message = ServerView_event_queue.get(block=False)
-        except queue.Empty:
-            break
+    message = ServerView_event_queue.get(block=False)
+    assert not view_selector.get_children(ServerView_view_id)
+    sender = ""
+    chunks = ((message, ["info"]),)
+    do_the_scroll = ServerView_textwidget.yview()[1] == 1.0
+    padding = " " * (16 - len(sender))
 
-        assert not view_selector.get_children(ServerView_view_id)
-        sender = ""
-        chunks = ((message, ["info"]),)
-        do_the_scroll = ServerView_textwidget.yview()[1] == 1.0
-        padding = " " * (16 - len(sender))
+    if sender == "*":
+        sender_tags = []
+    elif sender == "Alice":
+        sender_tags = ["self-nick"]
+    else:
+        sender_tags = ["other-nick"]
 
-        if sender == "*":
-            sender_tags = []
-        elif sender == "Alice":
-            sender_tags = ["self-nick"]
-        else:
-            sender_tags = ["other-nick"]
+    ServerView_textwidget.config(state="normal")
+    ServerView_textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
+    ServerView_textwidget.insert("end", sender, sender_tags)
+    ServerView_textwidget.insert("end", " | ")
+    flatten = itertools.chain.from_iterable
+    if chunks:
+        ServerView_textwidget.insert("end", *flatten(chunks))
+    ServerView_textwidget.insert("end", "\n")
+    ServerView_textwidget.config(state="disabled")
 
-        ServerView_textwidget.config(state="normal")
-        ServerView_textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-        ServerView_textwidget.insert("end", sender, sender_tags)
-        ServerView_textwidget.insert("end", " | ")
-        flatten = itertools.chain.from_iterable
-        if chunks:
-            ServerView_textwidget.insert("end", *flatten(chunks))
-        ServerView_textwidget.insert("end", "\n")
-        ServerView_textwidget.config(state="disabled")
-
-        if do_the_scroll:
-            ServerView_textwidget.see("end")
+    if do_the_scroll:
+        ServerView_textwidget.see("end")
 
 
 root_window = tkinter.Tk()
