@@ -14,4 +14,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: brew install python-tk@3.9
-    - run: $PYTHON tests/test_commands.py
+    - run: $PYTHON a.py
