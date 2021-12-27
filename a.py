@@ -19,5 +19,10 @@ panedwindow.pack()
 
 tkinter.Text(panedwindow).pack(in_=middle_pane)
 
-root_window.update()
+end = time.monotonic() + 1
+while time.monotonic() < end:
+    root_window.update()
+
+print(50 * "W", flush=True)
 root_window.destroy()
+print(50 * "X", flush=True)
