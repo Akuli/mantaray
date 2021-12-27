@@ -49,8 +49,11 @@ class _Hircd:
 
 
 def test_part_last_channel():
+    print(50*"A", flush=True)
     root_window = tkinter.Tk()
+    print(50*"B", flush=True)
     try:
+        print(50*"C", flush=True)
         clone_url = "https://github.com/fboender/hircd"
         hircd_repo = Path(__file__).absolute().parent / "hircd"
         if not hircd_repo.is_dir():
@@ -68,30 +71,50 @@ def test_part_last_channel():
 
         hircd = _Hircd(hircd_repo)
         hircd.start()
+        print(50*"D", flush=True)
         try:
             alice = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path("alice")),
                 Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
             )
+            print(50*"E", flush=True)
             alice.pack(fill="both", expand=True)
+            print(50*"F", flush=True)
             wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+            print(50*"G", flush=True)
             try:
+                print(50*"H", flush=True)
                 alice.entry.insert("end", "/part #autojoin")
+                print(50*"I", flush=True)
                 alice.on_enter_pressed()
+                print(50*"J", flush=True)
                 wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
+                print(50*"K", flush=True)
             finally:
+                print(50*"L", flush=True)
                 if alice.winfo_exists():
+                    print(50*"M", flush=True)
                     for server_view in alice.get_server_views():
+                        print(50*"N", flush=True)
                         server_view.core.quit()
+                        print(50*"O", flush=True)
                         server_view.core.wait_for_threads_to_stop()
-                # On windows, we need to wait until log files are closed before removing them
+                        print(50*"P", flush=True)
+                    print(50*"Q", flush=True)
+                print(50*"R", flush=True)
                 wait_until(root_window, lambda: not alice.winfo_exists())
+                print(50*"S", flush=True)
                 shutil.rmtree(alice.log_dir)
+                print(50*"T", flush=True)
         finally:
+            print(50*"U", flush=True)
             hircd.stop()
+            print(50*"V", flush=True)
     finally:
+        print(50*"W", flush=True)
         root_window.destroy()
+        print(50*"X", flush=True)
 
 
 test_part_last_channel()
