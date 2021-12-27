@@ -57,7 +57,7 @@ class _Hircd:
             raise RuntimeError
 
 
-def test_part_last_channel(hircd, root_window):
+def test_part_last_channel(root_window):
     clone_url = "https://github.com/fboender/hircd"
     hircd_repo = Path(__file__).absolute().parent / "hircd"
     if not hircd_repo.is_dir():
