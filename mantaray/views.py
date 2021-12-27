@@ -9,7 +9,7 @@ import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
 
-from mantaray import backend, config
+from mantaray import backend
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
