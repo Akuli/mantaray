@@ -3,8 +3,6 @@ import tkinter
 import tempfile
 from pathlib import Path
 
-from mantaray import 
-
 
 root_window = tkinter.Tk()
 alice = gui.IrcWidget(
