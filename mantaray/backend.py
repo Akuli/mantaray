@@ -159,9 +159,6 @@ class IrcCore:
                 self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
 
-            # If this succeeds, it stops when connection is closed
-            self._recv_loop()
-
     def _put_to_send_queue(
         self, message: str, *, done_event: _IrcEvent | None = None
     ) -> None:
