@@ -13,7 +13,7 @@ import pytest
 
 @pytest.fixture(scope="session")
 def root_window():
-    root = tkinter.Tk(theme="black")
+    root = tkinter.Tk()
     yield root
     root.destroy()
 
