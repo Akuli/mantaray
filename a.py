@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import collections
-import dataclasses
 import itertools
 import queue
-import re
 import socket
 import ssl
 import threading
@@ -13,49 +11,7 @@ import tkinter
 import traceback
 from tkinter import ttk
 from tkinter.font import Font
-from typing import Iterator, Sequence, Union
-
-_RPL_ENDOFMOTD = "376"
-_RPL_NAMREPLY = "353"
-_RPL_ENDOFNAMES = "366"
-
-_special = re.escape(r"[]\`_^{|}")
-NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
-
-
-def find_nicks(
-    text: str, self_nick: str, all_nicks: Sequence[str]
-) -> Iterator[tuple[str, str | None]]:
-    lowercase_nicks = {n.lower() for n in all_nicks}
-    assert self_nick.lower() in lowercase_nicks
-
-    previous_end = 0
-    for match in re.finditer(NICK_REGEX, text):
-        if match.group(0).lower() in lowercase_nicks:
-            yield (text[previous_end : match.start()], None)
-            if match.group(0).lower() == self_nick.lower():
-                yield (match.group(0), "self-nick")
-            else:
-                yield (match.group(0), "other-nick")
-            previous_end = match.end()
-    yield (text[previous_end:], None)
-
-
-RECONNECT_SECONDS = 10
-
-
-@dataclasses.dataclass
-class _ReceivedAndParsedMessage:
-    sender: str | None
-    sender_is_server: bool
-    command: str
-    args: list[str]
-
-
-@dataclasses.dataclass
-class _JoinInProgress:
-    topic: str | None
-    nicks: list[str]
+from typing import Sequence
 
 
 class IrcCore:
@@ -67,7 +23,6 @@ class IrcCore:
 
         self.event_queue = queue.Queue()
         self._threads: list[threading.Thread] = []
-        self._joining_in_progress: dict[str, _JoinInProgress] = {}
         self._quit_event = threading.Event()
 
     def start_threads(self) -> None:
@@ -85,29 +40,6 @@ class IrcCore:
         self, message: str, *, done_event=None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
-
-    @staticmethod
-    def _parse_received_message(line: str) -> _ReceivedAndParsedMessage:
-        if not line.startswith(":"):
-            sender_is_server = True
-            sender = None
-            command, *args = line.split(" ")
-        else:
-            sender, command, *args = line.split(" ")
-            sender = sender[1:]
-            if "!" in sender:
-                sender, user_and_host = sender.split("!", 1)
-                sender_is_server = False
-            else:
-                sender_is_server = True
-
-        for n, arg in enumerate(args):
-            if arg.startswith(":"):
-                temp = args[:n]
-                temp.append(" ".join(args[n:])[1:])
-                args = temp
-                break
-        return _ReceivedAndParsedMessage(sender, sender_is_server, command, args)
 
     def _send_loop(self) -> None:
         while not self._quit_event.is_set():
@@ -136,10 +68,6 @@ class IrcCore:
 
         self._put_to_send_queue("NICK a")
         self._put_to_send_queue("USER a 0 * :a")
-
-    def join_channel(self, channel: str) -> None:
-        self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
-        self._put_to_send_queue(f"JOIN {channel}")
 
 
 class View:
@@ -184,17 +112,6 @@ class View:
         self._name = new_name
         self._update_view_selector()
 
-    def _window_has_focus(self) -> bool:
-        return bool(self.irc_widget.tk.eval("focus"))
-
-    def add_notification(self, popup_text: str) -> None:
-        if self.irc_widget.get_current_view() == self and self._window_has_focus():
-            return
-
-        self.notification_count += 1
-        self._update_view_selector()
-        self.irc_widget.event_generate("<<NotificationCountChanged>>")
-
     def mark_seen(self) -> None:
         self.notification_count = 0
         self._update_view_selector()
@@ -204,28 +121,6 @@ class View:
         self.irc_widget.view_selector.item(
             self.view_id, tags=list(old_tags - {"new_message", "pinged"})
         )
-
-    def add_tag(self, tag) -> None:
-        if self.irc_widget.get_current_view() == self:
-            return
-
-        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
-        if "pinged" in old_tags:
-            return
-
-        self.irc_widget.view_selector.item(
-            self.view_id, tags=list((old_tags - {"new_message", "pinged"}) | {tag})
-        )
-
-    def destroy_widgets(self) -> None:
-        self.textwidget.destroy()
-
-    @property
-    def server_view(self) -> ServerView:
-        parent_id = self.irc_widget.view_selector.parent(self.view_id)
-        parent_view = self.irc_widget.views_by_id[parent_id]
-        assert isinstance(parent_view, ServerView)
-        return parent_view
 
     def add_message(
         self,
@@ -264,35 +159,6 @@ class View:
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
 
-    def on_self_changed_nick(self, old: str, new: str) -> None:
-        self.add_message(
-            "*", ("You are now known as ", []), (new, ["self-nick"]), (".", [])
-        )
-
-    def get_relevant_nicks(self) -> Sequence[str]:
-        return []
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        self.add_message(
-            "*",
-            (old, ["other-nick"]),
-            (" is now known as ", []),
-            (new, ["other-nick"]),
-            (".", []),
-        )
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (" quit." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
 
 class ServerView(View):
     def __init__(self, irc_widget):
@@ -303,16 +169,6 @@ class ServerView(View):
 
         self.core.start_threads()
         self.handle_events()
-
-    @property
-    def server_view(self) -> ServerView:
-        return self
-
-    def should_show_join_leave_message(self, nick: str) -> bool:
-        is_exceptional = nick.lower() in (
-            n.lower() for n in self._join_leave_hiding_config["exception_nicks"]
-        )
-        return self._join_leave_hiding_config["show_by_default"] ^ is_exceptional
 
     def get_subviews(self, *, include_server: bool = False):
         result = []
@@ -368,14 +224,6 @@ class IrcWidget(ttk.PanedWindow):
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
 
-    def get_server_views(self) -> list[ServerView]:
-        result = []
-        for view_id in self.view_selector.get_children(""):
-            view = self.views_by_id[view_id]
-            assert isinstance(view, ServerView)
-            result.append(view)
-        return result
-
     def _current_view_changed(self, event: object) -> None:
         new_view = self.get_current_view()
         if self._previous_view == new_view:
@@ -395,7 +243,7 @@ class IrcWidget(ttk.PanedWindow):
 
     def add_view(self, view) -> None:
         assert view.view_id not in self.views_by_id
-        self.view_selector.item(view.server_view.view_id, open=True)
+        self.view_selector.item(view.view_id, open=True)
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
 
