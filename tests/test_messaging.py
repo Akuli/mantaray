@@ -16,7 +16,12 @@ def test_colors(alice, bob, wait_until):
         index = bob.get_current_view().textwidget.search(search_string, "1.0")
         return set(bob.get_current_view().textwidget.tag_names(index))
 
-    assert tags("cyan on red") == {"text", "received-privmsg", "foreground-11", "background-4"}
+    assert tags("cyan on red") == {
+        "text",
+        "received-privmsg",
+        "foreground-11",
+        "background-4",
+    }
     assert tags("bold") == {"text", "received-privmsg"}  # bolding not supported
     assert tags("underline") == {"text", "received-privmsg", "underline"}
     assert tags("everything") == {
