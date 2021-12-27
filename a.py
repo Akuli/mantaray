@@ -19,9 +19,6 @@ entry.pack()
 
 view_id = view_selector.insert("", "end")
 
-view_selector.item(view_id, open=True)
-view_selector.selection_set(view_id)
-
 alice.pack()
 
 tkinter.Text(alice).pack(in_=middle_pane)
