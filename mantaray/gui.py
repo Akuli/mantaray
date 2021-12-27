@@ -13,69 +13,6 @@ from mantaray import config, colors
 from mantaray.views import View, ServerView, ChannelView, PMView
 
 
-def _fix_tag_coloring_bug() -> None:
-    # https://stackoverflow.com/a/60949800
-
-    style = ttk.Style()
-
-    def fixed_map(option: str) -> list[Any]:
-        return [
-            elm
-            for elm in style.map("Treeview", query_opt=option)
-            if elm[:2] != ("!disabled", "!selected")
-        ]
-
-    style.map(
-        "Treeview",
-        foreground=fixed_map("foreground"),
-        background=fixed_map("background"),
-    )
-
-
-def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
-    dialog = tkinter.Toplevel()
-    content = ttk.Frame(dialog)
-    content.pack(fill="both", expand=True)
-
-    ttk.Label(content, text="Enter a new nickname here:").place(
-        relx=0.5, rely=0.1, anchor="center"
-    )
-
-    entry = ttk.Entry(content)
-    entry.place(relx=0.5, rely=0.3, anchor="center")
-    entry.insert(0, old_nick)
-
-    ttk.Label(
-        content,
-        text="The same nick will be used on all channels.",
-        justify="center",
-        wraplength=150,
-    ).place(relx=0.5, rely=0.6, anchor="center")
-
-    buttonframe = ttk.Frame(content, borderwidth=5)
-    buttonframe.place(relx=1.0, rely=1.0, anchor="se")
-
-    result = old_nick
-
-    def ok(junk_event: object = None) -> None:
-        nonlocal result
-        result = entry.get()
-        dialog.destroy()
-
-    ttk.Button(buttonframe, text="OK", command=ok).pack(side="left")
-    ttk.Button(buttonframe, text="Cancel", command=dialog.destroy).pack(side="left")
-    entry.bind("<Return>", (lambda junk_event: ok()))
-    entry.bind("<Escape>", (lambda junk_event: dialog.destroy()))
-
-    dialog.geometry("250x150")
-    dialog.resizable(False, False)
-    dialog.transient(parent)
-    entry.focus()
-    dialog.wait_window()
-
-    return result
-
-
 class IrcWidget(ttk.PanedWindow):
     def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
         super().__init__(master, orient="horizontal")
@@ -99,7 +36,6 @@ class IrcWidget(ttk.PanedWindow):
         )
         self.bind("<Destroy>", (lambda e: setattr(self, "pm_image", None)), add=True)
 
-        _fix_tag_coloring_bug()
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
@@ -122,10 +58,6 @@ class IrcWidget(ttk.PanedWindow):
 
         entryframe = ttk.Frame(self._middle_pane)
         entryframe.pack(side="bottom", fill="x")
-
-        # TODO: add a tooltip to the button, it's not very obvious
-        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
-        self.nickbutton.pack(side="left")
 
         self.entry = tkinter.Entry(
             entryframe,
@@ -159,12 +91,6 @@ class IrcWidget(ttk.PanedWindow):
             assert isinstance(view, ServerView)
             result.append(view)
         return result
-
-    def _show_change_nick_dialog(self) -> None:
-        core = self.get_current_view().server_view.core
-        new_nick = ask_new_nick(self.winfo_toplevel(), core.nick)
-        if new_nick != core.nick:
-            core.change_nick(new_nick)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
@@ -291,8 +217,6 @@ class IrcWidget(ttk.PanedWindow):
         new_view.mark_seen()
 
         self._previous_view = new_view
-
-        self.nickbutton.config(text=new_view.server_view.core.nick)
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id

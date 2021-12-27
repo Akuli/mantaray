@@ -344,8 +344,6 @@ class ServerView(View):
                     self.core.autojoin.remove(event.channel)
 
             elif isinstance(event, backend.SelfChangedNick):
-                if self.irc_widget.get_current_view().server_view == self:
-                    self.irc_widget.nickbutton.config(text=event.new)
                 for view in self.get_subviews(include_server=True):
                     view.on_self_changed_nick(event.old, event.new)
 
