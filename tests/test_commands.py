@@ -19,17 +19,13 @@ def root_window():
     root.destroy()
 
 
-@pytest.fixture
-def wait_until(root_window):
-    def actually_wait_until(condition, *, timeout=5):
-        end = time.monotonic() + timeout
-        while time.monotonic() < end:
-            root_window.update()
-            if condition():
-                return
-        raise RuntimeError("timed out waiting")
-
-    return actually_wait_until
+def wait_until(condition, *, timeout=5):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        root_window.update()
+        if condition():
+            return
+    raise RuntimeError("timed out waiting")
 
 
 class _Hircd:
@@ -85,7 +81,7 @@ def hircd():
 
 
 @pytest.fixture
-def alice(hircd, root_window, wait_until):
+def alice(hircd, root_window):
     alice = gui.IrcWidget(
         root_window,
         config.load_from_file(Path("alice")),
@@ -105,7 +101,7 @@ def alice(hircd, root_window, wait_until):
     shutil.rmtree(alice.log_dir)
 
 
-def test_part_last_channel(alice, wait_until):
+def test_part_last_channel(alice):
     alice.entry.insert("end", "/part #autojoin")
     alice.on_enter_pressed()
     wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
