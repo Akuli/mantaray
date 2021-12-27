@@ -245,13 +245,6 @@ class ServerView(View):
                 return view
         return None
 
-    def find_pm(self, nick: str) -> PMView | None:
-        for view in self.get_subviews():
-            # TODO: case insensitive
-            if isinstance(view, PMView) and view.nick_of_other_user == nick:
-                return view
-        return None
-
     def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
         # this is here so that this will be called again, even if
@@ -411,29 +404,3 @@ class ChannelView(View):
             (nick, [nick_tag]),
             (f" changed the topic of {self.channel_name}: {topic}", []),
         )
-
-
-# PM = private messages, also known as DM = direct messages
-class PMView(View):
-    def __init__(self, server_view: ServerView, nick: str):
-        super().__init__(
-            server_view.irc_widget, nick, parent_view_id=server_view.view_id
-        )
-        self.open_log_file()
-
-    # Same as view_name, but only PM views have this attribute
-    @property
-    def nick_of_other_user(self) -> str:
-        return self.view_name
-
-    # quit isn't perfect: no way to notice a person quitting if not on a same
-    # channel with the user
-    def get_relevant_nicks(self) -> list[str]:
-        return [self.nick_of_other_user]
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-        self.view_name = new
-
-        self.close_log_file()
-        self.open_log_file()

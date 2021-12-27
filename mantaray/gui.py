@@ -1,14 +1,11 @@
-# strongly inspired by xchat :)
-# hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
-import sys
 import tkinter
 from tkinter import ttk
 from tkinter.font import Font
 from pathlib import Path
 
 from mantaray import config, colors
-from mantaray.views import View, ServerView, ChannelView, PMView
+from mantaray.views import View, ServerView
 
 
 class IrcWidget(ttk.PanedWindow):
