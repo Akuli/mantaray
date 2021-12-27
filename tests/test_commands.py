@@ -92,3 +92,6 @@ def test_part_last_channel():
             hircd.stop()
     finally:
         root_window.destroy()
+
+
+test_part_last_channel()
