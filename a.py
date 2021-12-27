@@ -6,24 +6,24 @@ from tkinter import ttk
 
 
 root_window = tkinter.Tk()
-alice = ttk.PanedWindow(root_window, orient="horizontal")
+alice = ttk.PanedWindow(root_window)
 
-view_selector = ttk.Treeview(alice, show="tree", selectmode="browse")
-alice.add(view_selector, weight=0)
-_contextmenu = tkinter.Menu(tearoff=False)
+view_selector = ttk.Treeview(alice)
+alice.add(view_selector)
+_contextmenu = tkinter.Menu()
 
 middle_pane = ttk.Frame(alice)
-alice.add(middle_pane, weight=1)
+alice.add(middle_pane)
 
 entry = tkinter.Entry(middle_pane)
-entry.pack(side="bottom", fill="x")
+entry.pack()
 
-view_id = view_selector.insert("", "end", text="localhost")
+view_id = view_selector.insert("", "end")
 
 view_selector.item(view_id, open=True)
 view_selector.selection_set(view_id)
 
-alice.pack(fill="both", expand=True)
+alice.pack()
 
 tkinter.Text(alice).pack(in_=middle_pane)
 
