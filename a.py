@@ -9,6 +9,7 @@ root_window = tkinter.Tk()
 alice = ttk.PanedWindow(root_window)
 
 view_selector = ttk.Treeview(alice)
+view_selector.insert("", "end")
 alice.add(view_selector)
 
 middle_pane = ttk.Frame(alice)
@@ -16,8 +17,6 @@ alice.add(middle_pane)
 
 entry = tkinter.Entry(middle_pane)
 entry.pack()
-
-view_id = view_selector.insert("", "end")
 
 alice.pack()
 
