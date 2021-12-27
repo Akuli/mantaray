@@ -9,6 +9,7 @@ jobs:
     runs-on: macos-latest
     env:
       PYTHON: /usr/local/opt/python@3.9/libexec/bin/python
+      PYTHONUNBUFFERED: 1
     timeout-minutes: 5
     steps:
     - uses: actions/checkout@v2
