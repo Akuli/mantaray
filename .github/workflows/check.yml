@@ -15,4 +15,7 @@ jobs:
     - uses: actions/checkout@v2
     - run: brew install python-tk@3.9
     - run: |
+        $PYTHON -c 'import tkinter; print(tkinter.TclVersion)'
+        $PYTHON -c 'import tkinter; print(tkinter.TkVersion)'
+        $PYTHON -c 'import tkinter; tkinter.Tk().tk.eval("puts [info patchlevel]")'
         $PYTHON -c 'import tkinter; tkinter.Tk().tk.eval("source a.tcl")'
