@@ -22,7 +22,7 @@ alice.pack()
 
 tkinter.Text(alice).pack(in_=middle_pane)
 
-end = time.monotonic() + 5
+end = time.monotonic() + 1
 while time.monotonic() < end:
     root_window.update()
 
