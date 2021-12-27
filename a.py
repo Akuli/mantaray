@@ -41,27 +41,6 @@ def find_nicks(
     yield (text[previous_end:], None)
 
 
-@dataclasses.dataclass
-class ServerMessage:
-    sender: str | None
-    command: str
-    args: list[str]
-@dataclasses.dataclass
-class UnknownMessage:
-    sender: str | None
-    command: str
-    args: list[str]
-@dataclasses.dataclass
-class ConnectivityMessage:
-    message: str
-    is_error: bool
-
-_IrcEvent = Union[
-    ServerMessage,
-    UnknownMessage,
-    ConnectivityMessage,
-]
-
 RECONNECT_SECONDS = 10
 
 
@@ -83,10 +62,10 @@ class IrcCore:
 
     def __init__(self):
         self._sock = None
-        self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
+        self._send_queue = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
 
-        self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
+        self.event_queue = queue.Queue()
         self._threads: list[threading.Thread] = []
         self._joining_in_progress: dict[str, _JoinInProgress] = {}
         self._quit_event = threading.Event()
@@ -99,44 +78,13 @@ class IrcCore:
             thread.start()
 
     def _connect_and_recv_loop(self) -> None:
-        self.event_queue.put(ConnectivityMessage("Blah...", is_error=False))
+        self.event_queue.put("Blah...")
         self._connect()
 
     def _put_to_send_queue(
-        self, message: str, *, done_event: _IrcEvent | None = None
+        self, message: str, *, done_event=None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
-
-    def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
-        if msg.command == "JOIN":
-            assert msg.sender is not None
-            [channel] = msg.args
-            return
-
-        if msg.sender_is_server:
-            if msg.command == _RPL_NAMREPLY:
-                channel, names = msg.args[-2:]
-                self._joining_in_progress[channel.lower()].nicks.extend(
-                    name.lstrip("@+") for name in names.split()
-                )
-                return
-
-            elif msg.command == _RPL_ENDOFMOTD:
-                self.join_channel("#autojoin")
-
-            elif msg.command == "TOPIC":
-                channel, topic = msg.args
-                self._joining_in_progress[channel.lower()].topic = topic
-
-            self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
-            return
-
-        if msg.command == "TOPIC":
-            channel, topic = msg.args
-            assert msg.sender is not None
-            return
-
-        self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
 
     @staticmethod
     def _parse_received_message(line: str) -> _ReceivedAndParsedMessage:
@@ -375,8 +323,7 @@ class ServerView(View):
         return result
 
     def handle_events(self) -> None:
-        """Call this once to start processing events from the core."""
-        next_call_id = self.irc_widget.after(100, self.handle_events)
+        self.irc_widget.after(100, self.handle_events)
 
         while True:
             try:
@@ -384,17 +331,8 @@ class ServerView(View):
             except queue.Empty:
                 break
 
-            if isinstance(event, (ServerMessage, UnknownMessage)):
-                self.server_view.add_message(
-                    event.sender or "???", (" ".join([event.command] + event.args), [])
-                )
-
-            elif isinstance(event, ConnectivityMessage):
-                for view in self.get_subviews(include_server=True):
-                    view.on_connectivity_message(event.message, error=event.is_error)
-
-            else:
-                print("can't happen")
+            for view in self.get_subviews(include_server=True):
+                view.on_connectivity_message(event)
 
 
 class IrcWidget(ttk.PanedWindow):
