@@ -24,18 +24,6 @@ class IrcWidget(ttk.PanedWindow):
         if not self.font.metrics("fixed"):
             self.font.config(family=config.get_default_fixed_font()[0])
 
-        images_dir = Path(__file__).absolute().parent / "images"
-        self.channel_image = tkinter.PhotoImage(
-            file=(images_dir / "hashtagbubble-20x20.png")
-        )
-        self.pm_image = tkinter.PhotoImage(file=(images_dir / "face-20x20.png"))
-
-        # Help Python's GC (tkinter images rely on __del__ and it sucks)
-        self.bind(
-            "<Destroy>", (lambda e: setattr(self, "channel_image", None)), add=True
-        )
-        self.bind("<Destroy>", (lambda e: setattr(self, "pm_image", None)), add=True)
-
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")

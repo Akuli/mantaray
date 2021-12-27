@@ -466,9 +466,6 @@ class ChannelView(View):
         super().__init__(
             server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
         )
-        self.irc_widget.view_selector.item(
-            self.view_id, image=server_view.irc_widget.channel_image
-        )
         self.open_log_file()
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
@@ -565,9 +562,6 @@ class PMView(View):
     def __init__(self, server_view: ServerView, nick: str):
         super().__init__(
             server_view.irc_widget, nick, parent_view_id=server_view.view_id
-        )
-        self.irc_widget.view_selector.item(
-            self.view_id, image=server_view.irc_widget.pm_image
         )
         self.open_log_file()
 

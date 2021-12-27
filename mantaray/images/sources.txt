@@ -1,3 +1,0 @@
-The images come from these places:
-- face.png:          cropped from this: https://en.wikipedia.org/wiki/File:Boss-icon.png
-- hashtagbubble.png: believe it or not, I drew it :D
