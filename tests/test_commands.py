@@ -85,9 +85,7 @@ def hircd():
 
 
 @pytest.fixture
-def alice(hircd, root_window, wait_until, mocker):
-    mocker.patch("mantaray.views._show_popup")
-
+def alice(hircd, root_window, wait_until):
     alice = gui.IrcWidget(
         root_window,
         config.load_from_file(Path("alice")),

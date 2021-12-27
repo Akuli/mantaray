@@ -14,5 +14,5 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: brew install python-tk@3.9
-    - run: $PYTHON -m pip install pytest==6.2.5 pytest-mock==3.6.1
+    - run: $PYTHON -m pip install pytest==6.2.5
     - run: $PYTHON -m pytest -vvv --capture=no

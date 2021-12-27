@@ -40,24 +40,6 @@ class _UserList:
             self.treeview.insert("", "end", nick, text=nick)
 
 
-def _show_popup(title: str, text: str) -> None:
-    try:
-        if sys.platform == "win32":
-            print("Sorry, no popups on windows yet :(")  # FIXME
-        elif sys.platform == "darwin":
-            # https://stackoverflow.com/a/41318195
-            command = (
-                "on run argv\n"
-                "  display notification (item 2 of argv) with title (item 1 of argv)\n"
-                "end run\n"
-            )
-            subprocess.call(["osascript", "-e", command, title, text])
-        else:
-            subprocess.call(["notify-send", f"[{title}] {text}"])
-    except OSError:
-        traceback.print_exc()
-
-
 def _parse_privmsg(
     sender: str,
     message: str,
@@ -139,7 +121,6 @@ class View:
         self.notification_count += 1
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
-        _show_popup(self.view_name, popup_text)
 
     def mark_seen(self) -> None:
         self.notification_count = 0
