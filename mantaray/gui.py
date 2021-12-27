@@ -67,7 +67,6 @@ class IrcWidget(ttk.PanedWindow):
             insertbackground=colors.FOREGROUND,
         )
         self.entry.pack(side="left", fill="both", expand=True)
-        self.entry.bind("<Tab>", self._tab_event_handler)
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
 
@@ -156,55 +155,10 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.index(view_id) + 1,
         )
 
-    def _tab_event_handler(self, junk_event: object) -> str:
-        self.autocomplete()
-        return "break"
-
-    # TODO: shift+tab = backwards ?
-    def autocomplete(self) -> None:
-        view = self.get_current_view()
-        if not isinstance(view, ChannelView):
-            return
-
-        cursor_pos = self.entry.index("insert")
-        match = re.fullmatch(r"(.*\s)?([^\s:]+):? ?", self.entry.get()[:cursor_pos])
-        if match is None:
-            return
-        preceding_text, last_word = match.groups()  # preceding_text can be None
-
-        nicks = view.userlist.get_nicks()
-        if last_word in nicks:
-            completion = nicks[(nicks.index(last_word) + 1) % len(nicks)]
-        else:
-            try:
-                completion = next(
-                    username
-                    for username in nicks
-                    if username.lower().startswith(last_word.lower())
-                )
-            except StopIteration:
-                return
-
-        if preceding_text:
-            new_text = preceding_text + completion + " "
-        else:
-            new_text = completion + ": "
-        self.entry.delete(0, cursor_pos)
-        self.entry.insert(0, new_text)
-        self.entry.icursor(len(new_text))
-
     def _current_view_changed(self, event: object) -> None:
         new_view = self.get_current_view()
         if self._previous_view == new_view:
             return
-
-        if (
-            isinstance(self._previous_view, ChannelView)
-            and self._previous_view.userlist.treeview.winfo_exists()
-        ):
-            self.remove(self._previous_view.userlist.treeview)
-        if isinstance(new_view, ChannelView):
-            self.add(new_view.userlist.treeview, weight=0)
 
         if (
             self._previous_view is not None
