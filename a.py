@@ -1,27 +1,11 @@
 from __future__ import annotations
 
-import collections
 import itertools
 import queue
-import socket
-import ssl
-import threading
 import time
 import tkinter
-import traceback
 from tkinter import ttk
 from tkinter.font import Font
-
-
-class IrcCore:
-
-    def __init__(self):
-        self.event_queue = queue.Queue()
-        self._threads: list[threading.Thread] = []
-        self._quit_event = threading.Event()
-
-    def start_threads(self) -> None:
-        self.event_queue.put("Blah...")
 
 
 class ServerView:
@@ -49,11 +33,11 @@ class ServerView:
         self.textwidget.tag_configure("self-nick", foreground="red", underline=True)
         self.textwidget.tag_configure("other-nick", foreground="red", underline=True)
 
-        self.core = IrcCore()
+        self.event_queue = queue.Queue()
         self.extra_notifications = set()
         self._join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
 
-        self.core.start_threads()
+        self.event_queue.put("Blah...")
         self.handle_events()
 
     def mark_seen(self) -> None:
@@ -115,7 +99,7 @@ class ServerView:
 
         while True:
             try:
-                event = self.core.event_queue.get(block=False)
+                event = self.event_queue.get(block=False)
             except queue.Empty:
                 break
 
