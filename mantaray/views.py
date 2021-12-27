@@ -221,13 +221,14 @@ class View:
             self.textwidget.insert("end", "\t")
             self.textwidget.insert("end", sender, sender_tags)
             self.textwidget.insert("end", "\t")
+
             if chunks:
                 insert_args: list[Any] = []
                 for text, tags in chunks:
-                    print(text, tags)
                     insert_args.append(text)
                     insert_args.append(tags + ["text"])
-                self.textwidget.insert("end", *insert_args)  # type: ignore
+                self.textwidget.insert("end", *insert_args)
+
             self.textwidget.insert("end", "\n")
             if pinged:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
