@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import itertools
 import queue
 import time
 import tkinter
@@ -24,8 +23,6 @@ def _current_view_changed(event: object) -> None:
     ServerView_textwidget.pack(
         in_=middle_pane, side="top", fill="both", expand=True
     )
-    global ServerView_notification_count
-    ServerView_notification_count = 0
     alice.event_generate("<<NotificationCountChanged>>")
 
     old_tags = set(view_selector.item(ServerView_view_id, "tags"))
@@ -51,16 +48,13 @@ entry = tkinter.Entry(middle_pane)
 entry.pack(side="bottom", fill="x")
 
 ServerView_view_id = view_selector.insert("", "end", text="localhost")
-ServerView_notification_count = 0
 
 ServerView_textwidget = tkinter.Text(
     alice,
     width=1,
     height=1,
-    state="disabled",
     takefocus=True,
 )
-ServerView_textwidget.bind("<Button-1>", (lambda e: ServerView_textwidget.focus()))
 
 ServerView_textwidget.tag_configure("underline", underline=True)
 ServerView_textwidget.tag_configure("pinged", foreground="black")
@@ -80,16 +74,11 @@ alice.after(100, print)
 
 message = ServerView_event_queue.get(block=False)
 assert not view_selector.get_children(ServerView_view_id)
-do_the_scroll = ServerView_textwidget.yview()[1] == 1.0
 
-ServerView_textwidget.config(state="normal")
 ServerView_textwidget.insert("end", "[12:34]    | ")
 ServerView_textwidget.insert("end", message, ["info"])
 ServerView_textwidget.insert("end", "\n")
-ServerView_textwidget.config(state="disabled")
 
-if do_the_scroll:
-    ServerView_textwidget.see("end")
 view_selector.item(ServerView_view_id, open=True)
 view_selector.selection_set(ServerView_view_id)
 
