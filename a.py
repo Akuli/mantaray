@@ -58,7 +58,7 @@ def _current_view_changed(event: object) -> None:
     ):
         ServerView_textwidget.pack_forget()
     ServerView_textwidget.pack(
-        in_=_middle_pane, side="top", fill="both", expand=True
+        in_=middle_pane, side="top", fill="both", expand=True
     )
     global ServerView_notification_count
     ServerView_notification_count = 0
@@ -80,16 +80,11 @@ _contextmenu = tkinter.Menu(tearoff=False)
 _previous_view_id = None
 view_selector.bind("<<TreeviewSelect>>", _current_view_changed)
 
-_middle_pane = ttk.Frame(alice)
-alice.add(_middle_pane, weight=1)
+middle_pane = ttk.Frame(alice)
+alice.add(middle_pane, weight=1)
 
-entryframe = ttk.Frame(_middle_pane)
-entryframe.pack(side="bottom", fill="x")
-
-entry = tkinter.Entry(
-    entryframe,
-)
-entry.pack(side="left", fill="both", expand=True)
+entry = tkinter.Entry(middle_pane)
+entry.pack(side="bottom", fill="x")
 
 ServerView_view_id = view_selector.insert("", "end", text="localhost")
 ServerView_notification_count = 0
