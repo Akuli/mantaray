@@ -1,34 +1,22 @@
 from __future__ import annotations
-import re
-import queue
-import traceback
-import time
-import itertools
-import sys
-import tkinter
-from tkinter import ttk
-from typing import Sequence, TYPE_CHECKING, IO
-import tkinter
-from tkinter import ttk
-from tkinter.font import Font
-from pathlib import Path
 
-
-import socket
 import collections
 import dataclasses
+import itertools
 import queue
-import ssl
 import re
+import socket
+import ssl
+import sys
+import tempfile
 import threading
-import traceback
-from typing import Union, Sequence, Iterator
 import time
 import tkinter
-import tempfile
+import traceback
 from pathlib import Path
-
-
+from tkinter import ttk
+from tkinter.font import Font
+from typing import IO, Iterator, Sequence, Union
 
 # from rfc1459
 _RPL_ENDOFMOTD = "376"
@@ -312,7 +300,6 @@ class IrcCore:
         self._put_to_send_queue(f"JOIN {channel}")
 
 
-
 class View:
     def __init__(self, irc_widget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -331,13 +318,13 @@ class View:
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
 
         self.textwidget.tag_configure("underline", underline=True)
-        self.textwidget.tag_configure("pinged", foreground='black')
-        self.textwidget.tag_configure("error", foreground='black')
-        self.textwidget.tag_configure("info", foreground='red')
-        self.textwidget.tag_configure("history-selection", background='red')
-        self.textwidget.tag_configure("channel", foreground='red')
-        self.textwidget.tag_configure("self-nick", foreground='red', underline=True)
-        self.textwidget.tag_configure("other-nick", foreground='red', underline=True)
+        self.textwidget.tag_configure("pinged", foreground="black")
+        self.textwidget.tag_configure("error", foreground="black")
+        self.textwidget.tag_configure("info", foreground="red")
+        self.textwidget.tag_configure("history-selection", background="red")
+        self.textwidget.tag_configure("channel", foreground="red")
+        self.textwidget.tag_configure("self-nick", foreground="red", underline=True)
+        self.textwidget.tag_configure("other-nick", foreground="red", underline=True)
 
         self.log_file: IO[str] | None = None
 
@@ -508,7 +495,6 @@ class View:
 
 
 class ServerView(View):
-
     def __init__(self, irc_widget, server_config):
         super().__init__(irc_widget, server_config["host"])
         self.core = IrcCore(server_config)
@@ -620,7 +606,6 @@ class ServerView(View):
 
 
 class ChannelView(View):
-
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
             server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
@@ -779,7 +764,6 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
-
 
 
 root_window = tkinter.Tk()
