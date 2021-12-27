@@ -38,7 +38,7 @@ alice.add(view_selector, weight=0)
 _contextmenu = tkinter.Menu(tearoff=False)
 
 _previous_view_id = None
-view_selector.bind("<<TreeviewSelect>>", _current_view_changed)
+#view_selector.bind("<<TreeviewSelect>>", _current_view_changed)
 
 middle_pane = ttk.Frame(alice)
 alice.add(middle_pane, weight=1)
@@ -60,6 +60,7 @@ view_selector.selection_set(ServerView_view_id)
 
 alice.pack(fill="both", expand=True)
 
+_current_view_changed(None)
 end = time.monotonic() + 5
 while time.monotonic() < end:
     root_window.update()
