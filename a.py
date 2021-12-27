@@ -21,12 +21,6 @@ class IrcCore:
         self._quit_event = threading.Event()
 
     def start_threads(self) -> None:
-        assert not self._threads
-        self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
-        for thread in self._threads:
-            thread.start()
-
-    def _connect_and_recv_loop(self) -> None:
         self.event_queue.put("Blah...")
 
 
