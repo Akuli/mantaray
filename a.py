@@ -1,24 +1,10 @@
 import time
-import sys
-import subprocess
 import tkinter
 import tempfile
 from pathlib import Path
 
 from mantaray import gui, config
 
-
-subprocess.check_call(["git", "clone", "https://github.com/fboender/hircd"])
-
-process = subprocess.Popen(
-    [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
-    stderr=subprocess.PIPE,
-    cwd="hircd",
-)
-for line in process.stderr:
-    assert b"ERROR" not in line
-    if line.startswith(b"[INFO] Starting hircd on "):
-        break
 
 root_window = tkinter.Tk()
 alice = gui.IrcWidget(
