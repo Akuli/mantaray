@@ -31,7 +31,6 @@ alice.pack(fill="both", expand=True)
 end = time.monotonic() + 5
 while time.monotonic() < end:
     root_window.update()
-    alice.text()
 
 print(50*"W", flush=True)
 root_window.destroy()
