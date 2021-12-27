@@ -58,10 +58,6 @@ ServerView_textwidget = tkinter.Text(
 alice.after(100, print)
 assert not view_selector.get_children(ServerView_view_id)
 
-ServerView_textwidget.insert("end", "[12:34]    | ")
-ServerView_textwidget.insert("end", "Blah...", ["info"])
-ServerView_textwidget.insert("end", "\n")
-
 view_selector.item(ServerView_view_id, open=True)
 view_selector.selection_set(ServerView_view_id)
 
