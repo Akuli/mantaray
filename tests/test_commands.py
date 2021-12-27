@@ -1,7 +1,6 @@
 import time
 import sys
 import subprocess
-import shutil
 import tkinter
 import tempfile
 from pathlib import Path
@@ -14,9 +13,7 @@ import pytest
 
 @pytest.fixture(scope="session")
 def root_window():
-    root = tkinter.Tk()
-    yield root
-    root.destroy()
+    return tkinter.Tk()
 
 
 @pytest.fixture
@@ -80,8 +77,7 @@ def hircd():
 
     hircd = _Hircd(hircd_repo)
     hircd.start()
-    yield hircd
-    hircd.stop()
+    return hircd
 
 
 @pytest.fixture
@@ -94,15 +90,7 @@ def alice(hircd, root_window, wait_until):
     alice.pack(fill="both", expand=True)
     wait_until(lambda: "The topic of #autojoin is" in alice.text())
 
-    yield alice
-
-    if alice.winfo_exists():
-        for server_view in alice.get_server_views():
-            server_view.core.quit()
-            server_view.core.wait_for_threads_to_stop()
-    # On windows, we need to wait until log files are closed before removing them
-    wait_until(lambda: not alice.winfo_exists())
-    shutil.rmtree(alice.log_dir)
+    return alice
 
 
 def test_part_last_channel(alice, wait_until):
