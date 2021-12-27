@@ -141,6 +141,7 @@ class IrcWidget(ttk.PanedWindow):
         self._contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view = None
+        self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)
@@ -155,7 +156,30 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.pack(side="left", fill="both", expand=True)
 
         self.views_by_id = {}
-        view = ServerView(self)
+        self.add_view(ServerView(self))
+
+    def get_current_view(self):
+        [view_id] = self.view_selector.selection()
+        return self.views_by_id[view_id]
+
+    def _current_view_changed(self, event: object) -> None:
+        new_view = self.get_current_view()
+        if self._previous_view == new_view:
+            return
+
+        if (
+            self._previous_view is not None
+            and self._previous_view.textwidget.winfo_exists()
+        ):
+            self._previous_view.textwidget.pack_forget()
+        new_view.textwidget.pack(
+            in_=self._middle_pane, side="top", fill="both", expand=True
+        )
+        new_view.mark_seen()
+
+        self._previous_view = new_view
+
+    def add_view(self, view) -> None:
         assert view.view_id not in self.views_by_id
         self.view_selector.item(view.view_id, open=True)
         self.views_by_id[view.view_id] = view
