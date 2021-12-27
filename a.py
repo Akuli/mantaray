@@ -26,7 +26,6 @@ view_selector.selection_set(view_id)
 alice.pack(fill="both", expand=True)
 
 tkinter.Text(alice).pack(in_=middle_pane)
-alice.event_generate("<<NotificationCountChanged>>")
 
 end = time.monotonic() + 5
 while time.monotonic() < end:
