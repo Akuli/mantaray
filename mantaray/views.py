@@ -16,41 +16,6 @@ if TYPE_CHECKING:
     from typing_extensions import Literal
 
 
-def _parse_privmsg(
-    sender: str,
-    message: str,
-    self_nick: str,
-    all_nicks: Sequence[str],
-    *,
-    pinged: bool = False,
-) -> tuple[str, list[tuple[str, list[str]]]]:
-    sent = sender.lower() == self_nick.lower()
-    chunks = []
-
-    # /me asdf --> "\x01ACTION asdf\x01"
-    if message.startswith("\x01ACTION ") and message.endswith("\x01"):
-        if sent:
-            chunks.append((sender, ["self-nick"]))
-        else:
-            chunks.append((sender, ["other-nick"]))
-        message = message[7:-1]  # keep the space
-        sender = "*"
-
-    for substring, base_tags in colors.parse_text(message):
-        for subsubstring, nick_tag in backend.find_nicks(
-            substring, self_nick, all_nicks
-        ):
-            tags = base_tags.copy()
-            if nick_tag is not None:
-                tags.append(nick_tag)
-            tags.append("sent-privmsg" if sent else "received-privmsg")
-            chunks.append((subsubstring, tags))
-
-    if pinged:
-        chunks = [(text, tags + ["pinged"]) for text, tags in chunks]
-    return (sender, chunks)
-
-
 class View:
     def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -374,12 +339,6 @@ class ChannelView(View):
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
 
-    def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        sender, chunks = _parse_privmsg(
-            sender, message, self.server_view.core.nick, ["Alice"]
-        )
-        self.add_message(sender, *chunks, pinged=pinged)
-
     def on_join(self, nick: str) -> None:
         self.add_message(
             "*",
@@ -466,15 +425,6 @@ class PMView(View):
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
-
-    def on_privmsg(self, sender: str, message: str) -> None:
-        sender, chunks = _parse_privmsg(
-            sender,
-            message,
-            self.server_view.core.nick,
-            [self.server_view.core.nick, self.nick_of_other_user],
-        )
-        self.add_message(sender, *chunks)
 
     # quit isn't perfect: no way to notice a person quitting if not on a same
     # channel with the user
