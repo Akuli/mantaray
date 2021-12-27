@@ -57,8 +57,7 @@ class _Hircd:
             raise RuntimeError
 
 
-@pytest.fixture
-def hircd():
+def test_part_last_channel(hircd, root_window):
     clone_url = "https://github.com/fboender/hircd"
     hircd_repo = Path(__file__).absolute().parent / "hircd"
     if not hircd_repo.is_dir():
@@ -76,27 +75,25 @@ def hircd():
 
     hircd = _Hircd(hircd_repo)
     hircd.start()
-    yield hircd
-    hircd.stop()
-
-
-def test_part_last_channel(hircd, root_window):
-    alice = gui.IrcWidget(
-        root_window,
-        config.load_from_file(Path("alice")),
-        Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
-    )
-    alice.pack(fill="both", expand=True)
-    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
     try:
-        alice.entry.insert("end", "/part #autojoin")
-        alice.on_enter_pressed()
-        wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
+        alice = gui.IrcWidget(
+            root_window,
+            config.load_from_file(Path("alice")),
+            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+        )
+        alice.pack(fill="both", expand=True)
+        wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+        try:
+            alice.entry.insert("end", "/part #autojoin")
+            alice.on_enter_pressed()
+            wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
+        finally:
+            if alice.winfo_exists():
+                for server_view in alice.get_server_views():
+                    server_view.core.quit()
+                    server_view.core.wait_for_threads_to_stop()
+            # On windows, we need to wait until log files are closed before removing them
+            wait_until(root_window, lambda: not alice.winfo_exists())
+            shutil.rmtree(alice.log_dir)
     finally:
-        if alice.winfo_exists():
-            for server_view in alice.get_server_views():
-                server_view.core.quit()
-                server_view.core.wait_for_threads_to_stop()
-        # On windows, we need to wait until log files are closed before removing them
-        wait_until(root_window, lambda: not alice.winfo_exists())
-        shutil.rmtree(alice.log_dir)
+        hircd.stop()
