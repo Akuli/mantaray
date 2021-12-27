@@ -9,8 +9,6 @@ import threading
 import traceback
 from typing import Union, Sequence, Iterator
 
-from . import config
-
 
 # from rfc1459
 _RPL_ENDOFMOTD = "376"
@@ -102,7 +100,7 @@ class _JoinInProgress:
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, server_config: config.ServerConfig):
+    def __init__(self, server_config):
         self._apply_config(server_config)
         self._sock = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
@@ -119,7 +117,7 @@ class IrcCore:
 
         self._quit_event = threading.Event()
 
-    def _apply_config(self, server_config: config.ServerConfig) -> None:
+    def _apply_config(self, server_config) -> None:
         self.host = server_config["host"]
         self.port = server_config["port"]
         self.ssl = server_config["ssl"]

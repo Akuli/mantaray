@@ -205,7 +205,7 @@ class View:
 class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
 
-    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
+    def __init__(self, irc_widget: IrcWidget, server_config):
         super().__init__(irc_widget, server_config["host"])
         self.core = backend.IrcCore(server_config)
         self.extra_notifications = set(server_config["extra_notifications"])
@@ -292,7 +292,7 @@ class ServerView(View):
                 # forgot to check for some class
                 print("can't happen")  # type: ignore
 
-    def get_current_config(self) -> config.ServerConfig:
+    def get_current_config(self):
         channels = [
             view.channel_name
             for view in self.get_subviews()

@@ -9,15 +9,13 @@ from mantaray.views import View, ServerView
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
+    def __init__(self, master: tkinter.Misc, file_config, log_dir: Path):
         super().__init__(master, orient="horizontal")
         self.log_dir = log_dir
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]
         )
-        if not self.font.metrics("fixed"):
-            self.font.config(family=config.get_default_fixed_font()[0])
 
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
