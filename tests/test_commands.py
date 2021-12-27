@@ -19,7 +19,7 @@ def root_window():
     root.destroy()
 
 
-def wait_until(condition, *, timeout=5):
+def wait_until(root_window, condition, *, timeout=5):
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         root_window.update()
@@ -88,7 +88,7 @@ def alice(hircd, root_window):
         Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
     )
     alice.pack(fill="both", expand=True)
-    wait_until(lambda: "The topic of #autojoin is" in alice.text())
+    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
 
     yield alice
 
@@ -97,11 +97,11 @@ def alice(hircd, root_window):
             server_view.core.quit()
             server_view.core.wait_for_threads_to_stop()
     # On windows, we need to wait until log files are closed before removing them
-    wait_until(lambda: not alice.winfo_exists())
+    wait_until(root_window, lambda: not alice.winfo_exists())
     shutil.rmtree(alice.log_dir)
 
 
-def test_part_last_channel(alice):
+def test_part_last_channel(root_window, alice):
     alice.entry.insert("end", "/part #autojoin")
     alice.on_enter_pressed()
-    wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
+    wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
