@@ -55,8 +55,6 @@ ServerView_textwidget = tkinter.Text(
     takefocus=True,
 )
 
-assert not view_selector.get_children(ServerView_view_id)
-
 view_selector.item(ServerView_view_id, open=True)
 view_selector.selection_set(ServerView_view_id)
 
