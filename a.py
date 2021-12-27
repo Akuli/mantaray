@@ -4,17 +4,9 @@ import subprocess
 import tkinter
 import tempfile
 from pathlib import Path
+import traceback
 
 from mantaray import gui, config
-
-
-def wait_until(root_window, condition, *, timeout=5):
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        root_window.update()
-        if condition():
-            return
-    raise RuntimeError("timed out waiting")
 
 
 print(50*"A", flush=True)
@@ -43,8 +35,17 @@ try:
     print(50*"E", flush=True)
     alice.pack(fill="both", expand=True)
     print(50*"F", flush=True)
-    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+
+    end = time.monotonic() + 5
+    while time.monotonic() < end:
+        root_window.update()
+        if "The topic of #autojoin is" in alice.text():
+            break
+    else:
+        raise RuntimeError("timed out waiting")
+
 finally:
+    traceback.print_exc()
     print(50*"W", flush=True)
     root_window.destroy()
     print(50*"X", flush=True)
