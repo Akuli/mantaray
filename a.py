@@ -83,6 +83,14 @@ view_selector.bind("<<TreeviewSelect>>", _current_view_changed)
 _middle_pane = ttk.Frame(alice)
 alice.add(_middle_pane, weight=1)
 
+entryframe = ttk.Frame(_middle_pane)
+entryframe.pack(side="bottom", fill="x")
+
+entry = tkinter.Entry(
+    entryframe,
+)
+entry.pack(side="left", fill="both", expand=True)
+
 ServerView_view_id = view_selector.insert("", "end", text="localhost")
 ServerView_notification_count = 0
 
