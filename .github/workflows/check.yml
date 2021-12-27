@@ -5,70 +5,6 @@ on:
   pull_request:
 
 jobs:
-  license-year:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - run: |
-        grep $(date +%Y) LICENSE
-  pyflakes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.10"
-    - run: pip install -r requirements-dev.txt
-    - run: pyflakes mantaray tests
-  black:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.10"
-    - run: pip install -r requirements-dev.txt
-    - run: python3 -m black --check mantaray tests
-  mypy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
-    - run: pip install -r requirements-dev.txt
-    - run: mypy mantaray
-  # TODO: run tests on macos once it has recent enough version of Tk
-  pytest-linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.10"
-    - run: pip install -r requirements.txt
-    - run: pip install -r requirements-dev.txt
-    - uses: GabrielBB/xvfb-action@v1.4
-      with:
-        run: python3 -m pytest
-  pytest-windows:
-    runs-on: windows-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.10"
-    # wheels speed up other things
-    - run: pip install wheel
-    - run: pip install -r requirements.txt
-    - run: pip install -r requirements-dev.txt
-    - run: python3 -m pytest
   pytest-macos:
     runs-on: macos-latest
     env:
@@ -80,4 +16,4 @@ jobs:
     - run: $PYTHON -m pip install wheel
     - run: $PYTHON -m pip install -r requirements.txt
     - run: $PYTHON -m pip install -r requirements-dev.txt
-    - run: $PYTHON -m pytest
+    - run: $PYTHON -m pytest -vvv
