@@ -44,6 +44,7 @@ try:
     alice.pack(fill="both", expand=True)
     print(50*"F", flush=True)
     while True:
+        alice.text()
         root_window.update()
 finally:
     print(50*"W", flush=True)
