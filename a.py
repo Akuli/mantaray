@@ -56,15 +56,6 @@ ServerView_textwidget = tkinter.Text(
     takefocus=True,
 )
 
-ServerView_textwidget.tag_configure("underline", underline=True)
-ServerView_textwidget.tag_configure("pinged", foreground="black")
-ServerView_textwidget.tag_configure("error", foreground="black")
-ServerView_textwidget.tag_configure("info", foreground="red")
-ServerView_textwidget.tag_configure("history-selection", background="red")
-ServerView_textwidget.tag_configure("channel", foreground="red")
-ServerView_textwidget.tag_configure("self-nick", foreground="red", underline=True)
-ServerView_textwidget.tag_configure("other-nick", foreground="red", underline=True)
-
 ServerView_event_queue = queue.Queue()
 ServerView_extra_notifications = set()
 ServerView__join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
