@@ -309,93 +309,6 @@ class ServerView(View):
                 if event.channel not in self.core.autojoin:
                     self.core.autojoin.append(event.channel)
 
-            elif isinstance(event, backend.SelfParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                self.irc_widget.remove_view(channel_view)
-                if event.channel in self.core.autojoin:
-                    self.core.autojoin.remove(event.channel)
-
-            elif isinstance(event, backend.SelfChangedNick):
-                for view in self.get_subviews(include_server=True):
-                    view.on_self_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SelfQuit):
-                self.irc_widget.after_cancel(next_call_id)
-                self.irc_widget.remove_server(self)
-                return
-
-            elif isinstance(event, backend.UserJoined):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_join(event.nick)
-
-            elif isinstance(event, backend.UserParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_part(event.nick, event.reason)
-
-            elif isinstance(event, backend.Kick):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_kick(
-                    event.channel, event.kicker, event.kicked_nick, event.reason
-                )
-
-            elif isinstance(event, backend.UserQuit):
-                for view in self.get_subviews(include_server=True):
-                    if event.nick in view.get_relevant_nicks():
-                        view.on_relevant_user_quit(event.nick, event.reason)
-
-            elif isinstance(event, backend.UserChangedNick):
-                for view in self.get_subviews(include_server=True):
-                    if event.old in view.get_relevant_nicks():
-                        view.on_relevant_user_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SentPrivmsg):
-                channel_view = self.find_channel(event.recipient)
-                if channel_view is None:
-                    assert not re.fullmatch(
-                        backend.CHANNEL_REGEX, event.recipient
-                    ), event.recipient
-                    pm_view = self.find_pm(event.recipient)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.recipient)
-                        self.irc_widget.add_view(pm_view)
-                    pm_view.on_privmsg(self.core.nick, event.text)
-                else:
-                    channel_view.on_privmsg(self.core.nick, event.text)
-
-            elif isinstance(event, backend.ReceivedPrivmsg):
-                # sender and recipient are channels or nicks
-                if event.recipient == self.core.nick:  # PM
-                    pm_view = self.find_pm(event.sender)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.sender)
-                        self.irc_widget.add_view(pm_view)
-                    pm_view.on_privmsg(event.sender, event.text)
-                    pm_view.add_tag("new_message")
-                    pm_view.add_notification(event.text)
-
-                else:
-                    channel_view = self.find_channel(event.recipient)
-                    assert channel_view is not None
-
-                    pinged = any(
-                        tag == "self-nick"
-                        for substring, tag in backend.find_nicks(
-                            event.text, self.core.nick, [self.core.nick]
-                        )
-                    )
-                    channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    channel_view.add_tag("pinged" if pinged else "new_message")
-                    if pinged or (
-                        channel_view.channel_name in self.extra_notifications
-                    ):
-                        channel_view.add_notification(f"<{event.sender}> {event.text}")
-
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
                     event.sender or "???", (" ".join([event.command] + event.args), [])
@@ -442,22 +355,6 @@ class ServerView(View):
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
         }
-
-    def show_config_dialog(self) -> None:
-        new_config = config.show_connection_settings_dialog(
-            transient_to=self.irc_widget.winfo_toplevel(),
-            initial_config=self.get_current_config(),
-        )
-        if new_config is not None:
-            self._join_leave_hiding_config = new_config["join_leave_hiding"]
-            self.core.apply_config_and_reconnect(new_config)
-            # TODO: autojoin setting would be better in right-click
-            for subview in self.get_subviews():
-                if (
-                    isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
-                ):
-                    self.irc_widget.remove_view(subview)
 
 
 class ChannelView(View):
@@ -534,7 +431,7 @@ class ChannelView(View):
             )
 
     def get_relevant_nicks(self) -> tuple[str, ...]:
-        return ["Alice"]
+        return ("Alice",)
 
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)

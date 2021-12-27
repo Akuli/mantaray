@@ -1,5 +1,3 @@
-# based on a thing that myst wrote for me
-# thanks myst :)   https://github.com/PurpleMyst/
 from __future__ import annotations
 import socket
 import collections
@@ -9,7 +7,6 @@ import ssl
 import re
 import threading
 import traceback
-from base64 import b64encode
 from typing import Union, Sequence, Iterator
 
 from . import config
@@ -62,53 +59,6 @@ class SelfJoined:
     topic: str
     nicklist: list[str]
 @dataclasses.dataclass
-class SelfChangedNick:
-    old: str
-    new: str
-@dataclasses.dataclass
-class SelfParted:
-    channel: str
-@dataclasses.dataclass
-class SelfQuit:
-    pass
-@dataclasses.dataclass
-class UserJoined:
-    nick: str
-    channel: str
-@dataclasses.dataclass
-class UserChangedNick:
-    old: str
-    new: str
-@dataclasses.dataclass
-class UserParted:
-    nick: str
-    channel: str
-    reason: str | None
-@dataclasses.dataclass
-class Kick:
-    kicker: str
-    channel: str
-    kicked_nick: str
-    reason: str | None
-@dataclasses.dataclass
-class UserQuit:
-    nick: str
-    reason: str | None
-@dataclasses.dataclass
-class SentPrivmsg:
-    recipient: str  # channel or nick (PM)
-    text: str
-@dataclasses.dataclass
-class ReceivedPrivmsg:
-    sender: str  # channel or nick (PM)
-    recipient: str  # channel or user's nick
-    text: str
-@dataclasses.dataclass
-class TopicChanged:
-    who_changed: str
-    channel: str
-    topic: str
-@dataclasses.dataclass
 class ServerMessage:
     sender: str | None  # I think this is a hostname. Not sure.
     # TODO: figure out meaning of command and args
@@ -123,29 +73,13 @@ class UnknownMessage:
 class ConnectivityMessage:
     message: str  # one line
     is_error: bool
-@dataclasses.dataclass
-class HostChanged:
-    old: str
-    new: str
 # fmt: on
 
 _IrcEvent = Union[
     SelfJoined,
-    SelfChangedNick,
-    SelfParted,
-    SelfQuit,
-    UserJoined,
-    Kick,
-    UserChangedNick,
-    UserParted,
-    UserQuit,
-    SentPrivmsg,
-    ReceivedPrivmsg,
-    TopicChanged,
     ServerMessage,
     UnknownMessage,
     ConnectivityMessage,
-    HostChanged,
 ]
 
 RECONNECT_SECONDS = 10
@@ -225,15 +159,8 @@ class IrcCore:
                 self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
 
-            try:
-                # If this succeeds, it stops when connection is closed
-                self._recv_loop()
-            except (OSError, ssl.SSLError) as e:
-                self.event_queue.put(
-                    ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
-                )
-                # get ready to connect again
-                self._disconnect()
+            # If this succeeds, it stops when connection is closed
+            self._recv_loop()
 
     def _put_to_send_queue(
         self, message: str, *, done_event: _IrcEvent | None = None
@@ -241,78 +168,13 @@ class IrcCore:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
     def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
-        if msg.command == "PRIVMSG":
-            assert msg.sender is not None
-            recipient, text = msg.args
-            self.event_queue.put(ReceivedPrivmsg(msg.sender, recipient, text))
-            return
-
         if msg.command == "JOIN":
             assert msg.sender is not None
             [channel] = msg.args
-            if msg.sender != self.nick:
-                self.event_queue.put(UserJoined(msg.sender, channel))
-            return
-
-        if msg.command == "PART":
-            assert msg.sender is not None
-            channel = msg.args[0]
-            reason = msg.args[1] if len(msg.args) >= 2 else None
-            if msg.sender == self.nick:
-                self.event_queue.put(SelfParted(channel))
-            else:
-                self.event_queue.put(UserParted(msg.sender, channel, reason))
-            return
-
-        if msg.command == "NICK":
-            assert msg.sender is not None
-            old = msg.sender
-            [new] = msg.args
-            if old == self.nick:
-                self.nick = new
-                self.event_queue.put(SelfChangedNick(old, new))
-            else:
-                self.event_queue.put(UserChangedNick(old, new))
-            return
-
-        if msg.command == "QUIT":
-            assert msg.sender is not None
-            reason = msg.args[0] if msg.args else None
-            self.event_queue.put(UserQuit(msg.sender, reason or None))
-            return
-
-        if msg.command == "KICK":
-            assert msg.sender is not None
-            kicker = msg.sender
-            channel, kicked_nick, reason = msg.args
-            self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
             return
 
         if msg.sender_is_server:
-            if msg.command == "CAP":
-                subcommand = msg.args[1]
-
-                if subcommand == "ACK":
-                    acknowledged = set(msg.args[-1].split())
-
-                    if "sasl" in acknowledged:
-                        self._put_to_send_queue("AUTHENTICATE PLAIN")
-                elif subcommand == "NAK":
-                    rejected = set(msg.args[-1].split())
-                    if "sasl" in rejected:
-                        # TODO: this good?
-                        raise ValueError("The server does not support SASL.")
-
-            elif msg.command == "AUTHENTICATE":
-                query = f"\0{self.username}\0{self.password}"
-                b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
-                for i in range(0, len(b64_query), 400):
-                    self._put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
-
-            elif msg.command == _RPL_LOGGEDIN:
-                self._put_to_send_queue("CAP END")
-
-            elif msg.command == _RPL_NAMREPLY:
+            if msg.command == _RPL_NAMREPLY:
                 # TODO: wtf are the first 2 args?
                 # rfc1459 doesn't mention them, but freenode
                 # gives 4-element msg.args lists
@@ -348,7 +210,6 @@ class IrcCore:
         if msg.command == "TOPIC":
             channel, topic = msg.args
             assert msg.sender is not None
-            self.event_queue.put(TopicChanged(msg.sender, channel, topic))
             return
 
         self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
@@ -430,9 +291,6 @@ class IrcCore:
 
             if done_event is not None:
                 self.event_queue.put(done_event)
-                if isinstance(done_event, SelfQuit):
-                    self._quit_event.set()
-                    self._disconnect()  # stop recv loop
 
     def _connect(self) -> None:
         assert self._sock is None
@@ -445,57 +303,6 @@ class IrcCore:
         self._put_to_send_queue(f"NICK {self.nick}")
         self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
 
-    def _disconnect(self) -> None:
-        # If at any time self._sock is set, it shouldn't be closed yet
-        sock = self._sock
-        self._sock = None
-        if sock is not None:
-            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
-            sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
-            sock.close()
-
-    def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
-        assert self.nick == server_config["nick"]
-        assert self.autojoin == server_config["joined_channels"]
-
-        old_host = self.host
-        self._apply_config(server_config)
-        self._disconnect()  # will cause the main loop to reconnect
-
-        if old_host != self.host:
-            self.event_queue.put(HostChanged(old_host, self.host))
-
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
         self._put_to_send_queue(f"JOIN {channel}")
-
-    def part_channel(self, channel: str, reason: str | None = None) -> None:
-        self.event_queue.put(SelfParted(channel))
-
-    def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self._put_to_send_queue(
-            f"PRIVMSG {nick_or_channel} :{text}",
-            done_event=SentPrivmsg(nick_or_channel, text),
-        )
-
-    def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
-        if reason is None:
-            self._put_to_send_queue(f"KICK {channel} {kicked_nick}")
-        else:
-            self._put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
-
-    # emits SelfChangedNick event on success
-
-    def change_nick(self, new_nick: str) -> None:
-        self._put_to_send_queue(f"NICK {new_nick}")
-
-    def change_topic(self, channel: str, new_topic: str) -> None:
-        self._put_to_send_queue(f"TOPIC {channel} {new_topic}")
-
-    def quit(self) -> None:
-        if self._sock is None:
-            self._quit_event.set()
-            self.event_queue.put(SelfQuit())
-        else:
-            # TODO: client can freeze, if it is connected but sending blocks forever
-            self._put_to_send_queue("QUIT", done_event=SelfQuit())

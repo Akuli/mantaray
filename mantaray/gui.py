@@ -1,12 +1,10 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
-import re
 import sys
 import tkinter
 from tkinter import ttk
 from tkinter.font import Font
-from typing import Any
 from pathlib import Path
 
 from mantaray import config, colors
@@ -203,11 +201,6 @@ class IrcWidget(ttk.PanedWindow):
             self._garbage_collection_is_lol = var
             self._contextmenu.add_checkbutton(
                 label="Show notifications for all messages", variable=var
-            )
-
-        elif isinstance(view, ServerView):
-            self._contextmenu.add_command(
-                label="Server settings...", command=view.show_config_dialog
             )
 
     def _view_selector_right_click(
