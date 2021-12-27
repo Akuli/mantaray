@@ -128,7 +128,7 @@ def main() -> None:
     update_the_title()
     irc_widget.bind("<<NotificationCountChanged>>", update_the_title)
 
-    root.geometry("800x500")
+    root.geometry("800x500")  # TODO: config file
     root.deiconify()  # unhide
     root.mainloop()
 
