@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import queue
 import time
 import tkinter
 from tkinter import ttk
@@ -56,18 +55,14 @@ ServerView_textwidget = tkinter.Text(
     takefocus=True,
 )
 
-ServerView_event_queue = queue.Queue()
 ServerView_extra_notifications = set()
 ServerView__join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
 
-ServerView_event_queue.put("Blah...")
 alice.after(100, print)
-
-message = ServerView_event_queue.get(block=False)
 assert not view_selector.get_children(ServerView_view_id)
 
 ServerView_textwidget.insert("end", "[12:34]    | ")
-ServerView_textwidget.insert("end", message, ["info"])
+ServerView_textwidget.insert("end", "Blah...", ["info"])
 ServerView_textwidget.insert("end", "\n")
 
 view_selector.item(ServerView_view_id, open=True)
