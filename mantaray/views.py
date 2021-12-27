@@ -106,7 +106,7 @@ class View:
             font=irc_widget.font,
             state="disabled",
             takefocus=True,
-            tabs=(150, "right", 160, "left"),
+            tabs=(150, "right", 160, "left"),  # TODO: a vertical line you can drag, like in hexchat
         )
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
