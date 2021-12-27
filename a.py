@@ -48,43 +48,39 @@ class _Hircd:
             raise RuntimeError
 
 
-def test_part_last_channel():
-    print(50*"A", flush=True)
-    root_window = tkinter.Tk()
-    print(50*"B", flush=True)
-    try:
-        print(50*"C", flush=True)
-        clone_url = "https://github.com/fboender/hircd"
-        hircd_repo = Path(__file__).absolute().parent / "hircd"
-        if not hircd_repo.is_dir():
-            subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
+print(50*"A", flush=True)
+root_window = tkinter.Tk()
+print(50*"B", flush=True)
+try:
+    print(50*"C", flush=True)
+    clone_url = "https://github.com/fboender/hircd"
+    hircd_repo = Path(__file__).absolute().parent / "hircd"
+    if not hircd_repo.is_dir():
+        subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
 
-        correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
-        actual_commit = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
-            .strip()
-            .decode("ascii")
-        )
-        if actual_commit != correct_commit:
-            subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
-            subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
+    correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
+    actual_commit = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
+        .strip()
+        .decode("ascii")
+    )
+    if actual_commit != correct_commit:
+        subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
+        subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
 
-        hircd = _Hircd(hircd_repo)
-        hircd.start()
-        print(50*"D", flush=True)
-        alice = gui.IrcWidget(
-            root_window,
-            config.load_from_file(Path("alice")),
-            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
-        )
-        print(50*"E", flush=True)
-        alice.pack(fill="both", expand=True)
-        print(50*"F", flush=True)
-        wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
-    finally:
-        print(50*"W", flush=True)
-        root_window.destroy()
-        print(50*"X", flush=True)
-
-
-test_part_last_channel()
+    hircd = _Hircd(hircd_repo)
+    hircd.start()
+    print(50*"D", flush=True)
+    alice = gui.IrcWidget(
+        root_window,
+        config.load_from_file(Path("alice")),
+        Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+    )
+    print(50*"E", flush=True)
+    alice.pack(fill="both", expand=True)
+    print(50*"F", flush=True)
+    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+finally:
+    print(50*"W", flush=True)
+    root_window.destroy()
+    print(50*"X", flush=True)
