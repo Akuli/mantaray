@@ -9,17 +9,27 @@ from pathlib import Path
 from mantaray import gui, config
 from mantaray.views import ServerView
 
+import pytest
 
-root_window = tkinter.Tk()
+
+@pytest.fixture(scope="session")
+def root_window():
+    root = tkinter.Tk()
+    yield root
+    root.destroy()
 
 
-def wait_until(condition, *, timeout=5):
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        root_window.update()
-        if condition():
-            return
-    raise RuntimeError("timed out waiting")
+@pytest.fixture
+def wait_until(root_window):
+    def actually_wait_until(condition, *, timeout=5):
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            root_window.update()
+            if condition():
+                return
+        raise RuntimeError("timed out waiting")
+
+    return actually_wait_until
 
 
 class _Hircd:
@@ -51,7 +61,8 @@ class _Hircd:
             raise RuntimeError
 
 
-def hircd_fixture():
+@pytest.fixture
+def hircd():
     clone_url = "https://github.com/fboender/hircd"
     hircd_repo = Path(__file__).absolute().parent / "hircd"
     if not hircd_repo.is_dir():
@@ -73,7 +84,8 @@ def hircd_fixture():
     hircd.stop()
 
 
-def alice_fixture(hircd):
+@pytest.fixture
+def alice(hircd, root_window, wait_until):
     alice = gui.IrcWidget(
         root_window,
         config.load_from_file(Path("alice")),
@@ -93,10 +105,7 @@ def alice_fixture(hircd):
     shutil.rmtree(alice.log_dir)
 
 
-hircd = hircd_fixture()
-hircd = next(hircd)
-alice = alice_fixture(hircd)
-alice = next(alice)
-alice.entry.insert("end", "/part #autojoin")
-alice.on_enter_pressed()
-wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
+def test_part_last_channel(alice, wait_until):
+    alice.entry.insert("end", "/part #autojoin")
+    alice.on_enter_pressed()
+    wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
