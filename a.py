@@ -40,23 +40,18 @@ class ServerView:
         self.event_queue.put("Blah...")
         self.handle_events()
 
-    def mark_seen(self) -> None:
-        self.notification_count = 0
-        self.irc_widget.event_generate("<<NotificationCountChanged>>")
+    def handle_events(self) -> None:
+        self.irc_widget.after(100, self.handle_events)
 
-        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
-        self.irc_widget.view_selector.item(
-            self.view_id, tags=list(old_tags - {"new_message", "pinged"})
-        )
+        while True:
+            try:
+                message = self.event_queue.get(block=False)
+            except queue.Empty:
+                break
 
-    def add_message(
-        self,
-        sender: str,
-        *chunks: tuple[str, list[str]],
-        pinged: bool = False,
-        show_in_gui: bool = True,
-    ) -> None:
-        if show_in_gui:
+            assert not self.irc_widget.view_selector.get_children(self.view_id)
+            sender = ""
+            chunks = ((message, ["info"]),)
             do_the_scroll = self.textwidget.yview()[1] == 1.0
             padding = " " * (16 - len(sender))
 
@@ -68,7 +63,6 @@ class ServerView:
                 sender_tags = ["other-nick"]
 
             self.textwidget.config(state="normal")
-            start = self.textwidget.index("end - 1 char")
             self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
             self.textwidget.insert("end", sender, sender_tags)
             self.textwidget.insert("end", " | ")
@@ -76,35 +70,10 @@ class ServerView:
             if chunks:
                 self.textwidget.insert("end", *flatten(chunks))
             self.textwidget.insert("end", "\n")
-            if pinged:
-                self.textwidget.tag_add("pinged", start, "end - 1 char")
             self.textwidget.config(state="disabled")
 
             if do_the_scroll:
                 self.textwidget.see("end")
-
-    def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
-        self.add_message("", (message, ["error" if error else "info"]))
-
-    def get_subviews(self, *, include_server: bool = False):
-        result = []
-        if include_server:
-            result.append(self)
-        for view_id in self.irc_widget.view_selector.get_children(self.view_id):
-            result.append(self.irc_widget.views_by_id[view_id])
-        return result
-
-    def handle_events(self) -> None:
-        self.irc_widget.after(100, self.handle_events)
-
-        while True:
-            try:
-                event = self.event_queue.get(block=False)
-            except queue.Empty:
-                break
-
-            for view in self.get_subviews(include_server=True):
-                view.on_connectivity_message(event)
 
 
 class IrcWidget(ttk.PanedWindow):
@@ -133,15 +102,14 @@ class IrcWidget(ttk.PanedWindow):
         )
         self.entry.pack(side="left", fill="both", expand=True)
 
-        self.views_by_id = {}
-        self.add_view(ServerView(self))
-
-    def get_current_view(self):
-        [view_id] = self.view_selector.selection()
-        return self.views_by_id[view_id]
+        view = ServerView(self)
+        self.views_by_id = {view.view_id: view}
+        self.view_selector.item(view.view_id, open=True)
+        self.view_selector.selection_set(view.view_id)
 
     def _current_view_changed(self, event: object) -> None:
-        new_view = self.get_current_view()
+        [view_id] = self.view_selector.selection()
+        new_view = self.views_by_id[view_id]
         if self._previous_view == new_view:
             return
 
@@ -153,15 +121,15 @@ class IrcWidget(ttk.PanedWindow):
         new_view.textwidget.pack(
             in_=self._middle_pane, side="top", fill="both", expand=True
         )
-        new_view.mark_seen()
+        new_view.notification_count = 0
+        new_view.irc_widget.event_generate("<<NotificationCountChanged>>")
+
+        old_tags = set(new_view.irc_widget.view_selector.item(new_view.view_id, "tags"))
+        new_view.irc_widget.view_selector.item(
+            new_view.view_id, tags=list(old_tags - {"new_message", "pinged"})
+        )
 
         self._previous_view = new_view
-
-    def add_view(self, view) -> None:
-        assert view.view_id not in self.views_by_id
-        self.view_selector.item(view.view_id, open=True)
-        self.views_by_id[view.view_id] = view
-        self.view_selector.selection_set(view.view_id)
 
 
 root_window = tkinter.Tk()
