@@ -4,7 +4,6 @@ from tkinter import ttk
 from tkinter.font import Font
 from pathlib import Path
 
-from mantaray import config, colors
 from mantaray.views import View, ServerView
 
 
@@ -35,9 +34,6 @@ class IrcWidget(ttk.PanedWindow):
         self.entry = tkinter.Entry(
             entryframe,
             font=self.font,
-            fg=colors.FOREGROUND,
-            bg=colors.BACKGROUND,
-            insertbackground=colors.FOREGROUND,
         )
         self.entry.pack(side="left", fill="both", expand=True)
 

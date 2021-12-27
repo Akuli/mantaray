@@ -9,7 +9,7 @@ import tkinter
 from tkinter import ttk
 from typing import Sequence, TYPE_CHECKING, IO
 
-from mantaray import backend, colors, config
+from mantaray import backend, config
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -32,7 +32,15 @@ class View:
             takefocus=True,
         )
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-        colors.config_tags(self.textwidget)
+
+        self.textwidget.tag_configure("underline", underline=True)
+        self.textwidget.tag_configure("pinged", foreground='black')
+        self.textwidget.tag_configure("error", foreground='black')
+        self.textwidget.tag_configure("info", foreground='red')
+        self.textwidget.tag_configure("history-selection", background='red')
+        self.textwidget.tag_configure("channel", foreground='red')
+        self.textwidget.tag_configure("self-nick", foreground='red', underline=True)
+        self.textwidget.tag_configure("other-nick", foreground='red', underline=True)
 
         self.log_file: IO[str] | None = None
 
