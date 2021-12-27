@@ -7,16 +7,13 @@ import queue
 import re
 import socket
 import ssl
-import sys
-import tempfile
 import threading
 import time
 import tkinter
 import traceback
-from pathlib import Path
 from tkinter import ttk
 from tkinter.font import Font
-from typing import IO, Iterator, Sequence, Union
+from typing import Iterator, Sequence, Union
 
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
@@ -90,8 +87,16 @@ class _JoinInProgress:
 
 class IrcCore:
 
-    def __init__(self, server_config):
-        self._apply_config(server_config)
+    def __init__(self):
+        self.host = "localhost"
+        self.port = 6667
+        self.ssl = False
+        self.nick = "Alice"
+        self.username = "Alice"
+        self.realname = "Alice's real name"
+        self.password = None
+        self.autojoin = ["#autojoin"]
+
         self._sock = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
@@ -100,16 +105,6 @@ class IrcCore:
         self._threads: list[threading.Thread] = []
         self._joining_in_progress: dict[str, _JoinInProgress] = {}
         self._quit_event = threading.Event()
-
-    def _apply_config(self, server_config) -> None:
-        self.host = server_config["host"]
-        self.port = server_config["port"]
-        self.ssl = server_config["ssl"]
-        self.nick = server_config["nick"]
-        self.username = server_config["username"]
-        self.realname = server_config["realname"]
-        self.password = server_config["password"]
-        self.autojoin = server_config["joined_channels"].copy()
 
     def start_threads(self) -> None:
         assert not self._threads
@@ -411,11 +406,11 @@ class View:
 
 
 class ServerView(View):
-    def __init__(self, irc_widget, server_config):
-        super().__init__(irc_widget, server_config["host"])
-        self.core = IrcCore(server_config)
-        self.extra_notifications = set(server_config["extra_notifications"])
-        self._join_leave_hiding_config = server_config["join_leave_hiding"]
+    def __init__(self, irc_widget):
+        super().__init__(irc_widget, "localhost")
+        self.core = IrcCore()
+        self.extra_notifications = set()
+        self._join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
 
         self.core.start_threads()
         self.handle_events()
@@ -590,12 +585,9 @@ class ChannelView(View):
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config):
+    def __init__(self, master: tkinter.Misc):
         super().__init__(master, orient="horizontal")
-
-        self.font = Font(
-            family=file_config["font_family"], size=file_config["font_size"]
-        )
+        self.font = Font()
 
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
@@ -619,8 +611,7 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.pack(side="left", fill="both", expand=True)
 
         self.views_by_id: dict[str, View] = {}
-        for server_config in file_config["servers"]:
-            self.add_view(ServerView(self, server_config))
+        self.add_view(ServerView(self))
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
@@ -661,24 +652,6 @@ class IrcWidget(ttk.PanedWindow):
 root_window = tkinter.Tk()
 alice = IrcWidget(
     root_window,
-    {
-        "servers": [
-            {
-                "host": "localhost",
-                "port": 6667,
-                "ssl": False,
-                "nick": "Alice",
-                "username": "Alice",
-                "realname": "Alice's real name",
-                "joined_channels": ["#autojoin"],
-                "password": None,
-                "extra_notifications": [],
-                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
-            }
-        ],
-        "font_family": "monospace",
-        "font_size": 10,
-    },
 )
 alice.pack(fill="both", expand=True)
 
