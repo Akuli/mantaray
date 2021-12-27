@@ -55,9 +55,6 @@ ServerView_textwidget = tkinter.Text(
     takefocus=True,
 )
 
-ServerView_extra_notifications = set()
-ServerView__join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
-
 alice.after(100, print)
 assert not view_selector.get_children(ServerView_view_id)
 
