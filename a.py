@@ -20,21 +20,12 @@ entry.pack(side="bottom", fill="x")
 
 view_id = view_selector.insert("", "end", text="localhost")
 
-ServerView_textwidget = tkinter.Text(
-    alice,
-    width=1,
-    height=1,
-    takefocus=True,
-)
-
 view_selector.item(view_id, open=True)
 view_selector.selection_set(view_id)
 
 alice.pack(fill="both", expand=True)
 
-ServerView_textwidget.pack(
-    in_=middle_pane, side="top", fill="both", expand=True
-)
+tkinter.Text(alice).pack(in_=middle_pane)
 alice.event_generate("<<NotificationCountChanged>>")
 
 end = time.monotonic() + 5
