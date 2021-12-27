@@ -9,7 +9,6 @@ root_window = tkinter.Tk()
 alice = ttk.PanedWindow(root_window, orient="horizontal")
 
 def _current_view_changed(event: object) -> None:
-    print("A"*60)
     global _previous_view_id
     view_id = ServerView_view_id
     if _previous_view_id == view_id:
@@ -23,11 +22,13 @@ def _current_view_changed(event: object) -> None:
     ServerView_textwidget.pack(
         in_=middle_pane, side="top", fill="both", expand=True
     )
+    alice.event_generate("<<NotificationCountChanged>>")
 
     old_tags = set(view_selector.item(ServerView_view_id, "tags"))
     view_selector.item(
         ServerView_view_id, tags=list(old_tags - {"new_message", "pinged"})
     )
+
     _previous_view_id = view_id
 
 view_selector = ttk.Treeview(alice, show="tree", selectmode="browse")
