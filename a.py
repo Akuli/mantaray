@@ -5,7 +5,6 @@ import queue
 import time
 import tkinter
 from tkinter import ttk
-from tkinter.font import Font
 
 
 def ServerView_handle_events() -> None:
@@ -72,8 +71,6 @@ def _current_view_changed(event: object) -> None:
 
     _previous_view_id = view_id
 
-font = Font()
-
 view_selector = ttk.Treeview(alice, show="tree", selectmode="browse")
 view_selector.tag_configure("pinged", foreground="#00ff00")
 view_selector.tag_configure("new_message", foreground="#ffcc66")
@@ -91,7 +88,6 @@ entryframe.pack(side="bottom", fill="x")
 
 entry = tkinter.Entry(
     entryframe,
-    font=font,
 )
 entry.pack(side="left", fill="both", expand=True)
 
@@ -102,7 +98,6 @@ ServerView_textwidget = tkinter.Text(
     alice,
     width=1,
     height=1,
-    font=font,
     state="disabled",
     takefocus=True,
 )
