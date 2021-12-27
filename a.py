@@ -16,10 +16,6 @@ from tkinter.font import Font
 class IrcCore:
 
     def __init__(self):
-        self._sock = None
-        self._send_queue = queue.Queue()
-        self._recv_buffer: collections.deque[str] = collections.deque()
-
         self.event_queue = queue.Queue()
         self._threads: list[threading.Thread] = []
         self._quit_event = threading.Event()
@@ -32,19 +28,6 @@ class IrcCore:
 
     def _connect_and_recv_loop(self) -> None:
         self.event_queue.put("Blah...")
-        self._connect()
-
-    def _put_to_send_queue(
-        self, message: str, *, done_event=None
-    ) -> None:
-        self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
-
-    def _connect(self) -> None:
-        assert self._sock is None
-        self._sock, _ = socket.socketpair()
-
-        self._put_to_send_queue("NICK a")
-        self._put_to_send_queue("USER a 0 * :a")
 
 
 class ServerView:
