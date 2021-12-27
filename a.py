@@ -8,47 +8,8 @@ from tkinter import ttk
 from tkinter.font import Font
 
 
-def ServerView__init__(irc_widget):
-    global ServerView_irc_widget
-    global ServerView_view_id
-    global ServerView_notification_count
-    global ServerView_textwidget
-    global ServerView_event_queue
-    global ServerView_extra_notifications
-    global ServerView__join_leave_hiding_config
-    ServerView_irc_widget = irc_widget
-    ServerView_view_id = view_selector.insert("", "end", text="localhost")
-    ServerView_notification_count = 0
-
-    ServerView_textwidget = tkinter.Text(
-        irc_widget,
-        width=1,
-        height=1,
-        font=font,
-        state="disabled",
-        takefocus=True,
-    )
-    ServerView_textwidget.bind("<Button-1>", (lambda e: ServerView_textwidget.focus()))
-
-    ServerView_textwidget.tag_configure("underline", underline=True)
-    ServerView_textwidget.tag_configure("pinged", foreground="black")
-    ServerView_textwidget.tag_configure("error", foreground="black")
-    ServerView_textwidget.tag_configure("info", foreground="red")
-    ServerView_textwidget.tag_configure("history-selection", background="red")
-    ServerView_textwidget.tag_configure("channel", foreground="red")
-    ServerView_textwidget.tag_configure("self-nick", foreground="red", underline=True)
-    ServerView_textwidget.tag_configure("other-nick", foreground="red", underline=True)
-
-    ServerView_event_queue = queue.Queue()
-    ServerView_extra_notifications = set()
-    ServerView__join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
-
-    ServerView_event_queue.put("Blah...")
-    ServerView_handle_events()
-
-
 def ServerView_handle_events() -> None:
-    ServerView_irc_widget.after(100, ServerView_handle_events)
+    alice.after(100, ServerView_handle_events)
 
     while True:
         try:
@@ -102,7 +63,7 @@ def _current_view_changed(event: object) -> None:
     )
     global ServerView_notification_count
     ServerView_notification_count = 0
-    ServerView_irc_widget.event_generate("<<NotificationCountChanged>>")
+    alice.event_generate("<<NotificationCountChanged>>")
 
     old_tags = set(view_selector.item(ServerView_view_id, "tags"))
     view_selector.item(
@@ -134,7 +95,34 @@ entry = tkinter.Entry(
 )
 entry.pack(side="left", fill="both", expand=True)
 
-ServerView__init__(alice)
+ServerView_view_id = view_selector.insert("", "end", text="localhost")
+ServerView_notification_count = 0
+
+ServerView_textwidget = tkinter.Text(
+    alice,
+    width=1,
+    height=1,
+    font=font,
+    state="disabled",
+    takefocus=True,
+)
+ServerView_textwidget.bind("<Button-1>", (lambda e: ServerView_textwidget.focus()))
+
+ServerView_textwidget.tag_configure("underline", underline=True)
+ServerView_textwidget.tag_configure("pinged", foreground="black")
+ServerView_textwidget.tag_configure("error", foreground="black")
+ServerView_textwidget.tag_configure("info", foreground="red")
+ServerView_textwidget.tag_configure("history-selection", background="red")
+ServerView_textwidget.tag_configure("channel", foreground="red")
+ServerView_textwidget.tag_configure("self-nick", foreground="red", underline=True)
+ServerView_textwidget.tag_configure("other-nick", foreground="red", underline=True)
+
+ServerView_event_queue = queue.Queue()
+ServerView_extra_notifications = set()
+ServerView__join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
+
+ServerView_event_queue.put("Blah...")
+ServerView_handle_events()
 view_selector.item(ServerView_view_id, open=True)
 view_selector.selection_set(ServerView_view_id)
 
