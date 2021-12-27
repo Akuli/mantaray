@@ -11,7 +11,6 @@ import tkinter
 import traceback
 from tkinter import ttk
 from tkinter.font import Font
-from typing import Sequence
 
 
 class IrcCore:
@@ -27,7 +26,6 @@ class IrcCore:
 
     def start_threads(self) -> None:
         assert not self._threads
-        self._threads.append(threading.Thread(target=self._send_loop))
         self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
         for thread in self._threads:
             thread.start()
@@ -40,27 +38,6 @@ class IrcCore:
         self, message: str, *, done_event=None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
-
-    def _send_loop(self) -> None:
-        while not self._quit_event.is_set():
-            try:
-                bytez, done_event = self._send_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-
-            sock = self._sock
-            if sock is None:
-                continue
-
-            try:
-                sock.sendall(bytez)
-            except (OSError, ssl.SSLError):
-                if self._sock is not None:
-                    traceback.print_exc()
-                continue
-
-            if done_event is not None:
-                self.event_queue.put(done_event)
 
     def _connect(self) -> None:
         assert self._sock is None
