@@ -284,8 +284,6 @@ class View:
         self.textwidget.tag_configure("self-nick", foreground="red", underline=True)
         self.textwidget.tag_configure("other-nick", foreground="red", underline=True)
 
-        self.log_file: IO[str] | None = None
-
     def _update_view_selector(self) -> None:
         if self.notification_count == 0:
             text = self.view_name
@@ -335,28 +333,6 @@ class View:
             self.view_id, tags=list((old_tags - {"new_message", "pinged"}) | {tag})
         )
 
-    def close_log_file(self) -> None:
-        if self.log_file is not None:
-            print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
-            self.log_file.close()
-            self.log_file = None
-
-    def open_log_file(self) -> None:
-        assert self.log_file is None
-
-        name = re.sub("[^A-Za-z0-9-_#]", "_", self.view_name.lower())
-        path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
-
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            file = path.open("a", encoding="utf-8")
-            if sys.platform != "win32":
-                path.chmod(0o600)
-            print("\n\n*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
-            self.log_file = file
-        except OSError:
-            traceback.print_exc()
-
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
@@ -401,16 +377,6 @@ class View:
             if do_the_scroll:
                 self.textwidget.see("end")
 
-        if self.log_file is not None:
-            print(
-                time.asctime(),
-                sender,
-                "".join(text for text, tags in chunks),
-                sep="\t",
-                file=self.log_file,
-                flush=True,
-            )
-
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
 
@@ -453,9 +419,6 @@ class ServerView(View):
 
         self.core.start_threads()
         self.handle_events()
-
-    def open_log_file(self) -> None:
-        pass
 
     @property
     def server_view(self) -> ServerView:
@@ -544,7 +507,6 @@ class ChannelView(View):
         super().__init__(
             server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
         )
-        self.open_log_file()
 
     @property
     def channel_name(self) -> str:
@@ -628,9 +590,8 @@ class ChannelView(View):
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config, log_dir: Path):
+    def __init__(self, master: tkinter.Misc, file_config):
         super().__init__(master, orient="horizontal")
-        self.log_dir = log_dir
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]
@@ -718,7 +679,6 @@ alice = IrcWidget(
         "font_family": "monospace",
         "font_size": 10,
     },
-    Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
 )
 alice.pack(fill="both", expand=True)
 
