@@ -6,21 +6,18 @@ from tkinter import ttk
 
 
 root_window = tkinter.Tk()
-alice = ttk.PanedWindow(root_window)
+panedwindow = ttk.PanedWindow(root_window)
 
-view_selector = ttk.Treeview(alice)
-view_selector.insert("", "end")
-alice.add(view_selector)
+treeview = ttk.Treeview(panedwindow)
+treeview.insert("", "end")
+panedwindow.add(treeview)
 
-middle_pane = ttk.Frame(alice)
-alice.add(middle_pane)
+middle_pane = ttk.Frame(panedwindow)
+panedwindow.add(middle_pane)
+tkinter.Entry(middle_pane).pack()
+panedwindow.pack()
 
-entry = tkinter.Entry(middle_pane)
-entry.pack()
-
-alice.pack()
-
-tkinter.Text(alice).pack(in_=middle_pane)
+tkinter.Text(panedwindow).pack(in_=middle_pane)
 
 end = time.monotonic() + 1
 while time.monotonic() < end:
