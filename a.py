@@ -19,35 +19,6 @@ def wait_until(root_window, condition, *, timeout=5):
     raise RuntimeError("timed out waiting")
 
 
-class _Hircd:
-    def __init__(self, hircd_repo):
-        self._hircd_repo = hircd_repo
-        self.process = None
-
-    def start(self):
-        self.process = subprocess.Popen(
-            [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
-            stderr=subprocess.PIPE,
-            cwd=self._hircd_repo,
-        )
-
-        # Wait for it to start
-        for line in self.process.stderr:
-            assert b"ERROR" not in line
-            if line.startswith(b"[INFO] Starting hircd on "):
-                port = int(line.split(b":")[-1])
-                return port
-        raise RuntimeError
-
-    def stop(self):
-        self.process.kill()
-
-        output = self.process.stderr.read()
-        if b"ERROR" in output:
-            print(output.decode("utf-8", errors="replace"))
-            raise RuntimeError
-
-
 print(50*"A", flush=True)
 root_window = tkinter.Tk()
 print(50*"B", flush=True)
@@ -68,8 +39,16 @@ try:
         subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
         subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
 
-    hircd = _Hircd(hircd_repo)
-    hircd.start()
+    process = subprocess.Popen(
+        [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
+        stderr=subprocess.PIPE,
+        cwd=hircd_repo,
+    )
+    for line in process.stderr:
+        assert b"ERROR" not in line
+        if line.startswith(b"[INFO] Starting hircd on "):
+            break
+
     print(50*"D", flush=True)
     alice = gui.IrcWidget(
         root_window,
