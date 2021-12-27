@@ -70,11 +70,10 @@ class IrcCore:
         self._put_to_send_queue("USER a 0 * :a")
 
 
-class View:
-    def __init__(self, irc_widget, name: str, *, parent_view_id: str = ""):
+class ServerView:
+    def __init__(self, irc_widget):
         self.irc_widget = irc_widget
-        self.view_id = irc_widget.view_selector.insert(parent_view_id, "end", text=name)
-        self._name = name
+        self.view_id = irc_widget.view_selector.insert("", "end", text="localhost")
         self.notification_count = 0
 
         self.textwidget = tkinter.Text(
@@ -96,25 +95,15 @@ class View:
         self.textwidget.tag_configure("self-nick", foreground="red", underline=True)
         self.textwidget.tag_configure("other-nick", foreground="red", underline=True)
 
-    def _update_view_selector(self) -> None:
-        if self.notification_count == 0:
-            text = self.view_name
-        else:
-            text = f"{self.view_name} ({self.notification_count})"
-        self.irc_widget.view_selector.item(self.view_id, text=text)
+        self.core = IrcCore()
+        self.extra_notifications = set()
+        self._join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
 
-    @property
-    def view_name(self) -> str:
-        return self._name
-
-    @view_name.setter
-    def view_name(self, new_name: str) -> None:
-        self._name = new_name
-        self._update_view_selector()
+        self.core.start_threads()
+        self.handle_events()
 
     def mark_seen(self) -> None:
         self.notification_count = 0
-        self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
 
         old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
@@ -158,17 +147,6 @@ class View:
 
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
-
-
-class ServerView(View):
-    def __init__(self, irc_widget):
-        super().__init__(irc_widget, "localhost")
-        self.core = IrcCore()
-        self.extra_notifications = set()
-        self._join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
-
-        self.core.start_threads()
-        self.handle_events()
 
     def get_subviews(self, *, include_server: bool = False):
         result = []
