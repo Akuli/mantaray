@@ -9,15 +9,6 @@ from pathlib import Path
 from mantaray import gui, config
 from mantaray.views import ServerView
 
-import pytest
-
-
-@pytest.fixture(scope="session")
-def root_window():
-    root = tkinter.Tk()
-    yield root
-    root.destroy()
-
 
 def wait_until(root_window, condition, *, timeout=5):
     end = time.monotonic() + timeout
@@ -57,43 +48,47 @@ class _Hircd:
             raise RuntimeError
 
 
-def test_part_last_channel(root_window):
-    clone_url = "https://github.com/fboender/hircd"
-    hircd_repo = Path(__file__).absolute().parent / "hircd"
-    if not hircd_repo.is_dir():
-        subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
-
-    correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
-    actual_commit = (
-        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
-        .strip()
-        .decode("ascii")
-    )
-    if actual_commit != correct_commit:
-        subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
-        subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
-
-    hircd = _Hircd(hircd_repo)
-    hircd.start()
+def test_part_last_channel():
+    root_window = tkinter.Tk()
     try:
-        alice = gui.IrcWidget(
-            root_window,
-            config.load_from_file(Path("alice")),
-            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+        clone_url = "https://github.com/fboender/hircd"
+        hircd_repo = Path(__file__).absolute().parent / "hircd"
+        if not hircd_repo.is_dir():
+            subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
+
+        correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
+        actual_commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
+            .strip()
+            .decode("ascii")
         )
-        alice.pack(fill="both", expand=True)
-        wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+        if actual_commit != correct_commit:
+            subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
+            subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
+
+        hircd = _Hircd(hircd_repo)
+        hircd.start()
         try:
-            alice.entry.insert("end", "/part #autojoin")
-            alice.on_enter_pressed()
-            wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
+            alice = gui.IrcWidget(
+                root_window,
+                config.load_from_file(Path("alice")),
+                Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+            )
+            alice.pack(fill="both", expand=True)
+            wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+            try:
+                alice.entry.insert("end", "/part #autojoin")
+                alice.on_enter_pressed()
+                wait_until(root_window, lambda: isinstance(alice.get_current_view(), ServerView))
+            finally:
+                if alice.winfo_exists():
+                    for server_view in alice.get_server_views():
+                        server_view.core.quit()
+                        server_view.core.wait_for_threads_to_stop()
+                # On windows, we need to wait until log files are closed before removing them
+                wait_until(root_window, lambda: not alice.winfo_exists())
+                shutil.rmtree(alice.log_dir)
         finally:
-            if alice.winfo_exists():
-                for server_view in alice.get_server_views():
-                    server_view.core.quit()
-                    server_view.core.wait_for_threads_to_stop()
-            # On windows, we need to wait until log files are closed before removing them
-            wait_until(root_window, lambda: not alice.winfo_exists())
-            shutil.rmtree(alice.log_dir)
+            hircd.stop()
     finally:
-        hircd.stop()
+        root_window.destroy()
