@@ -80,25 +80,11 @@ alice.after(100, print)
 
 message = ServerView_event_queue.get(block=False)
 assert not view_selector.get_children(ServerView_view_id)
-sender = ""
-chunks = ((message, ["info"]),)
 do_the_scroll = ServerView_textwidget.yview()[1] == 1.0
-padding = " " * (16 - len(sender))
-
-if sender == "*":
-    sender_tags = []
-elif sender == "Alice":
-    sender_tags = ["self-nick"]
-else:
-    sender_tags = ["other-nick"]
 
 ServerView_textwidget.config(state="normal")
-ServerView_textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-ServerView_textwidget.insert("end", sender, sender_tags)
-ServerView_textwidget.insert("end", " | ")
-flatten = itertools.chain.from_iterable
-if chunks:
-    ServerView_textwidget.insert("end", *flatten(chunks))
+ServerView_textwidget.insert("end", "[12:34]    | ")
+ServerView_textwidget.insert("end", message, ["info"])
 ServerView_textwidget.insert("end", "\n")
 ServerView_textwidget.config(state="disabled")
 
