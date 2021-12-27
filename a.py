@@ -18,26 +18,12 @@ from tkinter import ttk
 from tkinter.font import Font
 from typing import IO, Iterator, Sequence, Union
 
-# from rfc1459
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
 _RPL_ENDOFNAMES = "366"
-_RPL_LOGGEDIN = "900"
 
-# https://tools.ietf.org/html/rfc2812#section-2.3.1
-# unlike in the rfc, nicks are limited to 16 characters at least on freenode
-# 15 is 16-1 where 1 is the first character
 _special = re.escape(r"[]\`_^{|}")
 NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
-
-# https://tools.ietf.org/html/rfc2812#section-1.3
-#
-# channel names don't need to start with #
-#
-# at least freenode and spotchat disallow a channel named #
-#    <siren.de.SpotChat.org> | toottootttt # Channel # is forbidden: Bad
-#                              Channel Name, exposes client bugs
-CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
 def find_nicks(
@@ -58,7 +44,6 @@ def find_nicks(
     yield (text[previous_end:], None)
 
 
-# fmt: off
 @dataclasses.dataclass
 class SelfJoined:
     channel: str
@@ -66,8 +51,7 @@ class SelfJoined:
     nicklist: list[str]
 @dataclasses.dataclass
 class ServerMessage:
-    sender: str | None  # I think this is a hostname. Not sure.
-    # TODO: figure out meaning of command and args
+    sender: str | None
     command: str
     args: list[str]
 @dataclasses.dataclass
@@ -77,9 +61,8 @@ class UnknownMessage:
     args: list[str]
 @dataclasses.dataclass
 class ConnectivityMessage:
-    message: str  # one line
+    message: str
     is_error: bool
-# fmt: on
 
 _IrcEvent = Union[
     SelfJoined,
@@ -107,7 +90,6 @@ class _JoinInProgress:
 
 class IrcCore:
 
-    # each channel in autojoin will be joined after connecting
     def __init__(self, server_config):
         self._apply_config(server_config)
         self._sock = None
@@ -116,13 +98,7 @@ class IrcCore:
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
-
-        # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
-        # the replies are collected here before emitting a self_joined event
-        # Topic can also be sent before joining
-        # TODO: this in rfc?
         self._joining_in_progress: dict[str, _JoinInProgress] = {}
-
         self._quit_event = threading.Event()
 
     def _apply_config(self, server_config) -> None:
@@ -167,28 +143,20 @@ class IrcCore:
 
         if msg.sender_is_server:
             if msg.command == _RPL_NAMREPLY:
-                # TODO: wtf are the first 2 args?
-                # rfc1459 doesn't mention them, but freenode
-                # gives 4-element msg.args lists
                 channel, names = msg.args[-2:]
-
-                # TODO: don't ignore @ and + prefixes
                 self._joining_in_progress[channel.lower()].nicks.extend(
                     name.lstrip("@+") for name in names.split()
                 )
-                return  # don't spam server view with nicks
+                return
 
             elif msg.command == _RPL_ENDOFNAMES:
-                # joining a channel finished
                 channel, human_readable_message = msg.args[-2:]
                 join = self._joining_in_progress.pop(channel.lower())
-                # join.topic is None, when creating channel on libera
                 self.event_queue.put(
                     SelfJoined(channel, join.topic or "(no topic)", join.nicks)
                 )
 
             elif msg.command == _RPL_ENDOFMOTD:
-                # TODO: relying on MOTD good?
                 for channel in self.autojoin:
                     self.join_channel(channel)
 
@@ -209,19 +177,16 @@ class IrcCore:
     @staticmethod
     def _parse_received_message(line: str) -> _ReceivedAndParsedMessage:
         if not line.startswith(":"):
-            sender_is_server = True  # TODO: when does this code run?
+            sender_is_server = True
             sender = None
             command, *args = line.split(" ")
         else:
             sender, command, *args = line.split(" ")
             sender = sender[1:]
             if "!" in sender:
-                # use user_and_host.split('@', 1) to separate user and host
-                # TODO: include more stuff about the user than the nick?
                 sender, user_and_host = sender.split("!", 1)
                 sender_is_server = False
             else:
-                # leave sender as is
                 sender_is_server = True
 
         for n, arg in enumerate(args):
@@ -241,14 +206,11 @@ class IrcCore:
             try:
                 line = _recv_line(sock, self._recv_buffer)
             except (OSError, ssl.SSLError) as e:
-                # socket can be closed while receiving
                 if self._sock is None:
                     break
                 raise e
 
             if not line:
-                # "Empty messages are silently ignored"
-                # https://tools.ietf.org/html/rfc2812#section-2.3.1
                 continue
             if line.startswith("PING"):
                 self._put_to_send_queue(line.replace("PING", "PONG", 1))
@@ -261,7 +223,6 @@ class IrcCore:
                 traceback.print_exc()
 
     def _send_loop(self) -> None:
-        # Ideally it would be posible to wait until quit_event is set OR queue has something
         while not self._quit_event.is_set():
             try:
                 bytez, done_event = self._send_queue.get(timeout=0.1)
@@ -270,14 +231,12 @@ class IrcCore:
 
             sock = self._sock
             if sock is None:
-                # ignore events silently when not connected
                 continue
 
             try:
                 sock.sendall(bytez)
             except (OSError, ssl.SSLError):
                 if self._sock is not None:
-                    # should still be connected
                     traceback.print_exc()
                 continue
 
@@ -291,7 +250,6 @@ class IrcCore:
         if self.password is not None:
             self._put_to_send_queue("CAP REQ sasl")
 
-        # TODO: what if nick or user are in use? use alternatives?
         self._put_to_send_queue(f"NICK {self.nick}")
         self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
 
@@ -309,8 +267,8 @@ class View:
 
         self.textwidget = tkinter.Text(
             irc_widget,
-            width=1,  # minimum, can stretch bigger
-            height=1,  # minimum, can stretch bigger
+            width=1,
+            height=1,
             font=irc_widget.font,
             state="disabled",
             takefocus=True,
@@ -336,7 +294,7 @@ class View:
         self.irc_widget.view_selector.item(self.view_id, text=text)
 
     @property
-    def view_name(self) -> str:  # e.g. channel name, server host, other nick of PM
+    def view_name(self) -> str:
         return self._name
 
     @view_name.setter
@@ -370,7 +328,7 @@ class View:
             return
 
         old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
-        if "pinged" in old_tags:  # Adding tag does not unping
+        if "pinged" in old_tags:
             return
 
         self.irc_widget.view_selector.item(
@@ -386,7 +344,6 @@ class View:
     def open_log_file(self) -> None:
         assert self.log_file is None
 
-        # Unlikely to create name conflicts in practice, but it is possible
         name = re.sub("[^A-Za-z0-9-_#]", "_", self.view_name.lower())
         path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
 
@@ -418,13 +375,7 @@ class View:
         show_in_gui: bool = True,
     ) -> None:
         if show_in_gui:
-            # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
-
-            # nicks are limited to 16 characters at least on freenode
-            # len(sender) > 16 is not a problem:
-            #    >>> ' ' * (-3)
-            #    ''
             padding = " " * (16 - len(sender))
 
             if sender == "*":
@@ -441,7 +392,7 @@ class View:
             self.textwidget.insert("end", " | ")
             flatten = itertools.chain.from_iterable
             if chunks:
-                self.textwidget.insert("end", *flatten(chunks))  # type: ignore
+                self.textwidget.insert("end", *flatten(chunks))
             self.textwidget.insert("end", "\n")
             if pinged:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
@@ -464,7 +415,6 @@ class View:
         self.add_message("", (message, ["error" if error else "info"]))
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
-        # notify about the nick change everywhere, by putting this to base class
         self.add_message(
             "*", ("You are now known as ", []), (new, ["self-nick"]), (".", [])
         )
@@ -504,7 +454,6 @@ class ServerView(View):
         self.core.start_threads()
         self.handle_events()
 
-    # Do not log server stuff
     def open_log_file(self) -> None:
         pass
 
@@ -537,8 +486,6 @@ class ServerView(View):
 
     def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
-        # this is here so that this will be called again, even if
-        # something raises an error this time
         next_call_id = self.irc_widget.after(100, self.handle_events)
 
         while True:
@@ -566,21 +513,8 @@ class ServerView(View):
                 for view in self.get_subviews(include_server=True):
                     view.on_connectivity_message(event.message, error=event.is_error)
 
-            elif isinstance(event, TopicChanged):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_topic_changed(event.who_changed, event.topic)
-
-            elif isinstance(event, HostChanged):
-                self.view_name = event.new
-                for subview in self.get_subviews():
-                    subview.close_log_file()
-                    subview.open_log_file()
-
             else:
-                # If mypy says 'error: unused "type: ignore" comment', you
-                # forgot to check for some class
-                print("can't happen")  # type: ignore
+                print("can't happen")
 
     def get_current_config(self):
         channels = [
@@ -612,8 +546,6 @@ class ChannelView(View):
         )
         self.open_log_file()
 
-    # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
-    # Same as view_name, but only channels have this attribute, can clarify things a lot
     @property
     def channel_name(self) -> str:
         return self.view_name
@@ -707,14 +639,14 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
-        self.add(self.view_selector, weight=0)  # don't stretch
+        self.add(self.view_selector, weight=0)
         self._contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         self._middle_pane = ttk.Frame(self)
-        self.add(self._middle_pane, weight=1)  # always stretch
+        self.add(self._middle_pane, weight=1)
 
         entryframe = ttk.Frame(self._middle_pane)
         entryframe.pack(side="bottom", fill="x")
@@ -725,7 +657,6 @@ class IrcWidget(ttk.PanedWindow):
         )
         self.entry.pack(side="left", fill="both", expand=True)
 
-        # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
             self.add_view(ServerView(self, server_config))
