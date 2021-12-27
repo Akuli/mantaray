@@ -12,11 +12,7 @@ from mantaray.views import ServerView
 import pytest
 
 
-@pytest.fixture(scope="session")
-def root_window():
-    root = tkinter.Tk()
-    yield root
-    root.destroy()
+root_window = tkinter.Tk()
 
 
 def wait_until(condition, *, timeout=5):
@@ -105,3 +101,4 @@ def test_part_last_channel(alice):
     alice.entry.insert("end", "/part #autojoin")
     alice.on_enter_pressed()
     wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
+    root_window.destroy()
