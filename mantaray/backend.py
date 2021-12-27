@@ -1,12 +1,12 @@
 # based on a thing that myst wrote for me
 # thanks myst :)   https://github.com/PurpleMyst/
 from __future__ import annotations
+import socket
 import collections
 import dataclasses
 import queue
 import ssl
 import re
-import socket
 import threading
 import traceback
 from base64 import b64encode
@@ -165,33 +165,12 @@ class _JoinInProgress:
     nicks: list[str]
 
 
-def _recv_line(
-    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]
-) -> str:
-    if not buffer:
-        data = bytearray()
-
-        # accepts both \r\n and \n
-        while not data.endswith(b"\n"):
-            assert sock is not None
-            chunk = sock.recv(4096)
-            if chunk:
-                data += chunk
-            else:
-                raise OSError("Server closed the connection!")
-
-        lines = data.decode("utf-8", errors="replace").splitlines()
-        buffer.extend(lines)
-
-    return buffer.popleft()
-
-
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
     def __init__(self, server_config: config.ServerConfig):
         self._apply_config(server_config)
-        self._sock: socket.socket | ssl.SSLSocket | None = None
+        self._sock = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
 
@@ -457,20 +436,7 @@ class IrcCore:
 
     def _connect(self) -> None:
         assert self._sock is None
-
-        try:
-            if self.ssl:
-                context = ssl.create_default_context()
-                sock: socket.socket | ssl.SSLSocket = context.wrap_socket(
-                    socket.socket(), server_hostname=self.host
-                )
-            else:
-                sock = socket.socket()
-            sock.connect((self.host, self.port))
-        except (OSError, ssl.SSLError) as e:
-            raise e
-
-        self._sock = sock
+        self._sock, _ = socket.socketpair()
 
         if self.password is not None:
             self._put_to_send_queue("CAP REQ sasl")
@@ -504,11 +470,7 @@ class IrcCore:
         self._put_to_send_queue(f"JOIN {channel}")
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
-        if reason is None:
-            self._put_to_send_queue(f"PART {channel}")
-        else:
-            # FIXME: the reason thing doesn't seem to work?
-            self._put_to_send_queue(f"PART {channel} :{reason}")
+        self.event_queue.put(SelfParted(channel))
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self._put_to_send_queue(
