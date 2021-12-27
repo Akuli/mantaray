@@ -73,6 +73,7 @@ class IrcCore:
 class ServerView:
     def __init__(self, irc_widget):
         self.irc_widget = irc_widget
+        self.view_id = irc_widget.view_selector.insert("", "end", text="localhost")
         self.notification_count = 0
 
         self.textwidget = tkinter.Text(
@@ -100,6 +101,15 @@ class ServerView:
 
         self.core.start_threads()
         self.handle_events()
+
+    def mark_seen(self) -> None:
+        self.notification_count = 0
+        self.irc_widget.event_generate("<<NotificationCountChanged>>")
+
+        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
+        self.irc_widget.view_selector.item(
+            self.view_id, tags=list(old_tags - {"new_message", "pinged"})
+        )
 
     def add_message(
         self,
@@ -142,6 +152,8 @@ class ServerView:
         result = []
         if include_server:
             result.append(self)
+        for view_id in self.irc_widget.view_selector.get_children(self.view_id):
+            result.append(self.irc_widget.views_by_id[view_id])
         return result
 
     def handle_events(self) -> None:
@@ -162,9 +174,14 @@ class IrcWidget(ttk.PanedWindow):
         super().__init__(master, orient="horizontal")
         self.font = Font()
 
+        self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse")
+        self.view_selector.tag_configure("pinged", foreground="#00ff00")
+        self.view_selector.tag_configure("new_message", foreground="#ffcc66")
+        self.add(self.view_selector, weight=0)
         self._contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view = None
+        self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         self._middle_pane = ttk.Frame(self)
         self.add(self._middle_pane, weight=1)
@@ -181,8 +198,32 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id = {}
         self.add_view(ServerView(self))
 
+    def get_current_view(self):
+        [view_id] = self.view_selector.selection()
+        return self.views_by_id[view_id]
+
+    def _current_view_changed(self, event: object) -> None:
+        new_view = self.get_current_view()
+        if self._previous_view == new_view:
+            return
+
+        if (
+            self._previous_view is not None
+            and self._previous_view.textwidget.winfo_exists()
+        ):
+            self._previous_view.textwidget.pack_forget()
+        new_view.textwidget.pack(
+            in_=self._middle_pane, side="top", fill="both", expand=True
+        )
+        new_view.mark_seen()
+
+        self._previous_view = new_view
+
     def add_view(self, view) -> None:
-        self.views_by_id[1] = view
+        assert view.view_id not in self.views_by_id
+        self.view_selector.item(view.view_id, open=True)
+        self.views_by_id[view.view_id] = view
+        self.view_selector.selection_set(view.view_id)
 
 
 root_window = tkinter.Tk()
