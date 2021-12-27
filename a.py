@@ -1,13 +1,11 @@
 import time
 import sys
 import subprocess
-import shutil
 import tkinter
 import tempfile
 from pathlib import Path
 
 from mantaray import gui, config
-from mantaray.views import ServerView
 
 
 def wait_until(root_window, condition, *, timeout=5):
@@ -21,24 +19,11 @@ def wait_until(root_window, condition, *, timeout=5):
 
 print(50*"A", flush=True)
 root_window = tkinter.Tk()
-print(50*"B", flush=True)
 try:
     print(50*"C", flush=True)
     clone_url = "https://github.com/fboender/hircd"
     hircd_repo = Path(__file__).absolute().parent / "hircd"
-    if not hircd_repo.is_dir():
-        subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
-
-    correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
-    actual_commit = (
-        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
-        .strip()
-        .decode("ascii")
-    )
-    if actual_commit != correct_commit:
-        subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
-        subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
-
+    subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
     process = subprocess.Popen(
         [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
         stderr=subprocess.PIPE,
@@ -58,7 +43,8 @@ try:
     print(50*"E", flush=True)
     alice.pack(fill="both", expand=True)
     print(50*"F", flush=True)
-    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
+    while True:
+        root_window.update()
 finally:
     print(50*"W", flush=True)
     root_window.destroy()
