@@ -77,7 +77,7 @@ def hircd():
 
 
 @pytest.fixture
-def alice(hircd, root_window):
+def alice(hircd):
     alice = gui.IrcWidget(
         root_window,
         config.load_from_file(Path("alice")),
