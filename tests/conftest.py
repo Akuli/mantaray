@@ -14,6 +14,7 @@ from ttkthemes import ThemedTk
 @pytest.fixture(scope="session")
 def root_window():
     root = ThemedTk(theme="black")
+    root.geometry("800x500")
     yield root
     root.destroy()
 

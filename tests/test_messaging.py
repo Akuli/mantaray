@@ -16,16 +16,17 @@ def test_colors(alice, bob, wait_until):
         index = bob.get_current_view().textwidget.search(search_string, "1.0")
         return set(bob.get_current_view().textwidget.tag_names(index))
 
-    assert tags("cyan on red") == {"received-privmsg", "foreground-11", "background-4"}
-    assert tags("bold") == {"received-privmsg"}  # bolding not supported
-    assert tags("underline") == {"received-privmsg", "underline"}
+    assert tags("cyan on red") == {"text", "received-privmsg", "foreground-11", "background-4"}
+    assert tags("bold") == {"text", "received-privmsg"}  # bolding not supported
+    assert tags("underline") == {"text", "received-privmsg", "underline"}
     assert tags("everything") == {
+        "text",
         "received-privmsg",
         "foreground-11",
         "background-4",
         "underline",
     }
-    assert tags("nothing") == {"received-privmsg"}
+    assert tags("nothing") == {"text", "received-privmsg"}
     assert "cyan on red bold underline everything nothing" in bob.text()
 
 
@@ -48,7 +49,7 @@ def test_nick_autocompletion_after_entering_message(alice, bob):
 def test_escaped_slash(alice, bob, wait_until):
     alice.entry.insert(0, "//home/alice/codes")
     alice.on_enter_pressed()
-    wait_until(lambda: " /home/alice/codes\n" in bob.text())
+    wait_until(lambda: "\tAlice\t/home/alice/codes\n" in bob.text())
 
 
 def test_enter_press_with_no_text(alice, bob, wait_until):
