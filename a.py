@@ -43,9 +43,7 @@ try:
     print(50*"E", flush=True)
     alice.pack(fill="both", expand=True)
     print(50*"F", flush=True)
-    while True:
-        alice.text()
-        root_window.update()
+    wait_until(root_window, lambda: "The topic of #autojoin is" in alice.text())
 finally:
     print(50*"W", flush=True)
     root_window.destroy()
