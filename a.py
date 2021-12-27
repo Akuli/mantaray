@@ -10,7 +10,6 @@ alice = ttk.PanedWindow(root_window)
 
 view_selector = ttk.Treeview(alice)
 alice.add(view_selector)
-_contextmenu = tkinter.Menu()
 
 middle_pane = ttk.Frame(alice)
 alice.add(middle_pane)
