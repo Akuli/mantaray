@@ -42,11 +42,6 @@ def find_nicks(
 
 
 @dataclasses.dataclass
-class SelfJoined:
-    channel: str
-    topic: str
-    nicklist: list[str]
-@dataclasses.dataclass
 class ServerMessage:
     sender: str | None
     command: str
@@ -62,7 +57,6 @@ class ConnectivityMessage:
     is_error: bool
 
 _IrcEvent = Union[
-    SelfJoined,
     ServerMessage,
     UnknownMessage,
     ConnectivityMessage,
@@ -126,13 +120,6 @@ class IrcCore:
                     name.lstrip("@+") for name in names.split()
                 )
                 return
-
-            elif msg.command == _RPL_ENDOFNAMES:
-                channel, human_readable_message = msg.args[-2:]
-                join = self._joining_in_progress.pop(channel.lower())
-                self.event_queue.put(
-                    SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-                )
 
             elif msg.command == _RPL_ENDOFMOTD:
                 self.join_channel("#autojoin")
@@ -379,22 +366,13 @@ class ServerView(View):
         )
         return self._join_leave_hiding_config["show_by_default"] ^ is_exceptional
 
-    def get_subviews(self, *, include_server: bool = False) -> list[View]:
-        result: list[View] = []
+    def get_subviews(self, *, include_server: bool = False):
+        result = []
         if include_server:
             result.append(self)
         for view_id in self.irc_widget.view_selector.get_children(self.view_id):
             result.append(self.irc_widget.views_by_id[view_id])
         return result
-
-    def find_channel(self, name: str) -> ChannelView | None:
-        for view in self.get_subviews():
-            if (
-                isinstance(view, ChannelView)
-                and view.channel_name.lower() == name.lower()
-            ):
-                return view
-        return None
 
     def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
@@ -406,15 +384,7 @@ class ServerView(View):
             except queue.Empty:
                 break
 
-            if isinstance(event, SelfJoined):
-                channel_view = self.find_channel(event.channel)
-                if channel_view is None:
-                    channel_view = ChannelView(self, event.channel, event.nicklist)
-                    self.irc_widget.add_view(channel_view)
-
-                channel_view.show_topic(event.topic)
-
-            elif isinstance(event, (ServerMessage, UnknownMessage)):
+            if isinstance(event, (ServerMessage, UnknownMessage)):
                 self.server_view.add_message(
                     event.sender or "???", (" ".join([event.command] + event.args), [])
                 )
@@ -425,40 +395,6 @@ class ServerView(View):
 
             else:
                 print("can't happen")
-
-
-class ChannelView(View):
-    def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
-        super().__init__(
-            server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
-        )
-
-    @property
-    def channel_name(self) -> str:
-        return self.view_name
-
-    def destroy_widgets(self) -> None:
-        super().destroy_widgets()
-
-    def on_join(self, nick: str) -> None:
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" joined {self.channel_name}.", []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def get_relevant_nicks(self) -> tuple[str, ...]:
-        return ("Alice",)
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        super().on_relevant_user_quit(nick, reason)
-
-    def show_topic(self, topic: str) -> None:
-        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
 
 
 class IrcWidget(ttk.PanedWindow):
@@ -472,7 +408,7 @@ class IrcWidget(ttk.PanedWindow):
         self.add(self.view_selector, weight=0)
         self._contextmenu = tkinter.Menu(tearoff=False)
 
-        self._previous_view: View | None = None
+        self._previous_view = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         self._middle_pane = ttk.Frame(self)
@@ -487,10 +423,10 @@ class IrcWidget(ttk.PanedWindow):
         )
         self.entry.pack(side="left", fill="both", expand=True)
 
-        self.views_by_id: dict[str, View] = {}
+        self.views_by_id = {}
         self.add_view(ServerView(self))
 
-    def get_current_view(self) -> View:
+    def get_current_view(self):
         [view_id] = self.view_selector.selection()
         return self.views_by_id[view_id]
 
@@ -519,7 +455,7 @@ class IrcWidget(ttk.PanedWindow):
 
         self._previous_view = new_view
 
-    def add_view(self, view: View) -> None:
+    def add_view(self, view) -> None:
         assert view.view_id not in self.views_by_id
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
