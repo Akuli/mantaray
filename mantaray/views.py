@@ -3,12 +3,11 @@ import re
 import queue
 import traceback
 import time
-import itertools
 import sys
 import tkinter
 import subprocess
 from tkinter import ttk
-from typing import Sequence, TYPE_CHECKING, IO
+from typing import Any, Sequence, TYPE_CHECKING, IO
 
 from mantaray import backend, colors, config
 
@@ -107,7 +106,9 @@ class View:
             font=irc_widget.font,
             state="disabled",
             takefocus=True,
+            tabs=(150, "right", 160, "left"),
         )
+        self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         colors.config_tags(self.textwidget)
 
@@ -207,12 +208,6 @@ class View:
             # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
 
-            # nicks are limited to 16 characters at least on freenode
-            # len(sender) > 16 is not a problem:
-            #    >>> ' ' * (-3)
-            #    ''
-            padding = " " * (16 - len(sender))
-
             if sender == "*":
                 sender_tags = []
             elif sender == self.server_view.core.nick:
@@ -222,12 +217,17 @@ class View:
 
             self.textwidget.config(state="normal")
             start = self.textwidget.index("end - 1 char")
-            self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
+            self.textwidget.insert("end", time.strftime("[%H:%M]"))
+            self.textwidget.insert("end", "\t")
             self.textwidget.insert("end", sender, sender_tags)
-            self.textwidget.insert("end", " | ")
-            flatten = itertools.chain.from_iterable
+            self.textwidget.insert("end", "\t")
             if chunks:
-                self.textwidget.insert("end", *flatten(chunks))  # type: ignore
+                insert_args: list[Any] = []
+                for text, tags in chunks:
+                    print(text, tags)
+                    insert_args.append(text)
+                    insert_args.append(tags + ["text"])
+                self.textwidget.insert("end", *insert_args)  # type: ignore
             self.textwidget.insert("end", "\n")
             if pinged:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
