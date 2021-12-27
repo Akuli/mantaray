@@ -88,15 +88,6 @@ class _JoinInProgress:
 class IrcCore:
 
     def __init__(self):
-        self.host = "localhost"
-        self.port = 6667
-        self.ssl = False
-        self.nick = "Alice"
-        self.username = "Alice"
-        self.realname = "Alice's real name"
-        self.password = None
-        self.autojoin = ["#autojoin"]
-
         self._sock = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[str] = collections.deque()
@@ -113,16 +104,8 @@ class IrcCore:
         for thread in self._threads:
             thread.start()
 
-    def wait_for_threads_to_stop(self) -> None:
-        for thread in self._threads:
-            thread.join()
-
     def _connect_and_recv_loop(self) -> None:
-        self.event_queue.put(
-            ConnectivityMessage(
-                f"Connecting to {self.host} port {self.port}...", is_error=False
-            )
-        )
+        self.event_queue.put(ConnectivityMessage("Blah...", is_error=False))
         self._connect()
 
     def _put_to_send_queue(
@@ -152,8 +135,7 @@ class IrcCore:
                 )
 
             elif msg.command == _RPL_ENDOFMOTD:
-                for channel in self.autojoin:
-                    self.join_channel(channel)
+                self.join_channel("#autojoin")
 
             elif msg.command == "TOPIC":
                 channel, topic = msg.args
@@ -192,31 +174,6 @@ class IrcCore:
                 break
         return _ReceivedAndParsedMessage(sender, sender_is_server, command, args)
 
-    def _recv_loop(self) -> None:
-        while True:
-            sock = self._sock
-            if sock is None:
-                break
-
-            try:
-                line = _recv_line(sock, self._recv_buffer)
-            except (OSError, ssl.SSLError) as e:
-                if self._sock is None:
-                    break
-                raise e
-
-            if not line:
-                continue
-            if line.startswith("PING"):
-                self._put_to_send_queue(line.replace("PING", "PONG", 1))
-                continue
-
-            message = self._parse_received_message(line)
-            try:
-                self._handle_received_message(message)
-            except Exception:
-                traceback.print_exc()
-
     def _send_loop(self) -> None:
         while not self._quit_event.is_set():
             try:
@@ -242,11 +199,8 @@ class IrcCore:
         assert self._sock is None
         self._sock, _ = socket.socketpair()
 
-        if self.password is not None:
-            self._put_to_send_queue("CAP REQ sasl")
-
-        self._put_to_send_queue(f"NICK {self.nick}")
-        self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
+        self._put_to_send_queue("NICK a")
+        self._put_to_send_queue("USER a 0 * :a")
 
     def join_channel(self, channel: str) -> None:
         self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
@@ -351,7 +305,7 @@ class View:
 
             if sender == "*":
                 sender_tags = []
-            elif sender == self.server_view.core.nick:
+            elif sender == "Alice":
                 sender_tags = ["self-nick"]
             else:
                 sender_tags = ["other-nick"]
@@ -459,8 +413,6 @@ class ServerView(View):
                     self.irc_widget.add_view(channel_view)
 
                 channel_view.show_topic(event.topic)
-                if event.channel not in self.core.autojoin:
-                    self.core.autojoin.append(event.channel)
 
             elif isinstance(event, (ServerMessage, UnknownMessage)):
                 self.server_view.add_message(
@@ -473,28 +425,6 @@ class ServerView(View):
 
             else:
                 print("can't happen")
-
-    def get_current_config(self):
-        channels = [
-            view.channel_name
-            for view in self.get_subviews()
-            if isinstance(view, ChannelView)
-        ]
-        return {
-            "host": self.core.host,
-            "port": self.core.port,
-            "ssl": self.core.ssl,
-            "nick": self.core.nick,
-            "username": self.core.username,
-            "realname": self.core.realname,
-            "password": self.core.password,
-            "joined_channels": sorted(
-                self.core.autojoin,
-                key=(lambda chan: channels.index(chan) if chan in channels else -1),
-            ),
-            "extra_notifications": list(self.extra_notifications),
-            "join_leave_hiding": self._join_leave_hiding_config,
-        }
 
 
 class ChannelView(View):
@@ -518,48 +448,6 @@ class ChannelView(View):
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
-    def on_part(self, nick: str, reason: str | None) -> None:
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" left {self.channel_name}." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def on_kick(
-        self, channel: str, kicker: str, kicked_nick: str, reason: str | None
-    ) -> None:
-        if reason is None:
-            reason = ""
-        if kicker == self.server_view.core.nick:
-            kicker_tag = "self-nick"
-        else:
-            kicker_tag = "other-nick"
-        if kicked_nick == self.server_view.core.nick:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked you from ", ["error"]),
-                (self.channel_name, ["channel"]),
-                (". You can still join by typing ", ["error"]),
-                (f"/join {self.channel_name}", ["pinged"]),
-                (".", ["error"]),
-            )
-        else:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked ", []),
-                (kicked_nick, ["other-nick"]),
-                (" from ", []),
-                (self.channel_name, ["channel"]),
-                (f". (Reason: {reason})", []),
-            )
-
     def get_relevant_nicks(self) -> tuple[str, ...]:
         return ("Alice",)
 
@@ -571,17 +459,6 @@ class ChannelView(View):
 
     def show_topic(self, topic: str) -> None:
         self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
-
-    def on_topic_changed(self, nick: str, topic: str) -> None:
-        if nick == self.server_view.core.nick:
-            nick_tag = "self-nick"
-        else:
-            nick_tag = "other-nick"
-        self.add_message(
-            "*",
-            (nick, [nick_tag]),
-            (f" changed the topic of {self.channel_name}: {topic}", []),
-        )
 
 
 class IrcWidget(ttk.PanedWindow):
