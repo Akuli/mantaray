@@ -36,25 +36,6 @@ class ServerView:
         self.view_id = irc_widget.view_selector.insert("", "end", text="localhost")
         self.notification_count = 0
 
-        self.textwidget = tkinter.Text(
-            irc_widget,
-            width=1,
-            height=1,
-            font=irc_widget.font,
-            state="disabled",
-            takefocus=True,
-        )
-        self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-
-        self.textwidget.tag_configure("underline", underline=True)
-        self.textwidget.tag_configure("pinged", foreground="black")
-        self.textwidget.tag_configure("error", foreground="black")
-        self.textwidget.tag_configure("info", foreground="red")
-        self.textwidget.tag_configure("history-selection", background="red")
-        self.textwidget.tag_configure("channel", foreground="red")
-        self.textwidget.tag_configure("self-nick", foreground="red", underline=True)
-        self.textwidget.tag_configure("other-nick", foreground="red", underline=True)
-
         self.core = IrcCore()
         self.extra_notifications = set()
         self._join_leave_hiding_config = {"show_by_default": True, "exception_nicks": []}
@@ -78,32 +59,7 @@ class ServerView:
         pinged: bool = False,
         show_in_gui: bool = True,
     ) -> None:
-        if show_in_gui:
-            do_the_scroll = self.textwidget.yview()[1] == 1.0
-            padding = " " * (16 - len(sender))
-
-            if sender == "*":
-                sender_tags = []
-            elif sender == "Alice":
-                sender_tags = ["self-nick"]
-            else:
-                sender_tags = ["other-nick"]
-
-            self.textwidget.config(state="normal")
-            start = self.textwidget.index("end - 1 char")
-            self.textwidget.insert("end", time.strftime("[%H:%M]") + " " + padding)
-            self.textwidget.insert("end", sender, sender_tags)
-            self.textwidget.insert("end", " | ")
-            flatten = itertools.chain.from_iterable
-            if chunks:
-                self.textwidget.insert("end", *flatten(chunks))
-            self.textwidget.insert("end", "\n")
-            if pinged:
-                self.textwidget.tag_add("pinged", start, "end - 1 char")
-            self.textwidget.config(state="disabled")
-
-            if do_the_scroll:
-                self.textwidget.see("end")
+        pass
 
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
@@ -167,14 +123,6 @@ class IrcWidget(ttk.PanedWindow):
         if self._previous_view == new_view:
             return
 
-        if (
-            self._previous_view is not None
-            and self._previous_view.textwidget.winfo_exists()
-        ):
-            self._previous_view.textwidget.pack_forget()
-        new_view.textwidget.pack(
-            in_=self._middle_pane, side="top", fill="both", expand=True
-        )
         new_view.mark_seen()
 
         self._previous_view = new_view
