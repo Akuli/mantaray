@@ -14,15 +14,13 @@ view_selector.tag_configure("new_message", foreground="#ffcc66")
 alice.add(view_selector, weight=0)
 _contextmenu = tkinter.Menu(tearoff=False)
 
-_previous_view_id = None
-
 middle_pane = ttk.Frame(alice)
 alice.add(middle_pane, weight=1)
 
 entry = tkinter.Entry(middle_pane)
 entry.pack(side="bottom", fill="x")
 
-ServerView_view_id = view_selector.insert("", "end", text="localhost")
+view_id = view_selector.insert("", "end", text="localhost")
 
 ServerView_textwidget = tkinter.Text(
     alice,
@@ -31,28 +29,20 @@ ServerView_textwidget = tkinter.Text(
     takefocus=True,
 )
 
-view_selector.item(ServerView_view_id, open=True)
-view_selector.selection_set(ServerView_view_id)
+view_selector.item(view_id, open=True)
+view_selector.selection_set(view_id)
 
 alice.pack(fill="both", expand=True)
 
-view_id = ServerView_view_id
-if (
-    _previous_view_id is not None
-    and ServerView_textwidget.winfo_exists()
-):
-    ServerView_textwidget.pack_forget()
 ServerView_textwidget.pack(
     in_=middle_pane, side="top", fill="both", expand=True
 )
 alice.event_generate("<<NotificationCountChanged>>")
 
-old_tags = set(view_selector.item(ServerView_view_id, "tags"))
+old_tags = set(view_selector.item(view_id, "tags"))
 view_selector.item(
-    ServerView_view_id, tags=list(old_tags - {"new_message", "pinged"})
+    view_id, tags=list(old_tags - {"new_message", "pinged"})
 )
-
-_previous_view_id = view_id
 
 end = time.monotonic() + 5
 while time.monotonic() < end:
