@@ -62,7 +62,7 @@ def test_topic_change(alice, wait_until):
 def test_me(alice, bob, wait_until):
     alice.entry.insert("end", "/me does something")
     alice.on_enter_pressed()
-    wait_until(lambda: "* | Alice does something" in bob.text())
+    wait_until(lambda: "\t*\tAlice does something" in bob.text())
 
 
 def test_quit(alice, bob, wait_until):

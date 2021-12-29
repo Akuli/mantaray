@@ -14,15 +14,15 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     wait_until(lambda: "unrelated" in bob.text())
 
     assert re.fullmatch(
-        r"\[\d\d:\d\d\]            Alice \| hey bob\n",
+        r"\[\d\d:\d\d\]\tAlice\they bob\n",
         bob.get_current_view().textwidget.get("pinged.first", "pinged.last"),
     )
     views._show_popup.assert_called_once_with("#autojoin", "<Alice> hey bob")
 
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 6 chars")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
-    assert set(hey_tags) == {"received-privmsg", "pinged"}
-    assert set(bob_tags) == {"received-privmsg", "pinged", "self-nick"}
+    assert set(hey_tags) == {"text", "received-privmsg", "pinged"}
+    assert set(bob_tags) == {"text", "received-privmsg", "pinged", "self-nick"}
 
 
 @pytest.mark.parametrize("window_focused", [True, False])
