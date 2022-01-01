@@ -358,12 +358,12 @@ class IrcWidget(ttk.PanedWindow):
             assert isinstance(subview, (ChannelView, PMView))
             self.remove_view(subview)
 
+        server_view.close_log_file()
         if len(self.view_selector.get_children("")) == 1:
             self.destroy()
         else:
             self._select_another_view(server_view)
             self.view_selector.delete(server_view.view_id)
-            server_view.close_log_file()
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 
