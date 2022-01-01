@@ -65,7 +65,7 @@ def test_changing_host(alice, mocker, wait_until):
 
     assert alice.view_selector.item(server_view.view_id, "text") == "127.0.0.1"
     assert (alice.log_manager.log_dir / "localhost" / "#autojoin.log").exists()
-    assert (alice.log_manager.log_dir / "127.0.0.1" / "#autojoin.log").exists()
+    assert (alice.log_manager.log_dir / "127_0_0_1" / "#autojoin.log").exists()
 
 
 def click(window, button_text):
