@@ -1,5 +1,6 @@
-# based on a thing that myst wrote for me
-# thanks myst :)   https://github.com/PurpleMyst/
+# Originally based on code written by https://github.com/PurpleMyst/
+# Most up to date irc docs I am aware of: https://modern.ircdocs.horse/
+# TODO: modernize rest of the file to be as the docs say instead of ancient RFCs
 from __future__ import annotations
 import collections
 import dataclasses
@@ -15,11 +16,11 @@ from typing import Union, Sequence, Iterator
 from . import config
 
 
-# from rfc1459
 _RPL_ENDOFMOTD = "376"
 _RPL_NAMREPLY = "353"
 _RPL_ENDOFNAMES = "366"
 _RPL_LOGGEDIN = "900"
+_RPL_TOPIC = "332"
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -360,8 +361,8 @@ class IrcCore:
                 for channel in self.autojoin:
                     self.join_channel(channel)
 
-            elif msg.command == "TOPIC":
-                channel, topic = msg.args
+            elif msg.command == _RPL_TOPIC:
+                channel, topic = msg.args[1:]
                 self._joining_in_progress[channel.lower()].topic = topic
 
             self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))

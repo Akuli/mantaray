@@ -32,7 +32,7 @@ def test_basic(alice, bob, wait_until):
         """
 
 *** LOGGING BEGINS <time>
-<time>  *       The topic of #autojoin is: No topic
+<time>  *       The topic of #autojoin is: (no topic)
 <time>  *       Bob joined #autojoin.
 <time>  Alice   Hello
 <time>  Bob     Hiii
@@ -63,7 +63,7 @@ def test_pm_logs(alice, bob, wait_until):
         """
 
 *** LOGGING BEGINS <time>
-<time>  *       The topic of #autojoin is: No topic
+<time>  *       The topic of #autojoin is: (no topic)
 <time>  *       Bob joined #autojoin.
 <time>  *       Bob is now known as blabla.
 *** LOGGING ENDS <time>
