@@ -71,7 +71,11 @@ class _IrcServer:
         output = self.process.stdout.read()
 
         # A bit of a hack, but don't care about disconnect errors
-        if b"error" in output.replace(b"BrokenPipeError", b"").lower():
+        if b"error" in (
+            output.replace(b"BrokenPipeError:", b"")
+            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+            .lower()
+        ):
             print(output.decode("utf-8", errors="replace"))
             raise RuntimeError
 
