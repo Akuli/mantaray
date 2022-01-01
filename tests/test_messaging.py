@@ -87,7 +87,7 @@ def test_multiline_not_sending(alice, bob, wait_until, mocker):
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
     # TODO: "/msg bob asdf" with lowercase bob causes two bugs:
-    #   - irc_server doesn't send message
+    #   - hircd doesn't send message
     #   - this client thinks that Bob and bob are two different nicks
 
     alice.entry.insert(0, "/msg Bob hello there")
