@@ -3,7 +3,7 @@ import pytest
 from mantaray.views import ServerView
 
 
-# TODO: should test entering channel name case insensitively, but hircd is case sensitive :(
+# TODO: should test entering channel name case insensitively, but irc_server is case sensitive :(
 @pytest.mark.parametrize("part_command", ["/part", "/part #lol"])
 def test_join_and_part(alice, bob, wait_until, part_command):
     alice.entry.insert("end", "/join #lol")
@@ -56,7 +56,7 @@ def test_topic_change(alice, wait_until):
     wait_until(
         lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
     )
-    # Bug in hircd: Bob doesn't get a notification about Alice changed topic
+    # Bug in irc_server: Bob doesn't get a notification about Alice changed topic
 
 
 def test_me(alice, bob, wait_until):
@@ -86,7 +86,7 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
 
 
 def test_nickserv_and_memoserv(alice, bob, wait_until):
-    # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
+    # Bob shall pretend he is nickserv, because irc_server doesn't natively support nickserv
     bob.get_server_views()[0].core.change_nick("NickServ")
     wait_until(lambda: "You are now known as NickServ.\n" in bob.text())
 

@@ -15,8 +15,8 @@ else:
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fails github actions and I don't know why"
 )
-def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
-    hircd.stop()
+def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
+    irc_server.stop()
     wait_until(
         lambda: ("Error while receiving: " + server_closed_message) in alice.text()
     )
@@ -29,10 +29,10 @@ def test_quitting_while_disconnected(alice, hircd, monkeypatch, wait_until):
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
-def test_server_dies(alice, hircd, monkeypatch, wait_until):
+def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
-    hircd.stop()
+    irc_server.stop()
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
 
     lines = alice.text().splitlines()
@@ -47,7 +47,7 @@ def test_server_dies(alice, hircd, monkeypatch, wait_until):
     else:
         assert lines[-1].endswith("Connection refused")
 
-    hircd.start()
+    irc_server.start()
     wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
     connecting_end = len(alice.text())
     wait_until(

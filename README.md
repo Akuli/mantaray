@@ -41,13 +41,14 @@ On Windows, run these commands in Command Prompt:
 
 Running tests: (use `py` instead of `python3` on Windows)
 
+    $ git submodule init --update
     $ python3 -m pytest
 
 To experiment with new features locally, you can use [hircd](https://github.com/fboender/hircd).
 It is a very simple and fast irc server that runs entirely on your computer.
-The tests download it automatically when you run them for the first time.
+The `git submodule` command above downloads it.
 
-    $ cd tests/hircd
+    $ cd hircd
     $ python3 hircd.py --foreground --verbose --log-stdout
 
 Then in another terminal, run Mantaray.

@@ -88,7 +88,5 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# tests and shit
-tests/hircd/
 alice/logs/
 bob/logs/
