@@ -71,7 +71,13 @@ def irc_server():
         command = os.environ["IRC_SERVER_COMMAND"]
         working_dir = os.environ.get("IRC_SERVER_WORKING_DIR", ".")
     else:
-        command = [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"]
+        command = [
+            sys.executable,
+            "hircd.py",
+            "--foreground",
+            "--verbose",
+            "--log-stdout",
+        ]
         working_dir = "hircd"
 
     irc_server = _IrcServer(command, working_dir)
