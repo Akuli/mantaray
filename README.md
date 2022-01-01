@@ -44,6 +44,10 @@ Running tests: (use `py` instead of `python3` on Windows)
     $ git submodule init --update
     $ python3 -m pytest
 
+Running tests with a custom IRC server (you likely won't need this):
+
+    $ IRC_SERVER_COMMAND="program arg1 arg2" IRC_SERVER_WORKING_DIR=/blah/blah/blah/ python3 -m pytest
+
 To experiment with new features locally, you can use [hircd](https://github.com/fboender/hircd).
 It is a very simple and fast irc server that runs entirely on your computer.
 The `git submodule` command above downloads it.
