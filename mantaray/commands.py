@@ -67,10 +67,9 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         return True
 
     if entry_content.startswith("//"):
-        lines = entry_content[1:].splitlines()
-    else:
-        lines = entry_content.splitlines()
+        entry_content = entry_content[1:]
 
+    lines = [line for line in entry_content.split("\n") if line]
     if len(lines) > 3:
         # TODO: add button that pastebins?
         result = messagebox.askyesno(

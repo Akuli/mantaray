@@ -84,6 +84,12 @@ def test_multiline_not_sending(alice, bob, wait_until, mocker):
     assert alice.entry.get() == "one\ntwo\nthree\nfour"
 
 
+def test_slash_r_character(alice, bob, wait_until):
+    alice.entry.insert("end", "hello \rlol\r world")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello \rlol\r world" in bob.text())
+
+
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
     # TODO: "/msg bob asdf" with lowercase bob causes two bugs:
