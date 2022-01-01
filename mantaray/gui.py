@@ -103,7 +103,9 @@ class IrcWidget(ttk.PanedWindow):
 
         # https://stackoverflow.com/q/62824799
         self.tk.eval("ttk::style configure ViewSelector.Treeview -indent -5")
-        self.view_selector = ttk.Treeview(self, show="tree", selectmode="browse", style="ViewSelector.Treeview")
+        self.view_selector = ttk.Treeview(
+            self, show="tree", selectmode="browse", style="ViewSelector.Treeview"
+        )
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
