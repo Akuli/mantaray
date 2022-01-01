@@ -51,7 +51,7 @@ def main() -> None:
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="print everything sent and received, useful for understanding IRC or development",
+        help="print everything sent and received, useful for development and understanding IRC",
     )
     args = parser.parse_args()
 
