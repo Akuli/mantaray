@@ -2,6 +2,7 @@ import os
 import time
 import sys
 import subprocess
+import shlex
 import shutil
 import tempfile
 from pathlib import Path
@@ -40,24 +41,34 @@ class _IrcServer:
         self.process = None
 
     def start(self):
+        # Make sure that prints appear right away
+        env = dict(os.environ)
+        env["PYTHONUNBUFFERED"] = "1"
+
         self.process = subprocess.Popen(
             self._command,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
             cwd=self._working_dir,
-            shell=isinstance(self._command, str),
         )
 
-        # Wait for it to start
-        for line in self.process.stderr:
-            assert b"error" not in line.lower()
-            if b"Starting hircd" in line:
-                return
-        raise RuntimeError
+        try:
+            # Wait for it to start
+            for line in self.process.stdout:
+                print(line)
+                assert b"error" not in line.lower()
+                if b"Starting hircd" in line or b"Mantatail running" in line:
+                    return
+            raise RuntimeError
+        except Exception as e:
+            self.process.kill()
+            raise e
 
     def stop(self):
         self.process.kill()
 
-        output = self.process.stderr.read()
+        output = self.process.stdout.read()
 
         # A bit of a hack, but don't care about disconnect errors
         if b"error" in output.replace(b"BrokenPipeError", b"").lower():
@@ -68,7 +79,7 @@ class _IrcServer:
 @pytest.fixture
 def irc_server():
     if "IRC_SERVER_COMMAND" in os.environ:
-        command = os.environ["IRC_SERVER_COMMAND"]
+        command = shlex.split(os.environ["IRC_SERVER_COMMAND"], posix=(sys.platform != "win32"))
         working_dir = os.environ.get("IRC_SERVER_WORKING_DIR", ".")
     else:
         command = [
