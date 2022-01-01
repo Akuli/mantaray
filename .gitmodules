@@ -1,0 +1,3 @@
+[submodule "hircd"]
+	path = hircd
+	url = https://github.com/fboender/hircd

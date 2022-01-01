@@ -1,6 +1,8 @@
+import os
 import time
 import sys
 import subprocess
+import shlex
 import shutil
 import tempfile
 from pathlib import Path
@@ -32,60 +34,76 @@ def wait_until(root_window):
     return actually_wait_until
 
 
-class _Hircd:
-    def __init__(self, hircd_repo):
-        self._hircd_repo = hircd_repo
+class _IrcServer:
+    def __init__(self, command, working_dir):
+        self._command = command
+        self._working_dir = working_dir
         self.process = None
 
     def start(self):
+        # Make sure that prints appear right away
+        env = dict(os.environ)
+        env["PYTHONUNBUFFERED"] = "1"
+
         self.process = subprocess.Popen(
-            [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"],
-            stderr=subprocess.PIPE,
-            cwd=self._hircd_repo,
+            self._command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=self._working_dir,
         )
 
-        # Wait for it to start
-        for line in self.process.stderr:
-            assert b"ERROR" not in line
-            if line.startswith(b"[INFO] Starting hircd on "):
-                port = int(line.split(b":")[-1])
-                return port
-        raise RuntimeError
+        try:
+            # Wait for it to start
+            for line in self.process.stdout:
+                assert b"error" not in line.lower()
+                if b"Starting hircd" in line or b"Mantatail running" in line:
+                    return
+            raise RuntimeError
+        except Exception as e:
+            self.process.kill()
+            raise e
 
     def stop(self):
         self.process.kill()
 
-        output = self.process.stderr.read()
-        if b"ERROR" in output:
+        output = self.process.stdout.read()
+
+        # A bit of a hack, but don't care about disconnect errors
+        if b"error" in (
+            output.replace(b"BrokenPipeError:", b"")
+            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+            .lower()
+        ):
             print(output.decode("utf-8", errors="replace"))
             raise RuntimeError
 
 
 @pytest.fixture
-def hircd():
-    clone_url = "https://github.com/fboender/hircd"
-    hircd_repo = Path(__file__).absolute().parent / "hircd"
-    if not hircd_repo.is_dir():
-        subprocess.check_call(["git", "clone", clone_url], cwd=hircd_repo.parent)
+def irc_server():
+    if "IRC_SERVER_COMMAND" in os.environ:
+        command = shlex.split(
+            os.environ["IRC_SERVER_COMMAND"], posix=(sys.platform != "win32")
+        )
+        working_dir = os.environ.get("IRC_SERVER_WORKING_DIR", ".")
+    else:
+        command = [
+            sys.executable,
+            "hircd.py",
+            "--foreground",
+            "--verbose",
+            "--log-stdout",
+        ]
+        working_dir = "hircd"
 
-    correct_commit = "d09d4f9a11b99f49a1606477ab9d4dadcee35e7c"
-    actual_commit = (
-        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=hircd_repo)
-        .strip()
-        .decode("ascii")
-    )
-    if actual_commit != correct_commit:
-        subprocess.check_call(["git", "fetch", clone_url], cwd=hircd_repo)
-        subprocess.check_call(["git", "checkout", correct_commit], cwd=hircd_repo)
-
-    hircd = _Hircd(hircd_repo)
-    hircd.start()
-    yield hircd
-    hircd.stop()
+    irc_server = _IrcServer(command, working_dir)
+    irc_server.start()
+    yield irc_server
+    irc_server.stop()
 
 
 @pytest.fixture
-def alice_and_bob(hircd, root_window, wait_until, mocker):
+def alice_and_bob(irc_server, root_window, wait_until, mocker):
     mocker.patch("mantaray.views._show_popup")
 
     widgets = {}
