@@ -50,6 +50,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.config_dir != default_config_dir and not args.config_dir.is_dir():
+        parser.error("--config-dir must be specified to a directory")
+
     if (
         args.config_dir == default_config_dir
         and legacy_config_dir.exists()
