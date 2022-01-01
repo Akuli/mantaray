@@ -82,7 +82,8 @@ class IrcWidget(ttk.PanedWindow):
         master: tkinter.Misc,
         file_config: config.Config,
         log_dir: Path,
-        verbose: bool,
+        *,
+        verbose: bool = False,
     ):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
