@@ -182,7 +182,7 @@ def _recv_line(
                 raise OSError("Server closed the connection!")
 
         # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
-        buffer.extend(re.findall(b"[^\n]*\n", data))
+        buffer.extend(bytes(data)[:-1].split(b'\n'))
 
     return buffer.popleft()
 
