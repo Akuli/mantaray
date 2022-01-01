@@ -277,10 +277,7 @@ class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
 
     def __init__(
-        self,
-        irc_widget: IrcWidget,
-        server_config: config.ServerConfig,
-        verbose: bool,
+        self, irc_widget: IrcWidget, server_config: config.ServerConfig, verbose: bool
     ):
         super().__init__(irc_widget, server_config["host"])
         self.core = backend.IrcCore(server_config, verbose=verbose)

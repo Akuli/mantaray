@@ -167,8 +167,8 @@ class _JoinInProgress:
 
 
 def _recv_line(
-    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]
-) -> str:
+    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]
+) -> bytes:
     if not buffer:
         data = bytearray()
 
@@ -195,7 +195,7 @@ class IrcCore:
         self._apply_config(server_config)
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
-        self._recv_buffer: collections.deque[str] = collections.deque()
+        self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
