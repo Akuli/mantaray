@@ -1,3 +1,4 @@
+# Originally based on code written by https://github.com/PurpleMyst/
 # Most up to date irc docs I am aware of: https://modern.ircdocs.horse/
 # TODO: modernize rest of the file to be as the docs say instead of ancient RFCs
 from __future__ import annotations
