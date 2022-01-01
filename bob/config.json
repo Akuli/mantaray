@@ -5,7 +5,7 @@
       "port": 6667,
       "ssl": false,
       "nick": "Bob",
-      "username": "Bob",
+      "username": "BobUsr",
       "realname": "Bob's real name",
       "joined_channels": ["#autojoin"],
       "extra_notifications": ["#bobnotify"]

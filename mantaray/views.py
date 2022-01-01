@@ -125,7 +125,9 @@ class View:
 
     def reopen_log_file(self) -> None:
         self.close_log_file()
-        self.log_file = self.irc_widget.log_manager.open_log_file(self.server_view.view_name, self.get_log_name())
+        self.log_file = self.irc_widget.log_manager.open_log_file(
+            self.server_view.view_name, self.get_log_name()
+        )
 
     def _update_view_selector(self) -> None:
         if self.notification_count == 0:

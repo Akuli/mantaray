@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 class LogManager:
-
     def __init__(self, log_dir: Path):
         self.log_dir = log_dir
         self._opened: dict[IO[str], Path] = {}

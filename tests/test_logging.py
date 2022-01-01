@@ -1,4 +1,5 @@
 import re
+from mantaray.views import ServerView
 
 
 def _remove_timestamps(string):
@@ -103,6 +104,46 @@ def test_funny_filenames(alice, bob, wait_until):
 
 *** LOGGING BEGINS <time>
 <time>  {Bruh}  blah
+""",
+    )
+
+
+def test_same_log_file_name(alice, bob, wait_until):
+    # Prevent Bob from noticing nick change, to make Alice appear as two different users.
+    # Ideally there would be a way for tests to have 3 different people talking with each other
+    alice.entry.insert("end", "/part #autojoin")
+    alice.on_enter_pressed()
+    wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
+
+    alice.entry.insert("end", "/nick {foo")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as {foo." in alice.text())
+    alice.entry.insert("end", "/msg Bob hello 1")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello 1" in bob.text())
+
+    alice.entry.insert("end", "/nick }foo")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as }foo." in alice.text())
+    alice.entry.insert("end", "/msg Bob hello 2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello 2" in bob.text())
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "_foo.log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  {foo    hello 1
+""",
+    )
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "_foo(2).log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  }foo    hello 2
 """,
     )
 
