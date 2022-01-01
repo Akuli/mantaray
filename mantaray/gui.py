@@ -9,7 +9,7 @@ from tkinter.font import Font
 from typing import Any
 from pathlib import Path
 
-from mantaray import config, commands, colors
+from mantaray import config, commands, colors, logs
 from mantaray.views import View, ServerView, ChannelView, PMView
 
 
@@ -79,7 +79,7 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 class IrcWidget(ttk.PanedWindow):
     def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
         super().__init__(master, orient="horizontal")
-        self.log_dir = log_dir
+        self.log_manager = logs.LogManager(log_dir)
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]

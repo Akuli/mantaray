@@ -114,6 +114,18 @@ class View:
         colors.config_tags(self.textwidget)
 
         self.log_file: IO[str] | None = None
+        self.reopen_log_file()
+
+    def get_log_name(self) -> str:
+        raise NotImplementedError
+
+    def close_log_file(self) -> None:
+        if self.log_file is not None:
+            self.irc_widget.log_manager.close_log_file(self.log_file)
+
+    def reopen_log_file(self) -> None:
+        self.close_log_file()
+        self.log_file = self.irc_widget.log_manager.open_log_file(self.server_view.view_name, self.get_log_name())
 
     def _update_view_selector(self) -> None:
         if self.notification_count == 0:
@@ -164,29 +176,6 @@ class View:
         self.irc_widget.view_selector.item(
             self.view_id, tags=list((old_tags - {"new_message", "pinged"}) | {tag})
         )
-
-    def close_log_file(self) -> None:
-        if self.log_file is not None:
-            print("*** LOGGING ENDS", time.asctime(), file=self.log_file, flush=True)
-            self.log_file.close()
-            self.log_file = None
-
-    def open_log_file(self) -> None:
-        assert self.log_file is None
-
-        # Unlikely to create name conflicts in practice, but it is possible
-        name = re.sub("[^A-Za-z0-9-_#]", "_", self.view_name.lower())
-        path = self.irc_widget.log_dir / self.server_view.core.host / (name + ".log")
-
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            file = path.open("a", encoding="utf-8")
-            if sys.platform != "win32":
-                path.chmod(0o600)
-            print("\n\n*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
-            self.log_file = file
-        except OSError:
-            traceback.print_exc()
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
@@ -294,9 +283,12 @@ class ServerView(View):
         self.core.start_threads()
         self.handle_events()
 
-    # Do not log server stuff
-    def open_log_file(self) -> None:
-        pass
+    def get_log_name(self) -> str:
+        # Log to file named logs/foobar/server.log.
+        #
+        # Not a problem if someone is nicknamed "server", because ServerView
+        # opens its log file first.
+        return "server"
 
     @property
     def server_view(self) -> ServerView:
@@ -462,9 +454,8 @@ class ServerView(View):
 
             elif isinstance(event, backend.HostChanged):
                 self.view_name = event.new
-                for subview in self.get_subviews():
-                    subview.close_log_file()
-                    subview.open_log_file()
+                for subview in self.get_subviews(include_server=True):
+                    subview.reopen_log_file()
 
             else:
                 # If mypy says 'error: unused "type: ignore" comment', you
@@ -522,13 +513,15 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
-        self.open_log_file()
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot
     @property
     def channel_name(self) -> str:
         return self.view_name
+
+    def get_log_name(self) -> str:
+        return self.channel_name
 
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
@@ -634,12 +627,14 @@ class PMView(View):
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.pm_image
         )
-        self.open_log_file()
 
     # Same as view_name, but only PM views have this attribute
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
+
+    def get_log_name(self) -> str:
+        return self.nick_of_other_user
 
     def on_privmsg(self, sender: str, message: str) -> None:
         sender, chunks = _parse_privmsg(
@@ -658,6 +653,4 @@ class PMView(View):
     def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
         super().on_relevant_user_changed_nick(old, new)
         self.view_name = new
-
-        self.close_log_file()
-        self.open_log_file()
+        self.reopen_log_file()

@@ -8,7 +8,7 @@ from pathlib import Path
 class LogManager:
 
     def __init__(self, log_dir: Path):
-        self._log_dir = log_dir
+        self.log_dir = log_dir
         self._opened: dict[IO[str], Path] = {}
 
     def open_log_file(self, server_name: str, channel_or_nick: str) -> IO[str]:
@@ -18,10 +18,10 @@ class LogManager:
         # Even if someone's nickname is "server", logs shouldn't get mixed.
         # The actual server.log is created first.
         n = 1
-        path = self._log_dir / safe_folder / f"{safe_file}.log"
+        path = self.log_dir / safe_folder / f"{safe_file}.log"
         while path in self._opened.values():
             n += 1
-            path = self._log_dir / safe_folder / f"{safe_file}({n}).log"
+            path = self.log_dir / safe_folder / f"{safe_file}({n}).log"
 
         path.parent.mkdir(parents=True, exist_ok=True)
         file = path.open("a", encoding="utf-8")

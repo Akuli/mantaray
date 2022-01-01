@@ -27,7 +27,7 @@ def test_basic(alice, bob, wait_until):
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(
-        alice.log_dir / "localhost" / "#autojoin.log",
+        alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -58,7 +58,7 @@ def test_pm_logs(alice, bob, wait_until):
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(
-        alice.log_dir / "localhost" / "#autojoin.log",
+        alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -69,7 +69,7 @@ def test_pm_logs(alice, bob, wait_until):
 """,
     )
     check_log(
-        alice.log_dir / "localhost" / "bob.log",
+        alice.log_manager.log_dir / "localhost" / "bob.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -79,7 +79,7 @@ def test_pm_logs(alice, bob, wait_until):
 """,
     )
     check_log(
-        alice.log_dir / "localhost" / "blabla.log",
+        alice.log_manager.log_dir / "localhost" / "blabla.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -98,10 +98,34 @@ def test_funny_filenames(alice, bob, wait_until):
     wait_until(lambda: "blah" in bob.text())
 
     check_log(
-        bob.log_dir / "localhost" / "_bruh_.log",
+        bob.log_manager.log_dir / "localhost" / "_bruh_.log",
         """
 
 *** LOGGING BEGINS <time>
 <time>  {Bruh}  blah
+""",
+    )
+
+
+def test_someone_has_nickname_server(alice, bob, wait_until):
+    alice.entry.insert("end", "/nick server")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as server." in alice.text())
+
+    alice.entry.insert("end", "/msg Bob blah")
+    alice.on_enter_pressed()
+    wait_until(lambda: "blah" in bob.text())
+
+    bob.entry.insert("end", "hello there")
+    bob.on_enter_pressed()
+    wait_until(lambda: "hello there" in alice.text())
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "server(2).log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  server  blah
+<time>  Bob     hello there
 """,
     )
