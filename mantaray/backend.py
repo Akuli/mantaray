@@ -167,8 +167,8 @@ class _JoinInProgress:
 
 
 def _recv_line(
-    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[str]
-) -> str:
+    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]
+) -> bytes:
     if not buffer:
         data = bytearray()
 
@@ -181,9 +181,8 @@ def _recv_line(
             else:
                 raise OSError("Server closed the connection!")
 
-        # Do not use .splitlines(), it splits on \r which is bad (#115)
-        lines = re.split(r"\r?\n", data.decode("utf-8", errors="replace"))[:-1]
-        buffer.extend(lines)
+        # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+        buffer.extend(bytes(data)[:-1].split(b"\n"))
 
     return buffer.popleft()
 
@@ -191,11 +190,12 @@ def _recv_line(
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, server_config: config.ServerConfig):
+    def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
+        self._verbose = verbose
         self._apply_config(server_config)
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
-        self._recv_buffer: collections.deque[str] = collections.deque()
+        self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
@@ -409,13 +409,22 @@ class IrcCore:
                 break
 
             try:
-                line = _recv_line(sock, self._recv_buffer)
+                line_bytes = _recv_line(sock, self._recv_buffer)
             except (OSError, ssl.SSLError) as e:
                 # socket can be closed while receiving
                 if self._sock is None:
                     break
                 raise e
 
+            if self._verbose:
+                print("Recv:", line_bytes)
+
+            line_bytes = line_bytes.rstrip(b"\n")
+            # Allow \r\n line endings, or \r in middle of message
+            if line_bytes.endswith(b"\r"):
+                line_bytes = line_bytes[:-1]
+
+            line = line_bytes.decode("utf-8", errors="replace")
             if not line:
                 # "Empty messages are silently ignored"
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
@@ -442,6 +451,9 @@ class IrcCore:
             if sock is None:
                 # ignore events silently when not connected
                 continue
+
+            if self._verbose:
+                print("Send:", bytez)
 
             try:
                 sock.sendall(bytez)

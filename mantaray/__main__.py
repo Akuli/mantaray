@@ -48,6 +48,11 @@ def main() -> None:
         action="store_true",
         help="do not write to config.json in the config dir",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print everything sent and received, useful for development and understanding IRC",
+    )
     args = parser.parse_args()
 
     if args.config_dir != default_config_dir and not args.config_dir.is_dir():
@@ -94,7 +99,9 @@ def main() -> None:
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 
-    irc_widget = gui.IrcWidget(root, file_config, args.config_dir / "logs")
+    irc_widget = gui.IrcWidget(
+        root, file_config, args.config_dir / "logs", verbose=args.verbose
+    )
     irc_widget.pack(fill="both", expand=True)
     irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
 
