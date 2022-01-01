@@ -49,7 +49,7 @@ def main() -> None:
         help="do not write to config.json in the config dir",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="print everything sent and received"
+        "--verbose", action="store_true", help="print everything sent and received, useful for understanding IRC or development"
     )
     args = parser.parse_args()
 
