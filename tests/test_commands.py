@@ -57,6 +57,7 @@ def test_topic_change(alice, wait_until):
         lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
     )
     # Bug in hircd: Bob doesn't get a notification about Alice changed topic
+    # TODO: make sure the topic shows up when someone joins
 
 
 def test_me(alice, bob, wait_until):

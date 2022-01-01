@@ -51,7 +51,7 @@ def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
     connecting_end = len(alice.text())
     wait_until(
-        lambda: "The topic of #autojoin is: No topic" in alice.text()[connecting_end:]
+        lambda: "The topic of #autojoin is: (no topic)" in alice.text()[connecting_end:]
     )
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
 
