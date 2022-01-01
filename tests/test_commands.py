@@ -56,7 +56,7 @@ def test_topic_change(alice, wait_until):
     wait_until(
         lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
     )
-    # Bug in irc_server: Bob doesn't get a notification about Alice changed topic
+    # Bug in hircd: Bob doesn't get a notification about Alice changed topic
 
 
 def test_me(alice, bob, wait_until):
