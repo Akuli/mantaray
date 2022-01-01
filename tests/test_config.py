@@ -64,7 +64,9 @@ def test_changing_host(alice, mocker, wait_until):
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
 
     assert alice.view_selector.item(server_view.view_id, "text") == "127.0.0.1"
+    assert (alice.log_manager.log_dir / "localhost" / "server.log").exists()
     assert (alice.log_manager.log_dir / "localhost" / "#autojoin.log").exists()
+    assert (alice.log_manager.log_dir / "127_0_0_1" / "server.log").exists()
     assert (alice.log_manager.log_dir / "127_0_0_1" / "#autojoin.log").exists()
 
 
