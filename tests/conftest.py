@@ -79,7 +79,9 @@ class _IrcServer:
 @pytest.fixture
 def irc_server():
     if "IRC_SERVER_COMMAND" in os.environ:
-        command = shlex.split(os.environ["IRC_SERVER_COMMAND"], posix=(sys.platform != "win32"))
+        command = shlex.split(
+            os.environ["IRC_SERVER_COMMAND"], posix=(sys.platform != "win32")
+        )
         working_dir = os.environ.get("IRC_SERVER_WORKING_DIR", ".")
     else:
         command = [
