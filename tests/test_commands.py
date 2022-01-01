@@ -50,14 +50,27 @@ def test_nick_change(alice, bob, wait_until):
     wait_until(lambda: "lolwat is now known as LolWat.\n" in bob.text())
 
 
-def test_topic_change(alice, wait_until):
+def test_topic_change(alice, bob, wait_until):
     alice.entry.insert("end", "/topic blah blah")
     alice.on_enter_pressed()
     wait_until(
         lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
     )
-    # Bug in hircd: Bob doesn't get a notification about Alice changed topic
-    # TODO: make sure the topic shows up when someone joins
+
+    # TODO: bug in hircd: Bob doesn't get a notification about Alice changed topic
+
+    bob.entry.insert("end", "/part #autojoin")
+    bob.on_enter_pressed()
+    wait_until(
+        lambda: "blah blah" not in bob.text()
+    )
+
+    bob.entry.insert("end", "/join #autojoin")
+    bob.on_enter_pressed()
+    # FIXME: hircd sends TOPIC when it should send 332
+#    wait_until(
+#        lambda: "The topic of #autojoin is: blah blah\n" in bob.text()
+#    )
 
 
 def test_me(alice, bob, wait_until):
