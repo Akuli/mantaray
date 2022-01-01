@@ -180,7 +180,8 @@ def _recv_line(
             else:
                 raise OSError("Server closed the connection!")
 
-        lines = data.decode("utf-8", errors="replace").splitlines()
+        # Do not use .splitlines(), it splits on \r which is bad (#115)
+        lines = re.split(r"\r?\n", data.decode("utf-8", errors="replace"))[:-1]
         buffer.extend(lines)
 
     return buffer.popleft()
