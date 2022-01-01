@@ -56,7 +56,6 @@ class _IrcServer:
         try:
             # Wait for it to start
             for line in self.process.stdout:
-                print(line)
                 assert b"error" not in line.lower()
                 if b"Starting hircd" in line or b"Mantatail running" in line:
                     return
