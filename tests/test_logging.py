@@ -1,4 +1,5 @@
 import re
+from mantaray.views import ServerView
 
 
 def _remove_timestamps(string):
@@ -27,7 +28,7 @@ def test_basic(alice, bob, wait_until):
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(
-        alice.log_dir / "localhost" / "#autojoin.log",
+        alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -58,7 +59,7 @@ def test_pm_logs(alice, bob, wait_until):
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(
-        alice.log_dir / "localhost" / "#autojoin.log",
+        alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -69,7 +70,7 @@ def test_pm_logs(alice, bob, wait_until):
 """,
     )
     check_log(
-        alice.log_dir / "localhost" / "bob.log",
+        alice.log_manager.log_dir / "localhost" / "bob.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -79,7 +80,7 @@ def test_pm_logs(alice, bob, wait_until):
 """,
     )
     check_log(
-        alice.log_dir / "localhost" / "blabla.log",
+        alice.log_manager.log_dir / "localhost" / "blabla.log",
         """
 
 *** LOGGING BEGINS <time>
@@ -98,10 +99,74 @@ def test_funny_filenames(alice, bob, wait_until):
     wait_until(lambda: "blah" in bob.text())
 
     check_log(
-        bob.log_dir / "localhost" / "_bruh_.log",
+        bob.log_manager.log_dir / "localhost" / "_bruh_.log",
         """
 
 *** LOGGING BEGINS <time>
 <time>  {Bruh}  blah
+""",
+    )
+
+
+def test_same_log_file_name(alice, bob, wait_until):
+    # Prevent Bob from noticing nick change, to make Alice appear as two different users.
+    # Ideally there would be a way for tests to have 3 different people talking with each other
+    alice.entry.insert("end", "/part #autojoin")
+    alice.on_enter_pressed()
+    wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
+
+    alice.entry.insert("end", "/nick {foo")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as {foo." in alice.text())
+    alice.entry.insert("end", "/msg Bob hello 1")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello 1" in bob.text())
+
+    alice.entry.insert("end", "/nick }foo")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as }foo." in alice.text())
+    alice.entry.insert("end", "/msg Bob hello 2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello 2" in bob.text())
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "_foo.log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  {foo    hello 1
+""",
+    )
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "_foo(2).log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  }foo    hello 2
+""",
+    )
+
+
+def test_someone_has_nickname_server(alice, bob, wait_until):
+    alice.entry.insert("end", "/nick server")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as server." in alice.text())
+
+    alice.entry.insert("end", "/msg Bob blah")
+    alice.on_enter_pressed()
+    wait_until(lambda: "blah" in bob.text())
+
+    bob.entry.insert("end", "hello there")
+    bob.on_enter_pressed()
+    wait_until(lambda: "hello there" in alice.text())
+
+    check_log(
+        bob.log_manager.log_dir / "localhost" / "server(2).log",
+        """
+
+*** LOGGING BEGINS <time>
+<time>  server  blah
+<time>  Bob     hello there
 """,
     )
