@@ -134,6 +134,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def msg_memoserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "MemoServ", message)
 
+    def msg_chanserv(view: View, core: IrcCore, message: str) -> None:
+        return msg(view, core, "ChanServ", message)
+
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
             core.kick(view.channel_name, nick, reason)
@@ -152,6 +155,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/nickserv": msg_nickserv,
         "/ms": msg_memoserv,
         "/memoserv": msg_memoserv,
+        "/cs": msg_chanserv,
+        "/chanserv": msg_chanserv,
         "/kick": kick,
     }
 
