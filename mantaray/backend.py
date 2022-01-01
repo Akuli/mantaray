@@ -181,9 +181,8 @@ def _recv_line(
             else:
                 raise OSError("Server closed the connection!")
 
-        # Do not use .splitlines(), it splits on \r which is bad (#115)
-        lines = re.split(r"\r?\n", data.decode("utf-8", errors="replace"))[:-1]
-        buffer.extend(lines)
+        # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+        buffer.extend(re.findall(b"[^\n]*\n", data))
 
     return buffer.popleft()
 
@@ -191,7 +190,8 @@ def _recv_line(
 class IrcCore:
 
     # each channel in autojoin will be joined after connecting
-    def __init__(self, server_config: config.ServerConfig):
+    def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
+        self._verbose = verbose
         self._apply_config(server_config)
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
@@ -409,13 +409,23 @@ class IrcCore:
                 break
 
             try:
-                line = _recv_line(sock, self._recv_buffer)
+                line_bytes = _recv_line(sock, self._recv_buffer)
             except (OSError, ssl.SSLError) as e:
                 # socket can be closed while receiving
                 if self._sock is None:
                     break
                 raise e
 
+            if self._verbose:
+                print("Recv:", line_bytes)
+
+            line_bytes = line_bytes.rstrip(b"\n")
+            if line_bytes.endswith(
+                b"\r"
+            ):  # Allow \r\n line endings, or \r in middle of message
+                line_bytes = line_bytes[:-1]
+
+            line = line_bytes.decode("utf-8", errors="replace")
             if not line:
                 # "Empty messages are silently ignored"
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
@@ -442,6 +452,9 @@ class IrcCore:
             if sock is None:
                 # ignore events silently when not connected
                 continue
+
+            if self._verbose:
+                print("Send:", bytez)
 
             try:
                 sock.sendall(bytez)

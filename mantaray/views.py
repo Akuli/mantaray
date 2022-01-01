@@ -276,9 +276,15 @@ class View:
 class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
 
-    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
+    def __init__(
+        self,
+        irc_widget: IrcWidget,
+        server_config: config.ServerConfig,
+        *,
+        verbose: bool = False,
+    ):
         super().__init__(irc_widget, server_config["host"])
-        self.core = backend.IrcCore(server_config)
+        self.core = backend.IrcCore(server_config, verbose=verbose)
         self.extra_notifications = set(server_config["extra_notifications"])
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 

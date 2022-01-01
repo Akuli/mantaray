@@ -77,7 +77,13 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
 
 class IrcWidget(ttk.PanedWindow):
-    def __init__(self, master: tkinter.Misc, file_config: config.Config, log_dir: Path):
+    def __init__(
+        self,
+        master: tkinter.Misc,
+        file_config: config.Config,
+        log_dir: Path,
+        verbose: bool,
+    ):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
 
@@ -150,7 +156,7 @@ class IrcWidget(ttk.PanedWindow):
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
-            self.add_view(ServerView(self, server_config))
+            self.add_view(ServerView(self, server_config, verbose=verbose))
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
