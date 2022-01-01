@@ -420,9 +420,8 @@ class IrcCore:
                 print("Recv:", line_bytes)
 
             line_bytes = line_bytes.rstrip(b"\n")
-            if line_bytes.endswith(
-                b"\r"
-            ):  # Allow \r\n line endings, or \r in middle of message
+            # Allow \r\n line endings, or \r in middle of message
+            if line_bytes.endswith(b"\r"):
                 line_bytes = line_bytes[:-1]
 
             line = line_bytes.decode("utf-8", errors="replace")
