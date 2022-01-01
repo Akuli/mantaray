@@ -61,13 +61,13 @@ def test_topic_change(alice, bob, wait_until):
 
     bob.entry.insert("end", "/part #autojoin")
     bob.on_enter_pressed()
-    wait_until(
-        lambda: "blah blah" not in bob.text()
-    )
+    wait_until(lambda: "blah blah" not in bob.text())
 
     bob.entry.insert("end", "/join #autojoin")
     bob.on_enter_pressed()
     # FIXME: hircd sends TOPIC when it should send 332
+
+
 #    wait_until(
 #        lambda: "The topic of #autojoin is: blah blah\n" in bob.text()
 #    )
