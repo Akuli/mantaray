@@ -341,9 +341,10 @@ class IrcCore:
                 # gives 4-element msg.args lists
                 channel, names = msg.args[-2:]
 
-                # TODO: don't ignore @ and + prefixes
+                # TODO: the prefixes have meanings
+                # https://modern.ircdocs.horse/#channel-membership-prefixes
                 self._joining_in_progress[channel.lower()].nicks.extend(
-                    name.lstrip("@+") for name in names.split()
+                    name.lstrip("~&@%+") for name in names.split()
                 )
                 return  # don't spam server view with nicks
 
