@@ -25,7 +25,11 @@ def _fix_tag_coloring_bug() -> None:
             if elm[:2] != ("!disabled", "!selected")
         ]
 
-    style.map("Treeview", foreground=fixed_map("foreground"), background=fixed_map("background"))
+    style.map(
+        "Treeview",
+        foreground=fixed_map("foreground"),
+        background=fixed_map("background"),
+    )
 
 
 def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
@@ -33,7 +37,9 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
 
-    ttk.Label(content, text="Enter a new nickname here:").place(relx=0.5, rely=0.1, anchor="center")
+    ttk.Label(content, text="Enter a new nickname here:").place(
+        relx=0.5, rely=0.1, anchor="center"
+    )
 
     entry = ttk.Entry(content)
     entry.place(relx=0.5, rely=0.3, anchor="center")
@@ -82,16 +88,22 @@ class IrcWidget(ttk.PanedWindow):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
 
-        self.font = Font(family=file_config["font_family"], size=file_config["font_size"])
+        self.font = Font(
+            family=file_config["font_family"], size=file_config["font_size"]
+        )
         if not self.font.metrics("fixed"):
             self.font.config(family=config.get_default_fixed_font()[0])
 
         images_dir = Path(__file__).absolute().parent / "images"
-        self.channel_image = tkinter.PhotoImage(file=(images_dir / "hashtagbubble-20x20.png"))
+        self.channel_image = tkinter.PhotoImage(
+            file=(images_dir / "hashtagbubble-20x20.png")
+        )
         self.pm_image = tkinter.PhotoImage(file=(images_dir / "face-20x20.png"))
 
         # Help Python's GC (tkinter images rely on __del__ and it sucks)
-        self.bind("<Destroy>", (lambda e: setattr(self, "channel_image", None)), add=True)
+        self.bind(
+            "<Destroy>", (lambda e: setattr(self, "channel_image", None)), add=True
+        )
         self.bind("<Destroy>", (lambda e: setattr(self, "pm_image", None)), add=True)
 
         _fix_tag_coloring_bug()
@@ -111,7 +123,9 @@ class IrcWidget(ttk.PanedWindow):
 
         if sys.platform == "darwin":
             self.view_selector.bind("<Button-2>", self._view_selector_right_click)
-            self.view_selector.bind("<Control-Button-1>", self._view_selector_right_click)
+            self.view_selector.bind(
+                "<Control-Button-1>", self._view_selector_right_click
+            )
         else:
             self.view_selector.bind("<Button-3>", self._view_selector_right_click)
 
@@ -186,7 +200,9 @@ class IrcWidget(ttk.PanedWindow):
     def previous_message_to_entry(self, junk_event: object = None) -> None:
         textwidget = self.get_current_view().textwidget
         try:
-            tag_range = textwidget.tag_prevrange("sent-privmsg", "history-selection.first")
+            tag_range = textwidget.tag_prevrange(
+                "sent-privmsg", "history-selection.first"
+            )
         except tkinter.TclError:
             tag_range = textwidget.tag_prevrange("sent-privmsg", "end")
 
@@ -196,7 +212,9 @@ class IrcWidget(ttk.PanedWindow):
     def next_message_to_entry(self, junk_event: object = None) -> None:
         textwidget = self.get_current_view().textwidget
         try:
-            tag_range = textwidget.tag_nextrange("sent-privmsg", "history-selection.first + 1 line")
+            tag_range = textwidget.tag_nextrange(
+                "sent-privmsg", "history-selection.first + 1 line"
+            )
         except tkinter.TclError:
             return
 
@@ -257,13 +275,17 @@ class IrcWidget(ttk.PanedWindow):
     def move_view_up(self) -> None:
         view_id = self.get_current_view().view_id
         self.view_selector.move(
-            view_id, self.view_selector.parent(view_id), self.view_selector.index(view_id) - 1
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) - 1,
         )
 
     def move_view_down(self) -> None:
         view_id = self.get_current_view().view_id
         self.view_selector.move(
-            view_id, self.view_selector.parent(view_id), self.view_selector.index(view_id) + 1
+            view_id,
+            self.view_selector.parent(view_id),
+            self.view_selector.index(view_id) + 1,
         )
 
     def _tab_event_handler(self, junk_event: object) -> str:
@@ -288,7 +310,9 @@ class IrcWidget(ttk.PanedWindow):
         else:
             try:
                 completion = next(
-                    username for username in nicks if username.lower().startswith(last_word.lower())
+                    username
+                    for username in nicks
+                    if username.lower().startswith(last_word.lower())
                 )
             except StopIteration:
                 return
@@ -314,9 +338,14 @@ class IrcWidget(ttk.PanedWindow):
         if isinstance(new_view, ChannelView):
             self.add(new_view.userlist.treeview, weight=0)
 
-        if self._previous_view is not None and self._previous_view.textwidget.winfo_exists():
+        if (
+            self._previous_view is not None
+            and self._previous_view.textwidget.winfo_exists()
+        ):
             self._previous_view.textwidget.pack_forget()
-        new_view.textwidget.pack(in_=self._middle_pane, side="top", fill="both", expand=True)
+        new_view.textwidget.pack(
+            in_=self._middle_pane, side="top", fill="both", expand=True
+        )
         new_view.mark_seen()
 
         self._previous_view = new_view
@@ -373,7 +402,9 @@ class IrcWidget(ttk.PanedWindow):
                 label="Server settings...", command=view.show_config_dialog
             )
 
-    def _view_selector_right_click(self, event: tkinter.Event[tkinter.ttk.Treeview]) -> None:
+    def _view_selector_right_click(
+        self, event: tkinter.Event[tkinter.ttk.Treeview]
+    ) -> None:
         item_id = self.view_selector.identify_row(event.y)
         if not item_id:
             return
@@ -386,7 +417,8 @@ class IrcWidget(ttk.PanedWindow):
     def get_current_config(self) -> config.Config:
         return {
             "servers": [
-                server_view.get_current_config() for server_view in self.get_server_views()
+                server_view.get_current_config()
+                for server_view in self.get_server_views()
             ],
             "font_family": self.font["family"],
             "font_size": self.font["size"],
