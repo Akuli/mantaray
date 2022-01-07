@@ -34,6 +34,7 @@ class ServerConfig(TypedDict):
     joined_channels: list[str]
     extra_notifications: list[str]  # channels to notify for all messages
     join_leave_hiding: JoinLeaveHidingConfig
+    audio_notification: bool
 
 
 class Config(TypedDict):
@@ -202,6 +203,15 @@ class _DialogContent(ttk.Frame):
                 row=self._rownumber, column=0, columnspan=3, sticky="we"
             )
             self._rownumber += 1
+
+        self._audio_var = tkinter.BooleanVar(value=False)
+        self.audio_notification_checkbox = ttk.Checkbutton(
+            self, text="Enable audio notification on ping", variable=self._audio_var
+        )
+        self.audio_notification_checkbox.grid(
+            row=self._rownumber, column=0, sticky="w", padx=5, pady=10
+        )
+        self._rownumber += 1
 
         if self._realname_entry is not None:
             infolabel = ttk.Label(
@@ -382,6 +392,7 @@ def show_connection_settings_dialog(
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
+                "audio_notification": False,
             },
             connecting_to_new_server=True,
         )

@@ -217,6 +217,7 @@ class IrcCore:
         self.realname = server_config["realname"]
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
+        self.audio_notification = server_config["audio_notification"]
 
     def start_threads(self) -> None:
         assert not self._threads
