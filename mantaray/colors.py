@@ -24,7 +24,7 @@ _MIRC_COLORS = {
 }
 
 FOREGROUND = _MIRC_COLORS[0]
-BACKGROUND = _MIRC_COLORS[1]
+BACKGROUND = "#242323"
 
 
 def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
