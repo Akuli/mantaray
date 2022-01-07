@@ -24,7 +24,7 @@ _MIRC_COLORS = {
 }
 
 FOREGROUND = _MIRC_COLORS[0]
-BACKGROUND = _MIRC_COLORS[1]
+BACKGROUND = "#242323"
 
 
 def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
@@ -92,14 +92,14 @@ def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
     textwidget.tag_configure("underline", underline=True)
-    textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
-    textwidget.tag_configure("error", foreground=_MIRC_COLORS[4])
-    textwidget.tag_configure("info", foreground=_MIRC_COLORS[11])
-    textwidget.tag_configure("history-selection", background=_MIRC_COLORS[12])
-    textwidget.tag_configure("channel", foreground=_MIRC_COLORS[13])
+    textwidget.tag_configure("pinged", foreground="#a1e37b")
+    textwidget.tag_configure("error", foreground="#bd2f2f")
+    textwidget.tag_configure("info", foreground="#de8c28")
+    textwidget.tag_configure("history-selection", background="#5a5c50")
+    textwidget.tag_configure("channel", foreground="#f7e452")
     # TODO: make nicks clickable
-    textwidget.tag_configure("self-nick", foreground=_MIRC_COLORS[11], underline=True)
-    textwidget.tag_configure("other-nick", foreground=_MIRC_COLORS[10], underline=True)
+    textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
+    textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
 
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
