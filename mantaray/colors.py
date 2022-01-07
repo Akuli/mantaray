@@ -6,19 +6,19 @@ from typing import Iterator
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
     0: "#ffffff",
-    1: "#242323",
+    1: "#000000",
     2: "#00007f",
     3: "#009300",
-    4: "#bd2f2f",
+    4: "#ff0000",
     5: "#7f0000",
     6: "#9c009c",
     7: "#fc7f00",
     8: "#ffff00",
-    9: "#a1e37b",
-    10: "#e7b678",
-    11: "#de8c28",
-    12: "#5a5c50",
-    13: "#f7e452",
+    9: "#00fc00",
+    10: "#009393",
+    11: "#00ffff",
+    12: "#0000fc",
+    13: "#ff00ff",
     14: "#7f7f7f",
     15: "#d2d2d2",
 }
@@ -92,14 +92,14 @@ def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
     textwidget.tag_configure("underline", underline=True)
-    textwidget.tag_configure("pinged", foreground=_MIRC_COLORS[9])
-    textwidget.tag_configure("error", foreground=_MIRC_COLORS[4])
-    textwidget.tag_configure("info", foreground=_MIRC_COLORS[11])
-    textwidget.tag_configure("history-selection", background=_MIRC_COLORS[12])
-    textwidget.tag_configure("channel", foreground=_MIRC_COLORS[13])
+    textwidget.tag_configure("pinged", foreground="#a1e37b")
+    textwidget.tag_configure("error", foreground="#bd2f2f")
+    textwidget.tag_configure("info", foreground="#de8c28")
+    textwidget.tag_configure("history-selection", background="#5a5c50")
+    textwidget.tag_configure("channel", foreground="#f7e452")
     # TODO: make nicks clickable
-    textwidget.tag_configure("self-nick", foreground=_MIRC_COLORS[11], underline=True)
-    textwidget.tag_configure("other-nick", foreground=_MIRC_COLORS[10], underline=True)
+    textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
+    textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
 
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
