@@ -58,6 +58,7 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("ssl", True)
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
+                server.setdefault("audio_notification", False)
                 server.setdefault(
                     "join_leave_hiding",
                     {"show_by_default": True, "exception_nicks": []},
@@ -205,13 +206,16 @@ class _DialogContent(ttk.Frame):
             self._rownumber += 1
 
         self._audio_var = tkinter.BooleanVar(value=False)
-        self.audio_notification_checkbox = ttk.Checkbutton(
-            self, text="Enable audio notification on ping", variable=self._audio_var
-        )
-        self.audio_notification_checkbox.grid(
-            row=self._rownumber, column=0, sticky="w", padx=5, pady=10
-        )
-        self._rownumber += 1
+        if connecting_to_new_server:
+            self.audio_notification_checkbox = None
+        else:
+            self.audio_notification_checkbox = ttk.Checkbutton(
+                self, text="Enable audio notification on ping", variable=self._audio_var
+            )
+            self.audio_notification_checkbox.grid(
+                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
+            )
+            self._rownumber += 1
 
         if self._realname_entry is not None:
             infolabel = ttk.Label(
@@ -255,6 +259,7 @@ class _DialogContent(ttk.Frame):
         self._server_entry.var.set(initial_config["host"])
         self._ssl_var.set(initial_config["ssl"])  # must be before port
         self._port_entry.var.set(str(initial_config["port"]))
+        self._audio_var.set(str(initial_config["audio_notification"]))
         if self._nick_entry is not None:
             self._nick_entry.var.set(initial_config["nick"])
         if self._username_entry is not None:
@@ -361,6 +366,7 @@ class _DialogContent(ttk.Frame):
                 else self._channel_entry.get().split()
             ),
             "extra_notifications": self._initial_config["extra_notifications"],
+            "audio_notification": self._audio_var.get(),
             "join_leave_hiding": (
                 self._initial_config["join_leave_hiding"]
                 if self._join_part_quit is None
