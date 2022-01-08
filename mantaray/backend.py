@@ -38,9 +38,7 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
-def find_nicks(
-    text: str, self_nick: str, all_nicks: Sequence[str]
-) -> Iterator[tuple[str, str | None]]:
+def find_nicks(text: str, self_nick: str, all_nicks: Sequence[str]) -> Iterator[tuple[str, str | None]]:
     lowercase_nicks = {n.lower() for n in all_nicks}
     assert self_nick.lower() in lowercase_nicks
 
@@ -166,9 +164,7 @@ class _JoinInProgress:
     nicks: list[str]
 
 
-def _recv_line(
-    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]
-) -> bytes:
+def _recv_line(sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]) -> bytes:
     if not buffer:
         data = bytearray()
 
@@ -217,7 +213,6 @@ class IrcCore:
         self.realname = server_config["realname"]
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
-        self.audio_notification = server_config["audio_notification"]
 
     def start_threads(self) -> None:
         assert not self._threads
@@ -234,17 +229,12 @@ class IrcCore:
         while not self._quit_event.is_set():
             try:
                 self.event_queue.put(
-                    ConnectivityMessage(
-                        f"Connecting to {self.host} port {self.port}...", is_error=False
-                    )
+                    ConnectivityMessage(f"Connecting to {self.host} port {self.port}...", is_error=False)
                 )
                 self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(
-                        f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}",
-                        is_error=True,
-                    )
+                    ConnectivityMessage(f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}", is_error=True)
                 )
                 self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
@@ -253,15 +243,11 @@ class IrcCore:
                 # If this succeeds, it stops when connection is closed
                 self._recv_loop()
             except (OSError, ssl.SSLError) as e:
-                self.event_queue.put(
-                    ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
-                )
+                self.event_queue.put(ConnectivityMessage(f"Error while receiving: {e}", is_error=True))
                 # get ready to connect again
                 self._disconnect()
 
-    def _put_to_send_queue(
-        self, message: str, *, done_event: _IrcEvent | None = None
-    ) -> None:
+    def _put_to_send_queue(self, message: str, *, done_event: _IrcEvent | None = None) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
     def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
@@ -344,9 +330,7 @@ class IrcCore:
 
                 # TODO: the prefixes have meanings
                 # https://modern.ircdocs.horse/#channel-membership-prefixes
-                self._joining_in_progress[channel.lower()].nicks.extend(
-                    name.lstrip("~&@%+") for name in names.split()
-                )
+                self._joining_in_progress[channel.lower()].nicks.extend(name.lstrip("~&@%+") for name in names.split())
                 return  # don't spam server view with nicks
 
             elif msg.command == _RPL_ENDOFNAMES:
@@ -354,9 +338,7 @@ class IrcCore:
                 channel, human_readable_message = msg.args[-2:]
                 join = self._joining_in_progress.pop(channel.lower())
                 # join.topic is None, when creating channel on libera
-                self.event_queue.put(
-                    SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-                )
+                self.event_queue.put(SelfJoined(channel, join.topic or "(no topic)", join.nicks))
 
             elif msg.command == _RPL_ENDOFMOTD:
                 # TODO: relying on MOTD good?
@@ -477,9 +459,7 @@ class IrcCore:
         try:
             if self.ssl:
                 context = ssl.create_default_context()
-                sock: socket.socket | ssl.SSLSocket = context.wrap_socket(
-                    socket.socket(), server_hostname=self.host
-                )
+                sock: socket.socket | ssl.SSLSocket = context.wrap_socket(socket.socket(), server_hostname=self.host)
             else:
                 sock = socket.socket()
             sock.connect((self.host, self.port))
@@ -527,10 +507,7 @@ class IrcCore:
             self._put_to_send_queue(f"PART {channel} :{reason}")
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self._put_to_send_queue(
-            f"PRIVMSG {nick_or_channel} :{text}",
-            done_event=SentPrivmsg(nick_or_channel, text),
-        )
+        self._put_to_send_queue(f"PRIVMSG {nick_or_channel} :{text}", done_event=SentPrivmsg(nick_or_channel, text))
 
     def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:

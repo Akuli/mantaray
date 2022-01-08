@@ -438,7 +438,7 @@ class ServerView(View):
             ),
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
-            "audio_notification": self.core.audio_notification,
+            "audio_notification": self.audio_notification,
         }
 
     def show_config_dialog(self) -> None:
