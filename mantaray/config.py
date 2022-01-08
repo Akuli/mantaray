@@ -136,9 +136,6 @@ class _JoinLeaveWidget(ttk.Frame):
 class _DialogContent(ttk.Frame):
     def __init__(self, master: tkinter.Misc, initial_config: ServerConfig, connecting_to_new_server: bool):
         super().__init__(master)
-        import pdb
-
-        pdb.set_trace()
         self._initial_config = initial_config
         self.result: ServerConfig | None = None
 
