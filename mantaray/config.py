@@ -190,7 +190,7 @@ class _DialogContent(ttk.Frame):
             self._join_part_quit.grid(row=self._rownumber, column=0, columnspan=3, sticky="we")
             self._rownumber += 1
 
-        self._audio_var = tkinter.BooleanVar(value=False)
+        self._audio_var = tkinter.BooleanVar(value=initial_config["audio_notification"])
         if connecting_to_new_server:
             self.audio_notification_checkbox = None
         else:
@@ -227,7 +227,6 @@ class _DialogContent(ttk.Frame):
         self._server_entry.var.set(initial_config["host"])
         self._ssl_var.set(initial_config["ssl"])  # must be before port
         self._port_entry.var.set(str(initial_config["port"]))
-        self._audio_var.set(initial_config["audio_notification"])
         if self._nick_entry is not None:
             self._nick_entry.var.set(initial_config["nick"])
         if self._username_entry is not None:
