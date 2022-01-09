@@ -146,7 +146,10 @@ class View:
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
         if self.server_view.audio_notification:
-            playsound("mantaray/audio/notify.mp3", False)
+            try:
+                playsound("mantaray/audio/notify.mp3", False)
+            except:
+                pass
 
         _show_popup(self.view_name, popup_text)
 
