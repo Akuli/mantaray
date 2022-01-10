@@ -6,6 +6,7 @@ import time
 import sys
 import tkinter
 import subprocess
+from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, Sequence, TYPE_CHECKING, IO
 
@@ -155,6 +156,12 @@ class View:
         self.notification_count += 1
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
+        if self.server_view.audio_notification:
+            try:
+                playsound("mantaray/audio/notify.mp3", False)
+            except Exception:
+                traceback.print_exc()
+
         _show_popup(self.view_name, popup_text)
 
     def mark_seen(self) -> None:
@@ -282,6 +289,7 @@ class ServerView(View):
         super().__init__(irc_widget, server_config["host"])
         self.core = backend.IrcCore(server_config, verbose=verbose)
         self.extra_notifications = set(server_config["extra_notifications"])
+        self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
         self.core.start_threads()
@@ -486,6 +494,7 @@ class ServerView(View):
             ),
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
+            "audio_notification": self.audio_notification,
         }
 
     def show_config_dialog(self) -> None:
@@ -496,6 +505,7 @@ class ServerView(View):
         if new_config is not None:
             self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
+            self.audio_notification = new_config["audio_notification"]
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
                 if (

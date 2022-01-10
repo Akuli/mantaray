@@ -34,6 +34,7 @@ class ServerConfig(TypedDict):
     joined_channels: list[str]
     extra_notifications: list[str]  # channels to notify for all messages
     join_leave_hiding: JoinLeaveHidingConfig
+    audio_notification: bool
 
 
 class Config(TypedDict):
@@ -57,6 +58,7 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("ssl", True)
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
+                server.setdefault("audio_notification", False)
                 server.setdefault(
                     "join_leave_hiding",
                     {"show_by_default": True, "exception_nicks": []},
@@ -200,6 +202,18 @@ class _DialogContent(ttk.Frame):
             self._join_part_quit = _JoinLeaveWidget(self)
             self._join_part_quit.grid(
                 row=self._rownumber, column=0, columnspan=3, sticky="we"
+            )
+            self._rownumber += 1
+
+        self._audio_var = tkinter.BooleanVar(value=initial_config["audio_notification"])
+        if connecting_to_new_server:
+            self.audio_notification_checkbox = None
+        else:
+            self.audio_notification_checkbox = ttk.Checkbutton(
+                self, text="Enable audio notification on ping", variable=self._audio_var
+            )
+            self.audio_notification_checkbox.grid(
+                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
             )
             self._rownumber += 1
 
@@ -351,6 +365,7 @@ class _DialogContent(ttk.Frame):
                 else self._channel_entry.get().split()
             ),
             "extra_notifications": self._initial_config["extra_notifications"],
+            "audio_notification": self._audio_var.get(),
             "join_leave_hiding": (
                 self._initial_config["join_leave_hiding"]
                 if self._join_part_quit is None
@@ -382,6 +397,7 @@ def show_connection_settings_dialog(
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
+                "audio_notification": False,
             },
             connecting_to_new_server=True,
         )
