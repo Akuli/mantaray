@@ -40,6 +40,7 @@ def test_old_config_format(tmp_path, root_window):
                 "password": None,
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
+                "audio_notification": False,
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             }
         ],
@@ -52,9 +53,7 @@ def reconnect_with_change(server_view, mocker, key, old, new):
     new_config = server_view.get_current_config().copy()
     assert new_config[key] == old
     new_config[key] = new
-    mocker.patch(
-        "mantaray.config.show_connection_settings_dialog"
-    ).return_value = new_config
+    mocker.patch("mantaray.config.show_connection_settings_dialog").return_value = new_config
     server_view.show_config_dialog()
 
 
@@ -102,19 +101,12 @@ def test_reconnect(alice, mocker, monkeypatch, wait_until):
 def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
     sample_config = load_from_file(Path("alice"))["servers"][0]
-    assert (
-        show_connection_settings_dialog(
-            transient_to=root_window, initial_config=sample_config
-        )
-        == sample_config
-    )
+    assert show_connection_settings_dialog(transient_to=root_window, initial_config=sample_config) == sample_config
 
 
 def test_default_settings(root_window, monkeypatch):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Connect!"))
-    config = show_connection_settings_dialog(
-        transient_to=root_window, initial_config=None
-    )
+    config = show_connection_settings_dialog(transient_to=root_window, initial_config=None)
     assert config.pop("nick") == config.pop("username") == config.pop("realname")
     assert config == {
         "host": "irc.libera.chat",
@@ -123,13 +115,12 @@ def test_default_settings(root_window, monkeypatch):
         "port": 6697,
         "ssl": True,
         "extra_notifications": [],
+        "audio_notification": False,
         "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="fails github actions and I don't know why"
-)
+@pytest.mark.skipif(sys.platform == "win32", reason="fails github actions and I don't know why")
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     bob.entry.insert("end", "/join #lol")
     bob.on_enter_pressed()
@@ -159,10 +150,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     alice.on_enter_pressed()
     wait_until(lambda: not alice.winfo_exists())
 
-    wait_until(
-        lambda: "Hello Bob" in bob.text()
-        and "Alice" not in bob.get_current_view().userlist.get_nicks()
-    )
+    wait_until(lambda: "Hello Bob" in bob.text() and "Alice" not in bob.get_current_view().userlist.get_nicks())
     assert "joined" not in bob.text()
     assert "left" not in bob.text()
     assert "parted" not in bob.text()
