@@ -159,8 +159,8 @@ class View:
         if self.server_view.audio_notification:
             try:
                 playsound("mantaray/audio/notify.mp3", False)
-            except:
-                pass
+            except Exception:
+                traceback.print_exc()
 
         _show_popup(self.view_name, popup_text)
 
