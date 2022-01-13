@@ -18,6 +18,7 @@ except ImportError:
     traceback.print_exc()
     print()
     print("You need to create a venv and install the dependencies into it with pip.")
+    print("If you already created it, you probably forgot to active it.")
     print("See README.md for instructions.")
     sys.exit(1)
 
