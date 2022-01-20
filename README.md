@@ -44,7 +44,8 @@ Running tests: (use `py` instead of `python3` on Windows)
     $ git submodule init --update
     $ python3 -m pytest
 
-Running tests with Mantatail instead of hircd:
+Running tests with [Mantatail](https://github.com/ThePhilgrim/MantaTail)
+(default is [hircd](https://github.com/fboender/hircd)):
 
     $ IRC_SERVER=mantatail python3 -m pytest
 
