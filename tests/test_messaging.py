@@ -1,3 +1,8 @@
+import os
+
+import pytest
+
+
 def test_basic(alice, bob, wait_until):
     alice.entry.insert(0, "Hello there")
     alice.on_enter_pressed()
@@ -90,6 +95,7 @@ def test_slash_r_character(alice, bob, wait_until):
     wait_until(lambda: "hello \rlol\r world" in bob.text())
 
 
+@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail seems broken idk?", strict=True)
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
     # TODO: "/msg bob asdf" with lowercase bob causes two bugs:
