@@ -107,8 +107,7 @@ def irc_server():
     if os.environ["IRC_SERVER"] == "hircd":
         # A bit of a hack, but I don't care about disconnect errors
         output = (
-            output
-            .replace(b"BrokenPipeError:", b"")
+            output.replace(b"BrokenPipeError:", b"")
             .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
             .replace(b"ConnectionResetError: [Errno 54]", b"")
         )
