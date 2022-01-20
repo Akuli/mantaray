@@ -61,9 +61,6 @@ jobs:
     - run: pip install wheel
     - run: pip install -r requirements.txt
     - run: pip install -r requirements-dev.txt
-    - if: matrix.os == 'ubuntu-latest'
-      uses: GabrielBB/xvfb-action@v1.4
+    - uses: GabrielBB/xvfb-action@v1.4
       with:
         run: python3 -m pytest -vv
-    - if: matrix.os != 'ubuntu-latest'
-      run: python3 -m pytest -vv
