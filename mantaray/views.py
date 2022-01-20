@@ -292,6 +292,7 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
+        print("ServerView with core", id(self.core), "starting:")
         self.core.start_threads()
         self.handle_events()
 
@@ -347,6 +348,8 @@ class ServerView(View):
                 event = self.core.event_queue.get(block=False)
             except queue.Empty:
                 break
+
+            print("ServerView with core", id(self.core), "got event:", event)
 
             if isinstance(event, backend.SelfJoined):
                 channel_view = self.find_channel(event.channel)

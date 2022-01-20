@@ -219,6 +219,7 @@ class IrcCore:
         self.autojoin = server_config["joined_channels"].copy()
 
     def start_threads(self) -> None:
+        print("Core", id(self), "starting threads")
         assert not self._threads
         self._threads.append(threading.Thread(target=self._send_loop))
         self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
@@ -226,11 +227,14 @@ class IrcCore:
             thread.start()
 
     def wait_for_threads_to_stop(self) -> None:
+        print("Core", id(self), "waiting for threads to stop...")
         for thread in self._threads:
             thread.join()
+        print("Core", id(self), "THREADS STOPPED")
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
+            print("Core", id(self), "is PUTTING MESSAGES now")
             try:
                 self.event_queue.put(
                     ConnectivityMessage(

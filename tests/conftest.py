@@ -130,7 +130,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker):
         try:
             wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
         except RuntimeError:
-            print(widgets[name].text())
+            print("Text", repr(widgets[name].text()))
+            print("Views", widgets[name].views_by_id)
             raise
 
     yield widgets
