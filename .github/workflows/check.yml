@@ -64,6 +64,6 @@ jobs:
     - if: matrix.os == 'ubuntu-latest'
       uses: GabrielBB/xvfb-action@v1.4
       with:
-        run: python3 -m pytest
+        run: python3 -m pytest -vv
     - if: matrix.os != 'ubuntu-latest'
       run: python3 -m pytest
