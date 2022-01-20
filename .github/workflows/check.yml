@@ -48,7 +48,7 @@ jobs:
         os: ["ubuntu-latest", "windows-latest"]
         irc-server: ["hircd", "mantatail"]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 5
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
     steps:
