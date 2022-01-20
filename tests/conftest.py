@@ -2,7 +2,6 @@ import os
 import time
 import sys
 import subprocess
-import shlex
 import shutil
 import tempfile
 from pathlib import Path
@@ -11,6 +10,8 @@ from mantaray import gui, config
 
 import pytest
 from ttkthemes import ThemedTk
+
+os.environ.setdefault("IRC_SERVER", "hircd")
 
 
 @pytest.fixture(scope="session")
@@ -35,9 +36,7 @@ def wait_until(root_window):
 
 
 class _IrcServer:
-    def __init__(self, command, working_dir):
-        self._command = command
-        self._working_dir = working_dir
+    def __init__(self):
         self.process = None
 
     def start(self):
@@ -45,61 +44,67 @@ class _IrcServer:
         env = dict(os.environ)
         env["PYTHONUNBUFFERED"] = "1"
 
+        if os.environ["IRC_SERVER"] == "mantatail":
+            command = [sys.executable, "mantatail.py"]
+            working_dir = "mantatail"
+        elif os.environ["IRC_SERVER"] == "hircd":
+            command = [
+                sys.executable,
+                "hircd.py",
+                "--foreground",
+                "--verbose",
+                "--log-stdout",
+            ]
+            working_dir = "hircd"
+        else:
+            raise RuntimeError(
+                f"IRC_SERVER is set to unexpected value '{os.environ['IRC_SERVER']}'"
+                f" (should be 'mantatail' or 'hircd')"
+            )
+
+        # Try to fail with a nicer error message if someone forgot to init submodules
+        if not os.path.exists(working_dir):
+            with open(".gitmodules") as file:
+                for line in file:
+                    if line.strip() == "path = " + working_dir:
+                        raise RuntimeError(
+                            f"'{working_dir}' not found."
+                            f" Please run 'git submodules update --init' and try again."
+                        )
+
         self.process = subprocess.Popen(
-            self._command,
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=env,
-            cwd=self._working_dir,
+            cwd=working_dir,
         )
 
-        try:
-            # Wait for it to start
-            for line in self.process.stdout:
-                assert b"error" not in line.lower()
-                if b"Starting hircd" in line or b"Mantatail running" in line:
-                    return
-            raise RuntimeError
-        except Exception as e:
-            self.process.kill()
-            raise e
-
-    def stop(self):
-        self.process.kill()
-
-        output = self.process.stdout.read()
-
-        # A bit of a hack, but don't care about disconnect errors
-        if b"error" in (
-            output.replace(b"BrokenPipeError:", b"")
-            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
-            .lower()
-        ):
-            print(output.decode("utf-8", errors="replace"))
+        # Wait for it to start
+        for line in self.process.stdout:
+            assert b"error" not in line.lower()
+            if b"Starting hircd" in line or b"Mantatail running" in line:
+                break
+        else:
             raise RuntimeError
 
 
 @pytest.fixture
 def irc_server():
-    if "IRC_SERVER_COMMAND" in os.environ:
-        command = shlex.split(
-            os.environ["IRC_SERVER_COMMAND"], posix=(sys.platform != "win32")
-        )
-        working_dir = os.environ.get("IRC_SERVER_WORKING_DIR", ".")
-    else:
-        command = [
-            sys.executable,
-            "hircd.py",
-            "--foreground",
-            "--verbose",
-            "--log-stdout",
-        ]
-        working_dir = "hircd"
+    server = _IrcServer()
+    try:
+        server.start()
+        yield server
+    finally:
+        if server.process is not None:
+            server.process.kill()
 
-    irc_server = _IrcServer(command, working_dir)
-    irc_server.start()
-    yield irc_server
-    irc_server.stop()
+    # A bit of a hack, but I don't care about disconnect errors
+    # TODO: .replace() still needed?
+    output = server.process.stdout.read().replace(b"BrokenPipeError:", b"").replace(b"ConnectionAbortedError: [WinError 10053]", b"").lower()
+    if b"error" in output:
+        print(output.decode("utf-8", errors="replace"))
+        raise RuntimeError
 
 
 @pytest.fixture
