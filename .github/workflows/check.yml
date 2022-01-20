@@ -45,8 +45,7 @@ jobs:
   pytest:
     strategy:
       matrix:
-        # macos-11 does not have tcl/tk installed
-        os: ["ubuntu-latest", "windows-latest", "macos-10.15"]
+        os: ["ubuntu-latest", "windows-latest"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
@@ -62,3 +61,16 @@ jobs:
     - uses: GabrielBB/xvfb-action@v1.4
       with:
         run: python3 -m pytest
+  pytest-macos:
+    runs-on: macos-latest
+    timeout-minutes: 10  # slower than on other platforms, because brew
+    steps:
+    - uses: actions/checkout@v2
+    # https://stackoverflow.com/a/66919851
+    - run: brew install python@3.9
+    - run: brew install python-tk@3.9
+    - run: git submodule update --init
+    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install wheel
+    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements.txt
+    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements-dev.txt
+    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pytest
