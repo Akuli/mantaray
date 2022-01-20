@@ -168,7 +168,9 @@ class IrcWidget(ttk.PanedWindow):
         return self.get_current_view().textwidget.get("1.0", "end - 1 char")
 
     def get_server_views(self) -> list[ServerView]:
-        return [view for view in self.views_by_id.values() if isinstance(view, ServerView)]
+        return [
+            view for view in self.views_by_id.values() if isinstance(view, ServerView)
+        ]
 
     def _show_change_nick_dialog(self) -> None:
         core = self.get_current_view().server_view.core
