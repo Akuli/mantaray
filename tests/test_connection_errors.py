@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 
@@ -29,6 +30,10 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="seems fragile, fails sometimes but not every time",
+)
 def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
