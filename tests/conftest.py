@@ -72,7 +72,9 @@ class _IrcServer:
                             f" Please run 'git submodule update --init' and try again."
                         )
 
-        assert self.process is None
+        # Ensure there is not a currently running process
+        assert self.process is None or self.process.poll() is not None
+
         self.process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
