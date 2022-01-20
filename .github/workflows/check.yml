@@ -46,8 +46,11 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "windows-latest"]
+        irc-server: ["hircd", "mantatail"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
+    env:
+      IRC_SERVER: ${{ matrix.irc-server }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
@@ -60,10 +63,15 @@ jobs:
     - run: pip install -r requirements-dev.txt
     - uses: GabrielBB/xvfb-action@v1.4
       with:
-        run: python3 -m pytest
+        run: python3 -m pytest -vv
   pytest-macos:
+    strategy:
+      matrix:
+        irc-server: ["hircd", "mantatail"]
     runs-on: macos-latest
     timeout-minutes: 10  # slower than on other platforms, because brew
+    env:
+      IRC_SERVER: ${{ matrix.irc-server }}
     steps:
     - uses: actions/checkout@v2
     # https://stackoverflow.com/a/66919851
@@ -73,4 +81,4 @@ jobs:
     - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install wheel
     - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements.txt
     - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements-dev.txt
-    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pytest
+    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pytest -vv
