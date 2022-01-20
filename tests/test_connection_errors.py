@@ -38,7 +38,11 @@ def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
     irc_server.process.kill()
-    wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
+    try:
+        wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
+    except:
+        print(alice.text())
+        raise
 
     lines = alice.text().splitlines()
     assert lines[-4].endswith("Error while receiving: " + server_closed_message)
