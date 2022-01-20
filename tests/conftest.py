@@ -24,7 +24,7 @@ def root_window():
 
 @pytest.fixture
 def wait_until(root_window):
-    def actually_wait_until(condition, *, timeout=5):
+    def actually_wait_until(condition, *, timeout=8):
         end = time.monotonic() + timeout
         while time.monotonic() < end:
             root_window.update()
