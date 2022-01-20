@@ -102,15 +102,18 @@ def irc_server():
         if server.process is not None:
             server.process.kill()
 
-    # A bit of a hack, but I don't care about disconnect errors
-    # TODO: .replace() still needed?
-    output = (
-        server.process.stdout.read()
-        .replace(b"BrokenPipeError:", b"")
-        .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
-        .lower()
-    )
-    if b"error" in output:
+    output = server.process.stdout.read()
+
+    if os.environ["IRC_SERVER"] == "hircd":
+        # A bit of a hack, but I don't care about disconnect errors
+        output = (
+            output
+            .replace(b"BrokenPipeError:", b"")
+            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+            .replace(b"ConnectionResetError: [Errno 54]", b"")
+        )
+
+    if b"error" in output.lower():
         print(output.decode("utf-8", errors="replace"))
         raise RuntimeError
 
