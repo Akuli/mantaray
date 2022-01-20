@@ -118,28 +118,31 @@ def irc_server():
 @pytest.fixture
 def alice_and_bob(irc_server, root_window, wait_until, mocker):
     mocker.patch("mantaray.views._show_popup")
-
     widgets = {}
-    for name in ["alice", "bob"]:
-        widgets[name] = gui.IrcWidget(
-            root_window,
-            config.load_from_file(Path(name)),
-            Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
-        )
-        widgets[name].pack(fill="both", expand=True)
-        wait_until(
-            lambda: "The topic of #autojoin is" in widgets[name].text(), timeout=10
-        )
 
-    yield widgets
+    try:
+        for name in ["alice", "bob"]:
+            widgets[name] = gui.IrcWidget(
+                root_window,
+                config.load_from_file(Path(name)),
+                Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+            )
+            widgets[name].pack(fill="both", expand=True)
+            wait_until(
+                lambda: "The topic of #autojoin is" in widgets[name].text(), timeout=10
+            )
 
-    for irc_widget in widgets.values():
-        for server_view in irc_widget.get_server_views():
-            server_view.core.quit()
-            server_view.core.wait_for_threads_to_stop()
-        # On windows, we need to wait until log files are closed before removing them
-        wait_until(lambda: not irc_widget.winfo_exists())
-        shutil.rmtree(irc_widget.log_manager.log_dir)
+        yield widgets
+
+    finally:
+        # If this cleanup doesn't run, we can leave threads running that will disturb other tests
+        for irc_widget in widgets.values():
+            for server_view in irc_widget.get_server_views():
+                server_view.core.quit()
+                server_view.core.wait_for_threads_to_stop()
+            # On windows, we need to wait until log files are closed before removing them
+            wait_until(lambda: not irc_widget.winfo_exists())
+            shutil.rmtree(irc_widget.log_manager.log_dir)
 
 
 @pytest.fixture
