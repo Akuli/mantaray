@@ -132,7 +132,13 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker):
         except RuntimeError:
             print("Text", repr(widgets[name].text()))
             print("Views", widgets[name].views_by_id)
-            print("Core IDs", {i:id(v.core) if hasattr(v,'core') else None for i,v in widgets[name].views_by_id.items()})
+            print(
+                "Core IDs",
+                {
+                    i: id(v.core) if hasattr(v, "core") else None
+                    for i, v in widgets[name].views_by_id.items()
+                },
+            )
             raise
 
     yield widgets
