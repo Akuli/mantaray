@@ -129,10 +129,10 @@ class IrcWidget(ttk.PanedWindow):
         else:
             self.view_selector.bind("<Button-3>", self._view_selector_right_click)
 
-        self._middle_pane = ttk.Frame(self)
-        self.add(self._middle_pane, weight=1)  # always stretch
+        self.textwidget_container = ttk.Frame(self)
+        self.add(self.textwidget_container, weight=1)  # always stretch
 
-        entryframe = ttk.Frame(self._middle_pane)
+        entryframe = ttk.Frame(self.textwidget_container)
         entryframe.pack(side="bottom", fill="x")
 
         # TODO: add a tooltip to the button, it's not very obvious
@@ -343,9 +343,7 @@ class IrcWidget(ttk.PanedWindow):
             and self._previous_view.textwidget.winfo_exists()
         ):
             self._previous_view.textwidget.pack_forget()
-        new_view.textwidget.pack(
-            in_=self._middle_pane, side="top", fill="both", expand=True
-        )
+        new_view.textwidget.pack(side="top", fill="both", expand=True)
         new_view.mark_seen()
 
         self._previous_view = new_view
