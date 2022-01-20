@@ -44,7 +44,11 @@ def test_basic(alice, bob, wait_until):
     )
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail seems broken idk?", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail seems broken idk?",
+    strict=True,
+)
 def test_pm_logs(alice, bob, wait_until):
     alice.entry.insert("end", "/msg Bob hey")
     alice.on_enter_pressed()
@@ -94,7 +98,11 @@ def test_pm_logs(alice, bob, wait_until):
     )
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support nick changes", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support nick changes",
+    strict=True,
+)
 def test_funny_filenames(alice, bob, wait_until):
     alice.entry.insert("end", "/nick {Bruh}")
     alice.on_enter_pressed()
@@ -113,7 +121,11 @@ def test_funny_filenames(alice, bob, wait_until):
     )
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support nick changes", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support nick changes",
+    strict=True,
+)
 def test_same_log_file_name(alice, bob, wait_until):
     # Prevent Bob from noticing nick change, to make Alice appear as two different users.
     # Ideally there would be a way for tests to have 3 different people talking with each other
@@ -154,7 +166,11 @@ def test_same_log_file_name(alice, bob, wait_until):
     )
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support nick changes", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support nick changes",
+    strict=True,
+)
 def test_someone_has_nickname_server(alice, bob, wait_until):
     alice.entry.insert("end", "/nick server")
     alice.on_enter_pressed()

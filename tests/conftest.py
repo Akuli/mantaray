@@ -101,7 +101,12 @@ def irc_server():
 
     # A bit of a hack, but I don't care about disconnect errors
     # TODO: .replace() still needed?
-    output = server.process.stdout.read().replace(b"BrokenPipeError:", b"").replace(b"ConnectionAbortedError: [WinError 10053]", b"").lower()
+    output = (
+        server.process.stdout.read()
+        .replace(b"BrokenPipeError:", b"")
+        .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+        .lower()
+    )
     if b"error" in output:
         print(output.decode("utf-8", errors="replace"))
         raise RuntimeError

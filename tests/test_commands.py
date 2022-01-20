@@ -40,7 +40,11 @@ def test_part_last_channel(alice, bob, wait_until):
     wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support nick changes yet", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support nick changes yet",
+    strict=True,
+)
 def test_nick_change(alice, bob, wait_until):
     alice.entry.insert("end", "/nick lolwat")
     alice.on_enter_pressed()
@@ -53,7 +57,11 @@ def test_nick_change(alice, bob, wait_until):
     wait_until(lambda: "lolwat is now known as LolWat.\n" in bob.text())
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support topics yet", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support topics yet",
+    strict=True,
+)
 def test_topic_change(alice, bob, wait_until):
     alice.entry.insert("end", "/topic blah blah")
     alice.on_enter_pressed()
@@ -83,7 +91,11 @@ def test_me(alice, bob, wait_until):
     wait_until(lambda: "\t*\tAlice does something" in bob.text())
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail seems broken idk?", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail seems broken idk?",
+    strict=True,
+)
 def test_quit(alice, bob, wait_until):
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
@@ -104,7 +116,11 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
     wait_until(lambda: "/home/alice" in bob.text())
 
 
-@pytest.mark.xfail(os.environ["IRC_SERVER"] == "mantatail", reason="mantatail doesn't support nick changes", strict=True)
+@pytest.mark.xfail(
+    os.environ["IRC_SERVER"] == "mantatail",
+    reason="mantatail doesn't support nick changes",
+    strict=True,
+)
 def test_nickserv_and_memoserv(alice, bob, wait_until):
     # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
     bob.get_server_views()[0].core.change_nick("NickServ")
