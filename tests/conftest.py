@@ -63,13 +63,13 @@ class _IrcServer:
             )
 
         # Try to fail with a nicer error message if someone forgot to init submodules
-        if not os.path.exists(working_dir):
+        if not os.listdir(working_dir):
             with open(".gitmodules") as file:
                 for line in file:
                     if line.strip() == "path = " + working_dir:
                         raise RuntimeError(
                             f"'{working_dir}' not found."
-                            f" Please run 'git submodules update --init' and try again."
+                            f" Please run 'git submodule update --init' and try again."
                         )
 
         self.process = subprocess.Popen(
