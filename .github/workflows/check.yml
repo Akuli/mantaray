@@ -42,9 +42,11 @@ jobs:
         python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
     - run: pip install -r requirements-dev.txt
     - run: mypy mantaray
-  # TODO: run tests on macos once it has recent enough version of Tk
-  pytest-linux:
-    runs-on: ubuntu-latest
+  pytest:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "windows-latest"]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
     - uses: actions/checkout@v2
@@ -52,22 +54,13 @@ jobs:
       with:
         python-version: "3.10"
     - run: git submodule update --init
-    - run: pip install -r requirements.txt
-    - run: pip install -r requirements-dev.txt
-    - uses: GabrielBB/xvfb-action@v1.4
-      with:
-        run: python3 -m pytest
-  pytest-windows:
-    runs-on: windows-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.10"
-    - run: git submodule update --init
-    # wheels speed up other things
+    # wheels seem to speed up other things on windows
     - run: pip install wheel
     - run: pip install -r requirements.txt
     - run: pip install -r requirements-dev.txt
-    - run: python3 -m pytest
+    - if: matrix.os == 'ubuntu-latest'
+      uses: GabrielBB/xvfb-action@v1.4
+      with:
+        run: python3 -m pytest
+    - if: matrix.os != 'ubuntu-latest'
+      run: python3 -m pytest
