@@ -339,6 +339,7 @@ class ServerView(View):
 
     def handle_events(self) -> None:
         """Call this once to start processing events from the core."""
+        print("Event handler check... core ID =", id(self.core), "[every 100ms]")
         # this is here so that this will be called again, even if
         # something raises an error this time
         next_call_id = self.irc_widget.after(100, self.handle_events)
