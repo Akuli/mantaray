@@ -2,4 +2,4 @@
 skip-magic-trailing-comma = true
 
 [tool.pytest.ini_options]
-addopts = "--capture=no"
+addopts = "--capture=no --ignore=mantatail/"
