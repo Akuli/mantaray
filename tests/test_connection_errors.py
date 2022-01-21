@@ -1,16 +1,8 @@
-import os
+import re
 import sys
 import time
 
 import pytest
-
-
-if sys.platform == "win32":
-    server_closed_message = (
-        "[WinError 10054] An existing connection was forcibly closed by the remote host"
-    )
-else:
-    server_closed_message = "Server closed the connection!"
 
 
 @pytest.mark.skipif(
@@ -18,9 +10,15 @@ else:
 )
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
     irc_server.process.kill()
-    wait_until(
-        lambda: ("Error while receiving: " + server_closed_message) in alice.text()
-    )
+    if sys.platform == "win32":
+        # error message depends on language
+        wait_until(lambda: "Error while receiving: [WinError 10054] " in alice.text())
+    else:
+        wait_until(
+            lambda: (
+                "Error while receiving: Server closed the connection!" in alice.text()
+            )
+        )
     assert alice.get_current_view().channel_name == "#autojoin"
 
     start = time.monotonic()
@@ -30,33 +28,36 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="seems fragile, fails sometimes but not every time",
-)
 def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
+    assert "Connecting to localhost" not in alice.text()
 
     irc_server.process.kill()
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
 
     lines = alice.text().splitlines()
-    assert lines[-4].endswith("Error while receiving: " + server_closed_message)
+    if sys.platform == "win32":
+        # error message depends on language
+        assert "Error while receiving: [WinError 10054] " in lines[-4]
+    else:
+        assert lines[-4].endswith(
+            "Error while receiving: Server closed the connection!"
+        )
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
     if sys.platform == "win32":
-        assert lines[-1].endswith(
-            "No connection could be made because the target machine actively refused it"
-        )
+        # error message depends on language
+        assert "[WinError 10061]" in lines[-1]
     else:
         assert lines[-1].endswith("Connection refused")
 
     irc_server.start()
-    wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
-    connecting_end = len(alice.text())
     wait_until(
-        lambda: "The topic of #autojoin is: (no topic)" in alice.text()[connecting_end:]
+        lambda: (
+            "\nConnecting to localhost port 6667...\nThe topic of #autojoin is: (no topic)\n"
+            in re.sub(r".*\t", "", alice.text())
+        )
     )
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
 

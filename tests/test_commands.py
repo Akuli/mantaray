@@ -91,16 +91,11 @@ def test_me(alice, bob, wait_until):
     wait_until(lambda: "\t*\tAlice does something" in bob.text())
 
 
-@pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail seems broken idk?",
-    strict=True,
-)
 def test_quit(alice, bob, wait_until):
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
     assert alice.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
-    wait_until(lambda: "Alice quit.\n" in bob.text())
+    wait_until(lambda: "Alice quit." in bob.text())
     wait_until(lambda: not alice.winfo_exists())
 
 

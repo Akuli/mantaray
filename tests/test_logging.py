@@ -47,7 +47,7 @@ def test_basic(alice, bob, wait_until):
 
 @pytest.mark.xfail(
     os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail seems broken idk?",
+    reason="mantatail doesn't support nick changes",
     strict=True,
 )
 def test_pm_logs(alice, bob, wait_until):
