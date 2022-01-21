@@ -12,12 +12,12 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     irc_server.process.kill()
     if sys.platform == "win32":
         # error message depends on language
-        wait_until(
-            lambda: "Error while receiving: [WinError 10054] " in alice.text()
-        )
+        wait_until(lambda: "Error while receiving: [WinError 10054] " in alice.text())
     else:
         wait_until(
-            lambda: "Error while receiving: Server closed the connection!" in alice.text()
+            lambda: (
+                "Error while receiving: Server closed the connection!" in alice.text()
+            )
         )
     assert alice.get_current_view().channel_name == "#autojoin"
 
@@ -40,7 +40,9 @@ def test_server_dies(alice, irc_server, monkeypatch, wait_until):
         # error message depends on language
         assert "Error while receiving: [WinError 10054] " in lines[-4]
     else:
-        assert lines[-4].endswith("Error while receiving: Server closed the connection!")
+        assert lines[-4].endswith(
+            "Error while receiving: Server closed the connection!"
+        )
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
