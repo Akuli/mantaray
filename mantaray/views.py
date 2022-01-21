@@ -330,8 +330,7 @@ class ServerView(View):
 
     def find_pm(self, nick: str) -> PMView | None:
         for view in self.get_subviews():
-            # TODO: case insensitive
-            if isinstance(view, PMView) and view.nick_of_other_user == nick:
+            if isinstance(view, PMView) and view.nick_of_other_user.lower() == nick.lower():
                 return view
         return None
 

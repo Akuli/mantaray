@@ -1,3 +1,4 @@
+import os
 import sys
 
 import pytest
@@ -103,16 +104,21 @@ def test_slash_r_character(alice, bob, wait_until):
     wait_until(lambda: "hello \rlol\r world" in bob.text())
 
 
+@pytest.mark.skipif(os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support case insensitive nicks")
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
-    # TODO: "/msg bob asdf" with lowercase bob causes two bugs:
-    #   - hircd doesn't send message
-    #   - this client thinks that Bob and bob are two different nicks
 
     alice.entry.insert(0, "/msg Bob hello there")
     alice.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
     wait_until(lambda: "hello there" in bob.text())
+    assert alice.get_current_view().nick_of_other_user == "Bob"
+    assert bob.get_current_view().nick_of_other_user == "Alice"
+
+    alice.entry.insert(0, "/msg BOB nicks are case insensitive")
+    alice.on_enter_pressed()
+    wait_until(lambda: "nicks are case insensitive" in alice.text())
+    wait_until(lambda: "nicks are case insensitive" in bob.text())
     assert alice.get_current_view().nick_of_other_user == "Bob"
     assert bob.get_current_view().nick_of_other_user == "Alice"
 
