@@ -569,7 +569,7 @@ class IrcCore:
     def quit(self) -> None:
         sock = self._sock
         if sock is not None and self._connected:
-            sock.settimeout(1)  # Do not freeze forever if sending would be slow
+            sock.settimeout(1)  # Do not freeze forever if sending is slow
             self._put_to_send_queue("QUIT", done_event=SelfQuit())
         else:
             self._disconnect()
