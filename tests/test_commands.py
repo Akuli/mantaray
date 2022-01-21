@@ -153,7 +153,15 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     ],
 )
 def test_incorrect_usage(alice, wait_until, command, error):
+    print("Before insert", alice.entry.get())
     alice.entry.insert("end", command)
+    print("After insert", alice.entry.get())
     alice.on_enter_pressed()
-    wait_until(lambda: alice.text().endswith(error + "\n"))
+    try:
+        wait_until(lambda: alice.text().endswith(error + "\n"))
+    except RuntimeError as e:
+        print("---Err START---")
+        print(alice.text())
+        print("---Err END---")
+        raise e
     assert alice.entry.get() == command  # give user chance to correct easily
