@@ -55,18 +55,9 @@ jobs:
       IRC_SERVER: ${{ matrix.irc-server }}
     steps:
     - uses: actions/checkout@v2
+    # https://stackoverflow.com/a/66919851
     - if: matrix.os == 'macos-latest'
-      run: |
-        brew install python@3.9
-        brew install python-tk@3.9
-        echo /usr/local/opt/python@3.9/libexec/bin/python >> $GITHUB_PATH
-    - if: matrix.os == 'macos-latest'
-      run: |
-        cat $GITHUB_PATH
-        which python
-        which python3
-        which python3.9
-        ls -l /usr/local/bin /usr/local/opt/python@3.9/libexec/bin
+      run: brew install python@3.9 python-tk@3.9
     - if: matrix.os != 'macos-latest'
       uses: actions/setup-python@v2
       with:
