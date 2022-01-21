@@ -1,6 +1,6 @@
 [submodule "tests/hircd"]
 	path = tests/hircd
 	url = https://github.com/fboender/hircd
-[submodule "tests/mantatail"]
-	path = tests/mantatail
+[submodule "tests/MantaTail"]
+	path = tests/MantaTail
 	url = https://github.com/ThePhilgrim/MantaTail
