@@ -224,8 +224,17 @@ class IrcCore:
 
     def start_threads(self) -> None:
         assert not self._threads
-        self._threads.append(threading.Thread(target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"))
-        self._threads.append(threading.Thread(target=self._connect_and_recv_loop, name=f"connect-and-recv-{hex(id(self))}-{self.nick}"))
+        self._threads.append(
+            threading.Thread(
+                target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"
+            )
+        )
+        self._threads.append(
+            threading.Thread(
+                target=self._connect_and_recv_loop,
+                name=f"connect-and-recv-{hex(id(self))}-{self.nick}",
+            )
+        )
         for thread in self._threads:
             thread.start()
 
