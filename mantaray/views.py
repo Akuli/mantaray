@@ -245,6 +245,9 @@ class View:
                 file=self.log_file,
                 flush=True,
             )
+            print("WROTE TO LOG", repr("".join(text for text, tags in chunks)))
+        else:
+            print("logfile is None", repr("".join(text for text, tags in chunks)))
 
     def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
         self.add_message("", (message, ["error" if error else "info"]))
