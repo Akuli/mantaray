@@ -500,6 +500,8 @@ class IrcCore:
             self._sock.connect((self.host, self.port))
             self._connected = True
         except (OSError, ssl.SSLError) as e:
+            if self._sock is not None:
+                self._sock.close()
             self._sock = None
             raise e
 
