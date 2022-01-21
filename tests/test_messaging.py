@@ -104,7 +104,10 @@ def test_slash_r_character(alice, bob, wait_until):
     wait_until(lambda: "hello \rlol\r world" in bob.text())
 
 
-@pytest.mark.skipif(os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support case insensitive nicks")
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd doesn't support case insensitive nicks",
+)
 def test_private_messages(alice, bob, wait_until):
     # TODO: some button in gui to start private messaging?
 
