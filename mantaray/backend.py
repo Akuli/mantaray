@@ -500,7 +500,11 @@ class IrcCore:
         self._sock = None
         if sock is not None:
             self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
-            sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
+            try:
+                sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
+            except OSError:
+                # sometimes happens on macos, but .close() seems to stop sending/receiving on macos
+                pass
             sock.close()
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:

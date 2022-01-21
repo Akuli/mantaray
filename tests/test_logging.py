@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 from mantaray.views import ServerView
 
@@ -170,6 +171,11 @@ def test_same_log_file_name(alice, bob, wait_until):
     os.environ["IRC_SERVER"] == "mantatail",
     reason="mantatail doesn't support nick changes",
     strict=True,
+)
+@pytest.mark.xfail(
+    sys.platform == "darwin",
+    reason="fragile, stuff doesn't always get logged",
+    strict=False,
 )
 def test_someone_has_nickname_server(alice, bob, wait_until):
     alice.entry.insert("end", "/nick server")

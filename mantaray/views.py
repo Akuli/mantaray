@@ -101,7 +101,7 @@ class View:
         self.notification_count = 0
 
         self.textwidget = tkinter.Text(
-            irc_widget,
+            irc_widget.textwidget_container,
             width=1,  # minimum, can stretch bigger
             height=1,  # minimum, can stretch bigger
             font=irc_widget.font,
