@@ -46,7 +46,7 @@ class _IrcServer:
 
         if os.environ["IRC_SERVER"] == "mantatail":
             command = [sys.executable, "mantatail.py"]
-            working_dir = "mantatail"
+            working_dir = "tests/mantatail"
         elif os.environ["IRC_SERVER"] == "hircd":
             command = [
                 sys.executable,
@@ -55,7 +55,7 @@ class _IrcServer:
                 "--verbose",
                 "--log-stdout",
             ]
-            working_dir = "hircd"
+            working_dir = "tests/hircd"
         else:
             raise RuntimeError(
                 f"IRC_SERVER is set to unexpected value '{os.environ['IRC_SERVER']}'"
