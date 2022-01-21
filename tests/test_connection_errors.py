@@ -1,4 +1,4 @@
-import os
+import re
 import sys
 import time
 
@@ -30,12 +30,9 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="seems fragile, fails sometimes but not every time",
-)
 def test_server_dies(alice, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
+    assert "Connecting to localhost" not in alice.text()
 
     irc_server.process.kill()
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
@@ -53,10 +50,11 @@ def test_server_dies(alice, irc_server, monkeypatch, wait_until):
         assert lines[-1].endswith("Connection refused")
 
     irc_server.start()
-    wait_until(lambda: alice.text().endswith("Connecting to localhost port 6667...\n"))
-    connecting_end = len(alice.text())
     wait_until(
-        lambda: "The topic of #autojoin is: (no topic)" in alice.text()[connecting_end:]
+        lambda: (
+            "\nConnecting to localhost port 6667...\nThe topic of #autojoin is: (no topic)\n"
+            in re.sub(r".*\t", "", alice.text())
+        )
     )
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
 
