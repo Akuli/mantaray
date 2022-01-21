@@ -513,6 +513,7 @@ class IrcCore:
     def _disconnect(self) -> None:
         sock = self._sock
         self._sock = None
+        self._connected = False
 
         if sock is not None:
             self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
@@ -522,7 +523,6 @@ class IrcCore:
                 # sometimes happens on macos, but .close() seems to stop sending/receiving on macos
                 pass
             sock.close()
-        self._connected = False
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
         assert self.nick == server_config["nick"]
