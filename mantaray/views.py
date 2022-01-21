@@ -293,7 +293,6 @@ class ServerView(View):
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
         self.core.start_threads()
-        self.handle_events()
 
     def get_log_name(self) -> str:
         # Log to file named logs/foobar/server.log.
@@ -337,7 +336,10 @@ class ServerView(View):
         return None
 
     def handle_events(self) -> None:
-        """Call this once to start processing events from the core."""
+        """Call this once to start processing events from the core.
+
+        Do NOT call it before the view has been added to the IRC widget.
+        """
         # this is here so that this will be called again, even if
         # something raises an error this time
         next_call_id = self.irc_widget.after(100, self.handle_events)

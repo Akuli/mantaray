@@ -157,7 +157,9 @@ class IrcWidget(ttk.PanedWindow):
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
-            self.add_view(ServerView(self, server_config, verbose=verbose))
+            view = ServerView(self, server_config, verbose=verbose)
+            self.add_view(view)
+            view.handle_events()  # Must be after add_view()
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
