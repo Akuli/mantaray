@@ -106,7 +106,7 @@ def test_slash_r_character(alice, bob, wait_until):
 
 @pytest.mark.xfail(
     os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail seems broken idk?",
+    reason="mantatail doesn't support private messages yet",
     strict=True,
 )
 def test_private_messages(alice, bob, wait_until):
