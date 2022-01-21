@@ -13,9 +13,6 @@ else:
     server_closed_message = "Server closed the connection!"
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="fails github actions and I don't know why"
-)
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
     irc_server.process.kill()
     wait_until(

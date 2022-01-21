@@ -193,9 +193,13 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._sock: socket.socket | ssl.SSLSocket | None = None
         self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[bytes] = collections.deque()
+
+        # During connecting, sock is None and connected is False.
+        # If connected is True, sock shouldn't be None.
+        self._sock: socket.socket | ssl.SSLSocket | None = None
+        self._connected = False
 
         self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
@@ -220,8 +224,8 @@ class IrcCore:
 
     def start_threads(self) -> None:
         assert not self._threads
-        self._threads.append(threading.Thread(target=self._send_loop))
-        self._threads.append(threading.Thread(target=self._connect_and_recv_loop))
+        self._threads.append(threading.Thread(target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"))
+        self._threads.append(threading.Thread(target=self._connect_and_recv_loop, name=f"connect-and-recv-{hex(id(self))}-{self.nick}"))
         for thread in self._threads:
             thread.start()
 
@@ -404,16 +408,20 @@ class IrcCore:
         return _ReceivedAndParsedMessage(sender, sender_is_server, command, args)
 
     def _recv_loop(self) -> None:
+        assert self._connected
+        sock = self._sock
+        assert sock is not None
+
         while True:
-            sock = self._sock
-            if sock is None:
+            # Stop this thread if we disconnect or reconnect
+            if self._sock is not sock or not self._connected:
                 break
 
             try:
                 line_bytes = _recv_line(sock, self._recv_buffer)
             except (OSError, ssl.SSLError) as e:
                 # socket can be closed while receiving
-                if self._sock is None:
+                if self._sock is not sock or not self._connected:
                     break
                 raise e
 
@@ -449,7 +457,7 @@ class IrcCore:
                 continue
 
             sock = self._sock
-            if sock is None:
+            if sock is None or not self._connected:
                 # ignore events silently when not connected
                 continue
 
@@ -459,8 +467,7 @@ class IrcCore:
             try:
                 sock.sendall(bytez)
             except (OSError, ssl.SSLError):
-                if self._sock is not None:
-                    # should still be connected
+                if self._connected:
                     traceback.print_exc()
                 continue
 
@@ -471,21 +478,21 @@ class IrcCore:
                     self._disconnect()  # stop recv loop
 
     def _connect(self) -> None:
-        assert self._sock is None
+        assert self._sock is None and not self._connected
 
         try:
             if self.ssl:
                 context = ssl.create_default_context()
-                sock: socket.socket | ssl.SSLSocket = context.wrap_socket(
+                self._sock = context.wrap_socket(
                     socket.socket(), server_hostname=self.host
                 )
             else:
-                sock = socket.socket()
-            sock.connect((self.host, self.port))
+                self._sock = socket.socket()
+            self._sock.connect((self.host, self.port))
+            self._connected = True
         except (OSError, ssl.SSLError) as e:
+            self._sock = None
             raise e
-
-        self._sock = sock
 
         if self.password is not None:
             self._put_to_send_queue("CAP REQ sasl")
@@ -495,9 +502,9 @@ class IrcCore:
         self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
 
     def _disconnect(self) -> None:
-        # If at any time self._sock is set, it shouldn't be closed yet
         sock = self._sock
         self._sock = None
+
         if sock is not None:
             self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
             try:
@@ -506,6 +513,7 @@ class IrcCore:
                 # sometimes happens on macos, but .close() seems to stop sending/receiving on macos
                 pass
             sock.close()
+        self._connected = False
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
         assert self.nick == server_config["nick"]
@@ -550,9 +558,11 @@ class IrcCore:
         self._put_to_send_queue(f"TOPIC {channel} {new_topic}")
 
     def quit(self) -> None:
-        if self._sock is None:
+        sock = self._sock
+        if sock is not None and self._connected:
+            sock.settimeout(1)  # Do not freeze forever if sending would be slow
+            self._put_to_send_queue("QUIT", done_event=SelfQuit())
+        else:
+            self._disconnect()
             self._quit_event.set()
             self.event_queue.put(SelfQuit())
-        else:
-            # TODO: client can freeze, if it is connected but sending blocks forever
-            self._put_to_send_queue("QUIT", done_event=SelfQuit())
