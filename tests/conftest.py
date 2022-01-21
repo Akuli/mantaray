@@ -130,9 +130,11 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker):
                 Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
             )
             widgets[name].pack(fill="both", expand=True)
-            wait_until(
-                lambda: "The topic of #autojoin is" in widgets[name].text(), timeout=10
-            )
+            try:
+                # Fails sometimes on macos github actions, don't know yet why
+                wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
+            except RuntimeError:
+                raise RuntimeError(widgets[name].text())
 
         yield widgets
 
