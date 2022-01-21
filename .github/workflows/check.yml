@@ -47,15 +47,26 @@ jobs:
   pytest:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest"]
+        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
         irc-server: ["hircd", "mantatail"]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - if: matrix.os == 'macos-latest'
+      run: |
+        brew install python@3.9
+        brew install python-tk@3.9
+        echo /usr/local/opt/python@3.9/libexec/bin/python >> $GITHUB_PATH
+    - if: matrix.os == 'macos-latest'
+      run: |
+        which python
+        which python3
+        which python3.9
+    - if: matrix.os != 'macos-latest'
+      uses: actions/setup-python@v2
       with:
         python-version: "3.10"
     - run: git submodule update --init
@@ -66,21 +77,3 @@ jobs:
     - uses: GabrielBB/xvfb-action@v1.4
       with:
         run: python3 -m pytest -vv
-  pytest-macos:
-    strategy:
-      matrix:
-        irc-server: ["hircd", "mantatail"]
-    runs-on: macos-latest
-    timeout-minutes: 10  # slower than on other platforms, because brew
-    env:
-      IRC_SERVER: ${{ matrix.irc-server }}
-    steps:
-    - uses: actions/checkout@v2
-    # https://stackoverflow.com/a/66919851
-    - run: brew install python@3.9
-    - run: brew install python-tk@3.9
-    - run: git submodule update --init
-    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install wheel
-    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements.txt
-    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pip install -r requirements-dev.txt
-    - run: /usr/local/opt/python@3.9/libexec/bin/python -m pytest -vv
