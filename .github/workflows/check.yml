@@ -62,9 +62,11 @@ jobs:
         echo /usr/local/opt/python@3.9/libexec/bin/python >> $GITHUB_PATH
     - if: matrix.os == 'macos-latest'
       run: |
+        cat $GITHUB_PATH
         which python
         which python3
         which python3.9
+        ls -l /usr/local/bin /usr/local/opt/python@3.9/libexec/bin
     - if: matrix.os != 'macos-latest'
       uses: actions/setup-python@v2
       with:
