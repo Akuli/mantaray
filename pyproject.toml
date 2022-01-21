@@ -1,5 +1,6 @@
 [tool.black]
 skip-magic-trailing-comma = true
+exclude = '/tests/(hircd|mantatail)/'
 
 [tool.pytest.ini_options]
 addopts = "--capture=no --ignore=tests/mantatail/"
