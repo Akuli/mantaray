@@ -44,11 +44,12 @@ jobs:
         python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
     - run: pip install -r requirements-dev.txt
     - run: mypy mantaray
-  pytest:
+  test:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest"]
+        # os is last so you can see everything in github's ui, even if the job name gets truncated
         irc-server: ["hircd", "mantatail"]
+        os: ["ubuntu-latest", "windows-latest"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     env:
