@@ -46,7 +46,7 @@ class _IrcServer:
 
         if os.environ["IRC_SERVER"] == "mantatail":
             command = [sys.executable, "mantatail.py"]
-            working_dir = "tests/mantatail"
+            working_dir = "tests/MantaTail"
         elif os.environ["IRC_SERVER"] == "hircd":
             command = [
                 sys.executable,
