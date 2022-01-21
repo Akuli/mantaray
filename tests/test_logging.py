@@ -183,7 +183,6 @@ def test_someone_has_nickname_server(alice, bob, wait_until):
     bob.entry.insert("end", "hello there")
     bob.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
-    print("Got message in alice.text() now checking log")
 
     check_log(
         bob.log_manager.log_dir / "localhost" / "server(2).log",
