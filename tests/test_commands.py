@@ -97,16 +97,16 @@ def test_me(alice, bob, wait_until):
 def test_op_deop(alice, bob, wait_until):
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
-    wait_until(lambda: "Alice gave channel operator permissions to Bob" in alice.text())
-    wait_until(lambda: "Alice gave channel operator permissions to Bob" in bob.text())
+    wait_until(lambda: "Alice gives channel operator permissions to Bob" in alice.text())
+    wait_until(lambda: "Alice gives channel operator permissions to Bob" in bob.text())
 
     alice.entry.insert("end", "/deop bob")
     alice.on_enter_pressed()
     wait_until(
-        lambda: "Alice removed channel operator permissions from Bob" in alice.text()
+        lambda: "Alice removes channel operator permissions from Bob" in alice.text()
     )
     wait_until(
-        lambda: "Alice removed channel operator permissions from Bob" in bob.text()
+        lambda: "Alice removes channel operator permissions from Bob" in bob.text()
     )
 
     # FIXME: uncomment when #189 merged
