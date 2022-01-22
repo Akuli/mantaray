@@ -42,7 +42,7 @@ def test_colors(alice, bob, wait_until):
 
 
 def test_nick_autocompletion(alice, bob):
-    alice.update()
+    alice.update()  # don't know why this is needed
     alice.entry.insert(0, "i think b")
     alice.autocomplete()
     # space at the end is important, so alice can easily finish the sentence
@@ -51,7 +51,7 @@ def test_nick_autocompletion(alice, bob):
 
 
 def test_nick_autocompletion_after_entering_message(alice, bob):
-    alice.update()
+    alice.update()  # don't know why this is needed
     alice.entry.insert(0, "bhello there")
     alice.entry.icursor(1)
     alice.autocomplete()
