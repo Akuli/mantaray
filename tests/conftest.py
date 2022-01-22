@@ -132,7 +132,11 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker):
             widgets[name].pack(fill="both", expand=True)
             try:
                 # Fails sometimes on macos github actions, don't know yet why
-                wait_until(lambda: "The topic of #autojoin is" in widgets[name].text())
+                # TODO: still failing with bigger timeout?
+                wait_until(
+                    lambda: "The topic of #autojoin is" in widgets[name].text(),
+                    timeout=15,
+                )
             except RuntimeError as e:
                 print(widgets[name].text())
                 raise e

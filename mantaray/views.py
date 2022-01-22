@@ -393,12 +393,17 @@ class ServerView(View):
                 assert channel_view is not None
                 channel_view.on_part(event.nick, event.reason)
 
+            elif isinstance(event, backend.ModeChange):
+                channel_view = self.find_channel(event.channel)
+                assert channel_view is not None
+                channel_view.on_mode_change(
+                    event.setter_nick, event.mode_flags, event.target_nick
+                )
+
             elif isinstance(event, backend.Kick):
                 channel_view = self.find_channel(event.channel)
                 assert channel_view is not None
-                channel_view.on_kick(
-                    event.channel, event.kicker, event.kicked_nick, event.reason
-                )
+                channel_view.on_kick(event.kicker, event.kicked_nick, event.reason)
 
             elif isinstance(event, backend.UserQuit):
                 for view in self.get_subviews(include_server=True):
@@ -586,9 +591,7 @@ class ChannelView(View):
             show_in_gui=self.server_view.should_show_join_leave_message(nick),
         )
 
-    def on_kick(
-        self, channel: str, kicker: str, kicked_nick: str, reason: str | None
-    ) -> None:
+    def on_kick(self, kicker: str, kicked_nick: str, reason: str | None) -> None:
         self.userlist.remove_user(kicked_nick)
         if reason is None:
             reason = ""
@@ -616,6 +619,34 @@ class ChannelView(View):
                 (self.channel_name, ["channel"]),
                 (f". (Reason: {reason})", []),
             )
+
+    def on_mode_change(
+        self, setter_nick: str, mode_flags: str, target_nick: str
+    ) -> None:
+        if mode_flags == "+o":
+            message = "gives channel operator permissions to"
+        elif mode_flags == "-o":
+            message = "removes channel operator permissions from"
+        else:
+            message = f"sets mode {mode_flags} on"
+
+        if target_nick == self.server_view.core.nick:
+            target_tag = "self-nick"
+        else:
+            target_tag = "other-nick"
+
+        if setter_nick == self.server_view.core.nick:
+            setter_tag = "self-nick"
+        else:
+            setter_tag = "other-nick"
+
+        self.add_message(
+            "*",
+            (setter_nick, [setter_tag]),
+            (f" {message} ", []),
+            (target_nick, [target_tag]),
+            (".", []),
+        )
 
     def on_self_changed_nick(self, old: str, new: str) -> None:
         super().on_self_changed_nick(old, new)

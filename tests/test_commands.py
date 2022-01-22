@@ -91,6 +91,34 @@ def test_me(alice, bob, wait_until):
     wait_until(lambda: "\t*\tAlice does something" in bob.text())
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support modes"
+)
+def test_op_deop(alice, bob, wait_until):
+    alice.entry.insert("end", "/op bob")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: "Alice gives channel operator permissions to Bob" in alice.text()
+    )
+    wait_until(lambda: "Alice gives channel operator permissions to Bob" in bob.text())
+
+    alice.entry.insert("end", "/deop bob")
+    alice.on_enter_pressed()
+    wait_until(
+        lambda: "Alice removes channel operator permissions from Bob" in alice.text()
+    )
+    wait_until(
+        lambda: "Alice removes channel operator permissions from Bob" in bob.text()
+    )
+
+    alice.entry.insert("end", "/op nonexistent")
+    alice.on_enter_pressed()
+    wait_until(lambda: "401 nonexistent No such nick/channel" in alice.text())
+
+    # TODO: modes other than +o and -o are displayed differently.
+    # Should test them when available in mantatail
+
+
 def test_quit(alice, bob, wait_until):
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()

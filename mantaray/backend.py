@@ -86,6 +86,12 @@ class UserParted:
     channel: str
     reason: str | None
 @dataclasses.dataclass
+class ModeChange:
+    channel: str
+    setter_nick: str
+    mode_flags: str  # e.g. "+o" for opping, "-o" for deopping
+    target_nick : str
+@dataclasses.dataclass
 class Kick:
     kicker: str
     channel: str
@@ -136,6 +142,7 @@ _IrcEvent = Union[
     SelfParted,
     SelfQuit,
     UserJoined,
+    ModeChange,
     Kick,
     UserChangedNick,
     UserParted,
@@ -315,6 +322,12 @@ class IrcCore:
             assert msg.sender is not None
             reason = msg.args[0] if msg.args else None
             self.event_queue.put(UserQuit(msg.sender, reason or None))
+            return
+
+        if msg.command == "MODE":
+            assert msg.sender is not None
+            channel, mode_flags, nick = msg.args
+            self.event_queue.put(ModeChange(channel, msg.sender, mode_flags, nick))
             return
 
         if msg.command == "KICK":
@@ -568,6 +581,9 @@ class IrcCore:
             self._put_to_send_queue(f"KICK {channel} {kicked_nick}")
         else:
             self._put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
+
+    def mode(self, channel: str, nick: str, mode_flags: str) -> None:
+        self._put_to_send_queue(f"MODE {channel} {mode_flags} {nick}")
 
     # emits SelfChangedNick event on success
 
