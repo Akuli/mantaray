@@ -615,7 +615,7 @@ class ChannelView(View):
         if mode_flags == "+o":
             message = "gives channel operator permissions to"
         elif mode_flags == "-o":
-            message = "removed channel operator permissions from"
+            message = "removes channel operator permissions from"
         else:
             message = f"set mode {mode_flags} on"
 
