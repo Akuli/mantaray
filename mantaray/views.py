@@ -617,7 +617,7 @@ class ChannelView(View):
         elif mode_flags == "-o":
             message = "removes channel operator permissions from"
         else:
-            message = f"set mode {mode_flags} on"
+            message = f"sets mode {mode_flags} on"
 
         if target_nick == self.server_view.core.nick:
             target_tag = "self-nick"
