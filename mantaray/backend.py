@@ -113,7 +113,7 @@ class TopicChanged:
 class ServerMessage:
     sender: str | None  # I think this is a hostname. Not sure.
     command: str  # e.g. '482'
-    args: list[str]  # e.g. ["#foo", "You're not a channel operator"]
+    args: list[str]  # e.g. ["Alice", "#foo", "You're not a channel operator"]
     is_error: bool
 @dataclasses.dataclass
 class UnknownMessage:
