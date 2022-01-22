@@ -111,12 +111,9 @@ def test_op_deop(alice, bob, wait_until):
         lambda: "Alice removes channel operator permissions from Bob" in bob.text()
     )
 
-    # FIXME: uncomment when #189 merged
-    #    alice.entry.insert("end", "/op nonexistent")
-    #    alice.on_enter_pressed()
-    #    wait_until(
-    #        lambda: "401 nonexistent No such nick/channel" in alice.text()
-    #    )
+    alice.entry.insert("end", "/op nonexistent")
+    alice.on_enter_pressed()
+    wait_until(lambda: "401 nonexistent No such nick/channel" in alice.text())
 
     # TODO: modes other than +o and -o are displayed differently.
     # Should test them when available in mantatail
