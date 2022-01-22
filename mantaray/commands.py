@@ -137,6 +137,18 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def msg_chanserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "ChanServ", message)
 
+    def op(view: View, core: IrcCore, nick: str) -> None:
+        if isinstance(view, ChannelView):
+            core.mode(view.channel_name, nick, "+o")
+        else:
+            view.add_message("You can use /op only on a channel.")
+
+    def deop(view: View, core: IrcCore, nick: str) -> None:
+        if isinstance(view, ChannelView):
+            core.mode(view.channel_name, nick, "-o")
+        else:
+            view.add_message("You can use /deop only on a channel.")
+
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
             core.kick(view.channel_name, nick, reason)
@@ -157,6 +169,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/memoserv": msg_memoserv,
         "/cs": msg_chanserv,
         "/chanserv": msg_chanserv,
+        "/op": op,
+        "/deop": deop,
         "/kick": kick,
     }
 
