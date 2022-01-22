@@ -89,7 +89,7 @@ class UserParted:
 class ModeChange:
     channel: str
     setter_nick: str
-    mode_flags: str   #e.g. "+o" for opping, "-o" for deopping
+    mode_flags: str  # e.g. "+o" for opping, "-o" for deopping
     target_nick : str
 @dataclasses.dataclass
 class Kick:
