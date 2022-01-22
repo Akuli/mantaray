@@ -3,6 +3,14 @@ import sys
 import time
 
 
+def test_clean_connect(alice):
+    [server_view] = alice.get_server_views()
+
+    # None of the messages sent during normal connecting should get tagged as error.
+    assert "error" in server_view.textwidget.tag_names()  # Fails if tags are renamed in refactoring
+    assert not alice.get_server_views()[0].textwidget.tag_ranges("error")
+
+
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
     irc_server.process.kill()
     if sys.platform == "win32":

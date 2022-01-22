@@ -37,6 +37,34 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 #                              Channel Name, exposes client bugs
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
+# Always shown in server view, because users usually don't care about these.
+# Should enclude everything that shows up during connecting to IRC server.
+_EXPECTED_CONNECTING_RESPONSES = (
+    "001",
+    "002",
+    "003",
+    "004",
+    "005",
+    "250",
+    "251",
+    "252",
+    "253",
+    "254",
+    "255",
+    "265",
+    "266",
+    "332",
+    "333",
+    "372",
+    "375",
+    "900",
+    "903",
+    "CAP",
+    "NOTICE",  # used mostly by bots, not regular users
+    _RPL_ENDOFMOTD,
+    _RPL_ENDOFNAMES,
+)
+
 
 def find_nicks(
     text: str, self_nick: str, all_nicks: Sequence[str]
@@ -112,9 +140,10 @@ class TopicChanged:
 @dataclasses.dataclass
 class ServerMessage:
     sender: str | None  # I think this is a hostname. Not sure.
-    # TODO: figure out meaning of command and args
-    command: str
-    args: list[str]
+    command: str  # e.g. '482'
+    args: list[str]  # e.g. ["#foo", "You're not a channel operator"]
+    target_channel: str | None
+    is_error: bool
 @dataclasses.dataclass
 class UnknownMessage:
     sender: str | None
@@ -379,7 +408,20 @@ class IrcCore:
                 channel, topic = msg.args[1:]
                 self._joining_in_progress[channel.lower()].topic = topic
 
-            self.event_queue.put(ServerMessage(msg.sender, msg.command, msg.args))
+            target_channel = None
+            if msg.command == "482":
+                target_channel, *args = msg.args
+            else:
+                args = msg.args
+            self.event_queue.put(
+                ServerMessage(
+                    msg.sender,
+                    msg.command,
+                    args,
+                    target_channel,
+                    is_error=(msg.command not in _EXPECTED_CONNECTING_RESPONSES),
+                )
+            )
             return
 
         if msg.command == "TOPIC":
