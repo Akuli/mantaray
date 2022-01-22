@@ -605,7 +605,7 @@ class ChannelView(View):
                 (kicker, [kicker_tag]),
                 (" has kicked you from ", ["error"]),
                 (self.channel_name, ["channel"]),
-                (". You can still join by typing ", ["error"]),
+                (f". (Reason: {reason}) You can still join by typing ", ["error"]),
                 (f"/join {self.channel_name}", ["pinged"]),
                 (".", ["error"]),
             )
