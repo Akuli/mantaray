@@ -97,7 +97,9 @@ def test_me(alice, bob, wait_until):
 def test_op_deop(alice, bob, wait_until):
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
-    wait_until(lambda: "Alice gives channel operator permissions to Bob" in alice.text())
+    wait_until(
+        lambda: "Alice gives channel operator permissions to Bob" in alice.text()
+    )
     wait_until(lambda: "Alice gives channel operator permissions to Bob" in bob.text())
 
     alice.entry.insert("end", "/deop bob")
