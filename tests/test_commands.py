@@ -188,3 +188,14 @@ def test_incorrect_usage(alice, wait_until, command, error):
     alice.on_enter_pressed()
     wait_until(lambda: (error + "\n") in alice.text())
     assert alice.entry.get() == command  # give user chance to correct easily
+
+
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd doesn't support KICK and unknown commands fail tests",
+)
+def test_error_response(alice, wait_until):
+    alice.entry.insert("end", "/kick xyz")
+    alice.on_enter_pressed()
+    wait_until(lambda: alice.text().endswith("401 xyz No such nick/channel\n"))
+    assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")

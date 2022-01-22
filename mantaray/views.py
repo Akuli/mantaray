@@ -454,8 +454,21 @@ class ServerView(View):
                     ):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
-            elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
-                self.server_view.add_message(
+            elif isinstance(event, backend.ServerMessage):
+                if event.is_error:
+                    view = self.irc_widget.get_current_view()
+                else:
+                    view = self
+                view.add_message(
+                    event.sender or "???",
+                    (
+                        " ".join([event.command] + event.args),
+                        ["error"] if event.is_error else [],
+                    ),
+                )
+
+            elif isinstance(event, backend.UnknownMessage):
+                self.add_message(
                     event.sender or "???", (" ".join([event.command] + event.args), [])
                 )
 
