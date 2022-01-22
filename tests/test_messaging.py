@@ -41,11 +41,8 @@ def test_colors(alice, bob, wait_until):
     assert "cyan on red bold underline everything nothing" in bob.text()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin",
-    reason="sometimes fails on macos github actions, don't know why",
-)
 def test_nick_autocompletion(alice, bob):
+    alice.update()
     alice.entry.insert(0, "i think b")
     alice.autocomplete()
     # space at the end is important, so alice can easily finish the sentence
@@ -53,11 +50,8 @@ def test_nick_autocompletion(alice, bob):
     assert alice.entry.index("insert") == len("i think Bob ")
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin",
-    reason="sometimes fails on macos github actions, don't know why",
-)
 def test_nick_autocompletion_after_entering_message(alice, bob):
+    alice.update()
     alice.entry.insert(0, "bhello there")
     alice.entry.icursor(1)
     alice.autocomplete()
