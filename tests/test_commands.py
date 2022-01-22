@@ -85,6 +85,26 @@ def test_topic_change(alice, bob, wait_until):
 #    )
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd doesn't support KICK",
+)
+def test_kick(alice, bob, wait_until):
+    alice.entry.insert("end", "/kick bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: "Alice has kicked Bob from #autojoin. (Reason: Bob)" in alice.text())
+    wait_until(lambda: "Alice has kicked you from #autojoin. (Reason: Bob) You can still join by typing /join #autojoin." in bob.text())
+
+    bob.entry.insert("end", "/join #autojoin")
+    bob.on_enter_pressed()
+    wait_until(lambda: bob.text().count("The topic of #autojoin is") == 2)
+
+    alice.entry.insert("end", "/kick bob insane trolling")
+    alice.on_enter_pressed()
+    wait_until(lambda: "Alice has kicked Bob from #autojoin. (Reason: insane trolling)" in alice.text())
+    wait_until(lambda: "Alice has kicked you from #autojoin. (Reason: insane trolling) You can still join by typing /join #autojoin." in bob.text())
+
+
 def test_me(alice, bob, wait_until):
     alice.entry.insert("end", "/me does something")
     alice.on_enter_pressed()
