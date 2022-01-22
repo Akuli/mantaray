@@ -613,7 +613,7 @@ class ChannelView(View):
         self, setter_nick: str, mode_flags: str, target_nick: str
     ) -> None:
         if mode_flags == "+o":
-            message = "gave channel operator permissions to"
+            message = "gives channel operator permissions to"
         elif mode_flags == "-o":
             message = "removed channel operator permissions from"
         else:
