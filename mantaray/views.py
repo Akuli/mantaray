@@ -455,11 +455,7 @@ class ServerView(View):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
             elif isinstance(event, backend.ServerMessage):
-                if event.target_channel is not None:
-                    mypy_sucks = self.find_channel(event.target_channel)
-                    assert mypy_sucks is not None
-                    view = mypy_sucks
-                elif event.is_error:
+                if event.is_error:
                     view = self.irc_widget.get_current_view()
                 else:
                     view = self

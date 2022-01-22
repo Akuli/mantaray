@@ -114,7 +114,6 @@ class ServerMessage:
     sender: str | None  # I think this is a hostname. Not sure.
     command: str  # e.g. '482'
     args: list[str]  # e.g. ["#foo", "You're not a channel operator"]
-    target_channel: str | None
     is_error: bool
 @dataclasses.dataclass
 class UnknownMessage:
@@ -380,18 +379,11 @@ class IrcCore:
                 channel, topic = msg.args[1:]
                 self._joining_in_progress[channel.lower()].topic = topic
 
-            target_channel = None
-            # TODO: remove startswith, its because https://github.com/ThePhilgrim/MantaTail/issues/83
-            if msg.command == "482" and msg.args[0].startswith("#"):
-                target_channel, *args = msg.args
-            else:
-                args = msg.args
             self.event_queue.put(
                 ServerMessage(
                     msg.sender,
                     msg.command,
-                    args,
-                    target_channel,
+                    msg.args,
                     # Errors seem to always be 4xx, 5xx or 7xx.
                     # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
                     is_error=msg.command.startswith(("4", "5", "7")),
