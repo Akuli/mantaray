@@ -459,8 +459,6 @@ class ServerView(View):
                     ):
                         channel_view.add_notification(f"<{event.sender}> {event.text}")
 
-            # TODO: test "/op x"
-
             elif isinstance(event, (backend.ServerMessage, backend.UnknownMessage)):
                 self.server_view.add_message(
                     event.sender or "???", (" ".join([event.command] + event.args), [])
