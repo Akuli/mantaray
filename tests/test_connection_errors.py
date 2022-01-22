@@ -33,7 +33,7 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
-def test_server_dies(alice, irc_server, monkeypatch, wait_until):
+def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
     assert "Connecting to localhost" not in alice.text()
 
@@ -58,13 +58,15 @@ def test_server_dies(alice, irc_server, monkeypatch, wait_until):
         assert lines[-1].endswith("Connection refused")
 
     irc_server.start()
-    wait_until(
-        lambda: (
-            "\nConnecting to localhost port 6667...\nThe topic of #autojoin is: (no topic)\n"
-            in re.sub(r".*\t", "", alice.text())
+    for user in [alice, bob]:
+        wait_until(
+            lambda: (
+                "\nConnecting to localhost port 6667...\nThe topic of #autojoin is: (no topic)\n"
+                in re.sub(r".*\t", "", user.text())
+            )
         )
-    )
-    assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
+    for user in [alice, bob]:
+        assert user.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
 
 
 def test_order_bug(alice, mocker, monkeypatch, wait_until):
