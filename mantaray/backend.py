@@ -149,7 +149,7 @@ _IrcEvent = Union[
     HostChanged,
 ]
 
-RECONNECT_SECONDS = 10
+RECONNECT_SECONDS = 5
 
 
 @dataclasses.dataclass
