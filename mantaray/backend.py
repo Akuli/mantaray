@@ -37,34 +37,6 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 #                              Channel Name, exposes client bugs
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
-# Always shown in server view, because users usually don't care about these.
-# Should enclude everything that shows up during connecting to IRC server.
-_EXPECTED_CONNECTING_RESPONSES = (
-    "001",
-    "002",
-    "003",
-    "004",
-    "005",
-    "250",
-    "251",
-    "252",
-    "253",
-    "254",
-    "255",
-    "265",
-    "266",
-    "332",
-    "333",
-    "372",
-    "375",
-    "900",
-    "903",
-    "CAP",
-    "NOTICE",  # used mostly by bots, not regular users
-    _RPL_ENDOFMOTD,
-    _RPL_ENDOFNAMES,
-)
-
 
 def find_nicks(
     text: str, self_nick: str, all_nicks: Sequence[str]
@@ -409,7 +381,8 @@ class IrcCore:
                 self._joining_in_progress[channel.lower()].topic = topic
 
             target_channel = None
-            if msg.command == "482":
+            # TODO: remove startswith, its because https://github.com/ThePhilgrim/MantaTail/issues/83
+            if msg.command == "482" and msg.args[0].startswith("#"):
                 target_channel, *args = msg.args
             else:
                 args = msg.args
@@ -419,7 +392,9 @@ class IrcCore:
                     msg.command,
                     args,
                     target_channel,
-                    is_error=(msg.command not in _EXPECTED_CONNECTING_RESPONSES),
+                    # Errors seem to always be 4xx, 5xx or 7xx.
+                    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
+                    is_error=msg.command.startswith(("4", "5", "7")),
                 )
             )
             return
