@@ -98,9 +98,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
-            core.part_channel(channel)
+            core.put_to_send_queue(f"PART {channel}")
         elif isinstance(view, ChannelView):
-            core.part_channel(view.channel_name)
+            core.put_to_send_queue(f"PART {view.channel_name}")
         else:
             view.add_message("*", ("Usage: /part [<channel>]", []))
             view.add_message(
@@ -113,11 +113,11 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         core.quit()
 
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
-        core.change_nick(new_nick)
+        core.put_to_send_queue(f"NICK :{new_nick}")
 
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):
-            core.change_topic(view.channel_name, new_topic)
+            core.put_to_send_queue(f"TOPIC {view.channel_name} :{new_topic}")
         else:
             view.add_message("*", ("You must be on a channel to change its topic.", []))
 
@@ -139,19 +139,22 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def op(view: View, core: IrcCore, nick: str) -> None:
         if isinstance(view, ChannelView):
-            core.mode(view.channel_name, nick, "+o")
+            core.put_to_send_queue(f"MODE {view.channel_name} +o :{nick}")
         else:
             view.add_message("You can use /op only on a channel.")
 
     def deop(view: View, core: IrcCore, nick: str) -> None:
         if isinstance(view, ChannelView):
-            core.mode(view.channel_name, nick, "-o")
+            core.put_to_send_queue(f"MODE {view.channel_name} -o :{nick}")
         else:
             view.add_message("You can use /deop only on a channel.")
 
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
-            core.kick(view.channel_name, nick, reason)
+            if reason is None:
+                core.put_to_send_queue(f"KICK {view.channel_name} {nick}")
+            else:
+                core.put_to_send_queue(f"KICK {view.channel_name} {nick} :{reason}")
         else:
             view.add_message("You can use /kick only on a channel.")
 

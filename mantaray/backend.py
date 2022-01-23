@@ -354,35 +354,11 @@ class IrcCore:
         self.joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
         self.put_to_send_queue(f"JOIN {channel}")
 
-    def part_channel(self, channel: str, reason: str | None = None) -> None:
-        if reason is None:
-            self.put_to_send_queue(f"PART {channel}")
-        else:
-            # FIXME: the reason thing doesn't seem to work?
-            self.put_to_send_queue(f"PART {channel} :{reason}")
-
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self.put_to_send_queue(
             f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
-
-    def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
-        if reason is None:
-            self.put_to_send_queue(f"KICK {channel} {kicked_nick}")
-        else:
-            self.put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
-
-    def mode(self, channel: str, nick: str, mode_flags: str) -> None:
-        self.put_to_send_queue(f"MODE {channel} {mode_flags} {nick}")
-
-    # emits SelfChangedNick event on success
-
-    def change_nick(self, new_nick: str) -> None:
-        self.put_to_send_queue(f"NICK {new_nick}")
-
-    def change_topic(self, channel: str, new_topic: str) -> None:
-        self.put_to_send_queue(f"TOPIC {channel} {new_topic}")
 
     def quit(self) -> None:
         sock = self._sock

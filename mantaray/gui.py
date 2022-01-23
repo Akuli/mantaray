@@ -178,7 +178,7 @@ class IrcWidget(ttk.PanedWindow):
         core = self.get_current_view().server_view.core
         new_nick = ask_new_nick(self.winfo_toplevel(), core.nick)
         if new_nick != core.nick:
-            core.change_nick(new_nick)
+            core.put_to_send_queue(f"NICK {new_nick}")
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
