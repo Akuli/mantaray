@@ -14,7 +14,7 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
 
 
 # Returns True this function should be called again, False if quitting
-def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> bool:
+def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool:
     if isinstance(event, backend.SelfJoined):
         channel_view = server_view.find_channel(event.channel)
         if channel_view is None:

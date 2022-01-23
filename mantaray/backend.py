@@ -136,7 +136,7 @@ class HostChanged:
     new: str
 # fmt: on
 
-_IrcEvent = Union[
+IrcEvent = Union[
     SelfJoined,
     SelfChangedNick,
     SelfParted,
@@ -200,7 +200,7 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._send_queue: queue.Queue[tuple[bytes, _IrcEvent | None]] = queue.Queue()
+        self._send_queue: queue.Queue[tuple[bytes, IrcEvent | None]] = queue.Queue()
         self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         # During connecting, sock is None and connected is False.
@@ -208,7 +208,7 @@ class IrcCore:
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._connected = False
 
-        self.event_queue: queue.Queue[_IrcEvent] = queue.Queue()
+        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
         # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
@@ -279,7 +279,7 @@ class IrcCore:
                 self._disconnect()
 
     def _put_to_send_queue(
-        self, message: str, *, done_event: _IrcEvent | None = None
+        self, message: str, *, done_event: IrcEvent | None = None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
