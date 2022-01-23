@@ -201,7 +201,7 @@ class IrcCore:
                 # get ready to connect again
                 self._disconnect()
 
-    def put_to_send_queue(
+    def send(
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
@@ -265,7 +265,7 @@ class IrcCore:
                 continue
             # TODO: should be handled in received.py like everything else
             if line.startswith("PING"):
-                self.put_to_send_queue(line.replace("PING", "PONG", 1))
+                self.send(line.replace("PING", "PONG", 1))
                 continue
 
             self.event_queue.put(self._parse_received_message(line))
@@ -319,11 +319,11 @@ class IrcCore:
             raise e
 
         if self.password is not None:
-            self.put_to_send_queue("CAP REQ sasl")
+            self.send("CAP REQ sasl")
 
         # TODO: what if nick or user are in use? use alternatives?
-        self.put_to_send_queue(f"NICK {self.nick}")
-        self.put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
+        self.send(f"NICK {self.nick}")
+        self.send(f"USER {self.username} 0 * :{self.realname}")
 
     def _disconnect(self) -> None:
         sock = self._sock
@@ -352,43 +352,19 @@ class IrcCore:
 
     def join_channel(self, channel: str) -> None:
         self.joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
-        self.put_to_send_queue(f"JOIN {channel}")
-
-    def part_channel(self, channel: str, reason: str | None = None) -> None:
-        if reason is None:
-            self.put_to_send_queue(f"PART {channel}")
-        else:
-            # FIXME: the reason thing doesn't seem to work?
-            self.put_to_send_queue(f"PART {channel} :{reason}")
+        self.send(f"JOIN {channel}")
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self.put_to_send_queue(
+        self.send(
             f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
-
-    def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
-        if reason is None:
-            self.put_to_send_queue(f"KICK {channel} {kicked_nick}")
-        else:
-            self.put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
-
-    def mode(self, channel: str, nick: str, mode_flags: str) -> None:
-        self.put_to_send_queue(f"MODE {channel} {mode_flags} {nick}")
-
-    # emits SelfChangedNick event on success
-
-    def change_nick(self, new_nick: str) -> None:
-        self.put_to_send_queue(f"NICK {new_nick}")
-
-    def change_topic(self, channel: str, new_topic: str) -> None:
-        self.put_to_send_queue(f"TOPIC {channel} {new_topic}")
 
     def quit(self) -> None:
         sock = self._sock
         if sock is not None and self._connected:
             sock.settimeout(1)  # Do not freeze forever if sending is slow
-            self.put_to_send_queue("QUIT", done_event=Quit())
+            self.send("QUIT", done_event=Quit())
         else:
             # TODO: duplicate code in done_event handling
             self._disconnect()
