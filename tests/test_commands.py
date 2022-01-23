@@ -168,6 +168,21 @@ def test_invalid_command(alice, wait_until):
     alice.on_enter_pressed()
     wait_until(lambda: "No command named '/asdf'\n" in alice.text())
 
+    alice.entry.delete(0, "end")
+    alice.entry.insert("end", "/AsDf")
+    alice.on_enter_pressed()
+    wait_until(lambda: "No command named '/AsDf'\n" in alice.text())
+
+
+def test_case_insensitive(alice, bob, wait_until):
+    alice.entry.insert("end", "/ME says foo")
+    alice.on_enter_pressed()
+    wait_until(lambda: "\t*\tAlice says foo" in bob.text())
+
+    alice.entry.insert("end", "/mE says bar")
+    alice.on_enter_pressed()
+    wait_until(lambda: "\t*\tAlice says bar" in bob.text())
+
 
 def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
     alice.entry.insert("end", "/home/alice")
