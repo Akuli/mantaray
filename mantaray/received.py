@@ -17,7 +17,7 @@ RPL_TOPIC = "332"
 
 def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
     if isinstance(view, views.ChannelView):
-        return isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks()
+        return nick in view.userlist.get_nicks()
     if isinstance(view, views.PMView):
         return nick == view.nick_of_other_user
     return False
