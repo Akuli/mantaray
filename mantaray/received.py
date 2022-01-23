@@ -8,7 +8,7 @@ from mantaray import backend, views
 
 
 from base64 import b64encode
-from typing import Union, Sequence, Iterator
+from typing import Union
 
 
 RPL_ENDOFMOTD = "376"
@@ -155,61 +155,66 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         channel, kicked_nick, reason = msg.args
         return (Kick(kicker, channel, kicked_nick, reason or None))
 
+    if msg.command == "CAP":
+        subcommand = msg.args[1]
+
+        if subcommand == "ACK":
+            acknowledged = set(msg.args[-1].split())
+
+            if "sasl" in acknowledged:
+                server_view.core.put_to_send_queue("AUTHENTICATE PLAIN")
+        elif subcommand == "NAK":
+            rejected = set(msg.args[-1].split())
+            if "sasl" in rejected:
+                # TODO: this good?
+                raise ValueError("The server does not support SASL.")
+
+    elif msg.command == "AUTHENTICATE":
+        query = f"\0{server_view.core.username}\0{server_view.core.password}"
+        b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
+        for i in range(0, len(b64_query), 400):
+            server_view.core.put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
+
+    elif msg.command == RPL_LOGGEDIN:
+        server_view.core.put_to_send_queue("CAP END")
+
+    elif msg.command == RPL_NAMREPLY:
+        # TODO: wtf are the first 2 args?
+        # rfc1459 doesn't mention them, but freenode
+        # gives 4-element msg.args lists
+        channel, names = msg.args[-2:]
+
+        # TODO: the prefixes have meanings
+        # https://modern.ircdocs.horse/#channel-membership-prefixes
+        server_view.core.joining_in_progress[channel.lower()].nicks.extend(
+            name.lstrip("~&@%+") for name in names.split()
+        )
+        return None  # don't spam server view with nicks
+
+    elif msg.command == RPL_ENDOFNAMES:
+        # joining a channel finished
+        channel, human_readable_message = msg.args[-2:]
+        join = server_view.core.joining_in_progress.pop(channel.lower())
+        # join.topic is None, when creating channel on libera
+        return (
+            SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+        )
+
+    elif msg.command == RPL_ENDOFMOTD:
+        # TODO: relying on MOTD good?
+        for channel in server_view.core.autojoin:
+            server_view.core.join_channel(channel)
+
+    elif msg.command == RPL_TOPIC:
+        channel, topic = msg.args[1:]
+        server_view.core.joining_in_progress[channel.lower()].topic = topic
+
+    if msg.command == "TOPIC" and not msg.sender_is_server:
+        channel, topic = msg.args
+        assert msg.sender is not None
+        return (TopicChanged(msg.sender, channel, topic))
+
     if msg.sender_is_server:
-        if msg.command == "CAP":
-            subcommand = msg.args[1]
-
-            if subcommand == "ACK":
-                acknowledged = set(msg.args[-1].split())
-
-                if "sasl" in acknowledged:
-                    server_view.core.put_to_send_queue("AUTHENTICATE PLAIN")
-            elif subcommand == "NAK":
-                rejected = set(msg.args[-1].split())
-                if "sasl" in rejected:
-                    # TODO: this good?
-                    raise ValueError("The server does not support SASL.")
-
-        elif msg.command == "AUTHENTICATE":
-            query = f"\0{server_view.core.username}\0{server_view.core.password}"
-            b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
-            for i in range(0, len(b64_query), 400):
-                server_view.core.put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
-
-        elif msg.command == RPL_LOGGEDIN:
-            server_view.core.put_to_send_queue("CAP END")
-
-        elif msg.command == RPL_NAMREPLY:
-            # TODO: wtf are the first 2 args?
-            # rfc1459 doesn't mention them, but freenode
-            # gives 4-element msg.args lists
-            channel, names = msg.args[-2:]
-
-            # TODO: the prefixes have meanings
-            # https://modern.ircdocs.horse/#channel-membership-prefixes
-            server_view.core.joining_in_progress[channel.lower()].nicks.extend(
-                name.lstrip("~&@%+") for name in names.split()
-            )
-            return None  # don't spam server view with nicks
-
-        elif msg.command == RPL_ENDOFNAMES:
-            # joining a channel finished
-            channel, human_readable_message = msg.args[-2:]
-            join = server_view.core.joining_in_progress.pop(channel.lower())
-            # join.topic is None, when creating channel on libera
-            return (
-                SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-            )
-
-        elif msg.command == RPL_ENDOFMOTD:
-            # TODO: relying on MOTD good?
-            for channel in server_view.core.autojoin:
-                server_view.core.join_channel(channel)
-
-        elif msg.command == RPL_TOPIC:
-            channel, topic = msg.args[1:]
-            server_view.core.joining_in_progress[channel.lower()].topic = topic
-
         return (
             ServerMessage(
                 msg.sender,
@@ -220,16 +225,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
                 is_error=msg.command.startswith(("4", "5", "7")),
             )
         )
-
-    if msg.command == "TOPIC":
-        channel, topic = msg.args
-        assert msg.sender is not None
-        return (TopicChanged(msg.sender, channel, topic))
-
     return (UnknownMessage(msg.sender, msg.command, msg.args))
 
 
-# Returns True this function should be called again, False if quitting
 def _handle_internal_event(event: InternalEvent, server_view: views.ServerView) -> None:
     if isinstance(event, SelfJoined):
         channel_view = server_view.find_channel(event.channel)
