@@ -232,7 +232,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     if subcommand == "ACK":
         acknowledged = set(args[-1].split())
         if "sasl" in acknowledged:
-            server_view.core.put_to_send_queue("AUTHENTICATE PLAIN")
+            server_view.core.send("AUTHENTICATE PLAIN")
     elif subcommand == "NAK":
         rejected = set(args[-1].split())
         if "sasl" in rejected:
@@ -244,7 +244,7 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
     query = f"\0{server_view.core.username}\0{server_view.core.password}"
     b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
     for i in range(0, len(b64_query), 400):
-        server_view.core.put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
+        server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
 
 
 def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
@@ -374,7 +374,7 @@ def _handle_received_message(
         _handle_authenticate(server_view)
 
     elif msg.command == RPL_LOGGEDIN:
-        server_view.core.put_to_send_queue("CAP END")
+        server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
         _handle_namreply(server_view, msg.args)
