@@ -155,12 +155,30 @@ def test_op_deop(alice, bob, wait_until):
     # Should test them when available in mantatail
 
 
+def switch_to_channel_view(user, channel_name):
+    view = user.get_server_views()[0].find_channel(channel_name)
+    user.view_selector.selection_set(view.view_id)
+    assert f"The topic of {channel_name} is" in user.text()
+
+
 def test_quit(alice, bob, wait_until):
+    # Bob joins a second channel, but Alice only joins #autojoin.
+    # Alice's quit message should only appear on #autojoin
+    bob.entry.insert(0, "/join #bob")
+    bob.on_enter_pressed()
+    wait_until(lambda: "The topic of #bob is" in bob.text())
+    switch_to_channel_view(bob, "#autojoin")
+
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
     assert alice.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
+
     wait_until(lambda: "Alice quit." in bob.text())
     wait_until(lambda: not alice.winfo_exists())
+
+    assert "Alice quit." in bob.text()
+    switch_to_channel_view(bob, "#bob")
+    assert "Alice quit." not in bob.text()
 
 
 def test_invalid_command(alice, wait_until):
