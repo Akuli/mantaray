@@ -24,7 +24,9 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
             # Can exist already, when has been disconnected from server
             channel_view.userlist.set_nicks(event.nicklist)
 
-        channel_view.add_message("*", (f"The topic of {channel_view.channel_name} is: {event.topic}", []))
+        channel_view.add_message(
+            "*", (f"The topic of {channel_view.channel_name} is: {event.topic}", [])
+        )
         if event.channel not in server_view.core.autojoin:
             server_view.core.autojoin.append(event.channel)
 
@@ -63,7 +65,9 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
             "*",
             (event.nick, ["other-nick"]),
             (f" joined {channel_view.channel_name}.", []),
-            show_in_gui=channel_view.server_view.should_show_join_leave_message(event.nick),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(
+                event.nick
+            ),
         )
 
     elif isinstance(event, backend.UserParted):
@@ -80,7 +84,9 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
             "*",
             (event.nick, ["other-nick"]),
             (f" left {channel_view.channel_name}." + extra, []),
-            show_in_gui=channel_view.server_view.should_show_join_leave_message(event.nick),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(
+                event.nick
+            ),
         )
 
     elif isinstance(event, backend.ModeChange):
@@ -129,7 +135,10 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
                 (event.kicker, [kicker_tag]),
                 (" has kicked you from ", ["error"]),
                 (channel_view.channel_name, ["channel"]),
-                (f". (Reason: {event.reason}) You can still join by typing ", ["error"]),
+                (
+                    f". (Reason: {event.reason}) You can still join by typing ",
+                    ["error"],
+                ),
                 (f"/join {channel_view.channel_name}", ["pinged"]),
                 (".", ["error"]),
             )
