@@ -22,15 +22,27 @@ def root_window():
     root.destroy()
 
 
+# Prevents cyclic dependencies with fixtures. It's weird.
 @pytest.fixture
-def wait_until(root_window):
+def irc_widgets_dict():
+    return {}
+
+
+@pytest.fixture
+def wait_until(root_window, irc_widgets_dict):
     def actually_wait_until(condition, *, timeout=5):
         end = time.monotonic() + timeout
         while time.monotonic() < end:
             root_window.update()
             if condition():
                 return
-        raise RuntimeError("timed out waiting")
+        raise RuntimeError(
+            "timed out waiting"
+            + "".join(
+                f"\n{name}'s text = {widget.text()!r}"
+                for name, widget in irc_widgets_dict.items()
+            )
+        )
 
     return actually_wait_until
 
@@ -118,34 +130,29 @@ def irc_server():
 
 
 @pytest.fixture
-def alice_and_bob(irc_server, root_window, wait_until, mocker):
+def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict):
     mocker.patch("mantaray.views._show_popup")
-    widgets = {}
 
     try:
         for name in ["alice", "bob"]:
-            widgets[name] = gui.IrcWidget(
+            irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path(name)),
                 Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
             )
-            widgets[name].pack(fill="both", expand=True)
-            try:
-                # Fails sometimes on macos github actions, don't know yet why
-                # TODO: still failing with bigger timeout?
-                wait_until(
-                    lambda: "The topic of #autojoin is" in widgets[name].text(),
-                    timeout=15,
-                )
-            except RuntimeError as e:
-                print(widgets[name].text())
-                raise e
+            irc_widgets_dict[name].pack(fill="both", expand=True)
+            # Fails sometimes on macos github actions, don't know yet why
+            # TODO: still failing with bigger timeout?
+            wait_until(
+                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
+                timeout=15,
+            )
 
-        yield widgets
+        yield irc_widgets_dict
 
     finally:
         # If this cleanup doesn't run, we might leave threads running that will disturb other tests
-        for irc_widget in widgets.values():
+        for irc_widget in irc_widgets_dict.values():
             for server_view in irc_widget.get_server_views():
                 server_view.core.quit()
                 server_view.core.wait_for_threads_to_stop()
