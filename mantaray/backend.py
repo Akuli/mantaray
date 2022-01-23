@@ -139,7 +139,6 @@ class IrcCore:
         # the replies are collected here before emitting a self_joined event
         # Topic can also be sent before joining
         # TODO: this in rfc?
-        # TODO: this is in a funny place right now
         self.joining_in_progress: dict[str, _JoinInProgress] = {}
 
         self._quit_event = threading.Event()
@@ -265,6 +264,7 @@ class IrcCore:
                 # "Empty messages are silently ignored"
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
                 continue
+            # TODO: should be handled in received.py like everything else
             if line.startswith("PING"):
                 self.put_to_send_queue(line.replace("PING", "PONG", 1))
                 continue
