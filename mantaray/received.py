@@ -1,13 +1,12 @@
 """Handle commands received from the IRC server."""
 
 from __future__ import annotations
+
 import re
 import traceback
-from mantaray import backend, views
-
-
 from base64 import b64encode
 
+from mantaray import backend, views
 
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
