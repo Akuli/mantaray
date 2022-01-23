@@ -205,6 +205,7 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
         kicker_tag = "self-nick"
     else:
         kicker_tag = "other-nick"
+
     if kicked_nick == channel_view.server_view.core.nick:
         channel_view.add_message(
             "*",
