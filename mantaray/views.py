@@ -321,6 +321,7 @@ class ServerView(View):
             should_keep_going = received.handle_event(event, self)
             if not should_keep_going:
                 self.irc_widget.after_cancel(next_call_id)
+                self.irc_widget.remove_server(self)
                 break
 
     def get_current_config(self) -> config.ServerConfig:

@@ -53,7 +53,6 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
                 view.userlist.add_user(event.new)
 
     elif isinstance(event, backend.SelfQuit):
-        server_view.irc_widget.remove_server(server_view)
         return False
 
     elif isinstance(event, backend.UserJoined):
