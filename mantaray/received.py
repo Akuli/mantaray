@@ -107,137 +107,200 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
     return False
 
 
+def _handle_privmsg(
+    server_view: views.ServerView, sender: str, args: list[str]
+) -> None:
+    recipient, text = args
+    _handle_internal_event(server_view, ReceivedPrivmsg(sender, recipient, text))
+
+
+def _handle_join(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+    [channel] = args
+    # When this user joins a channel, wait for RPL_ENDOFNAMES
+    if sender != server_view.core.nick:
+        _handle_internal_event(server_view, UserJoined(sender, channel))
+
+
+def _handle_part(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+    channel = args[0]
+    reason = args[1] if len(args) >= 2 else None
+    if sender == server_view.core.nick:
+        _handle_internal_event(server_view, SelfParted(channel))
+    else:
+        _handle_internal_event(server_view, UserParted(sender, channel, reason))
+
+
+def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
+    [new_nick] = args
+    if old_nick == server_view.core.nick:
+        server_view.core.nick = new_nick
+        _handle_internal_event(server_view, SelfChangedNick(old_nick, new_nick))
+    else:
+        _handle_internal_event(server_view, UserChangedNick(old_nick, new_nick))
+
+
+def _handle_quit(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+    reason = args[0] if args else None
+    _handle_internal_event(server_view, UserQuit(sender, reason or None))
+
+
+def _handle_mode(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+    channel, mode_flags, nick = args
+    _handle_internal_event(server_view, ModeChange(channel, sender, mode_flags, nick))
+
+
+def _handle_kick(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+    kicker = sender
+    channel, kicked_nick, reason = args
+    _handle_internal_event(
+        server_view, Kick(kicker, channel, kicked_nick, reason or None)
+    )
+
+
+def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
+    subcommand = args[1]
+    if subcommand == "ACK":
+        acknowledged = set(args[-1].split())
+        if "sasl" in acknowledged:
+            server_view.core.put_to_send_queue("AUTHENTICATE PLAIN")
+    elif subcommand == "NAK":
+        rejected = set(args[-1].split())
+        if "sasl" in rejected:
+            # TODO: this good?
+            raise ValueError("The server does not support SASL.")
+
+
+def _handle_authenticate(server_view: views.ServerView) -> None:
+    query = f"\0{server_view.core.username}\0{server_view.core.password}"
+    b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
+    for i in range(0, len(b64_query), 400):
+        server_view.core.put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
+
+
+def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
+    # TODO: wtf are the first 2 args?
+    # rfc1459 doesn't mention them, but freenode
+    # gives 4-element msg.args lists
+    channel, names = args[-2:]
+
+    # TODO: the prefixes have meanings
+    # https://modern.ircdocs.horse/#channel-membership-prefixes
+    server_view.core.joining_in_progress[channel.lower()].nicks.extend(
+        name.lstrip("~&@%+") for name in names.split()
+    )
+
+
+def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
+    # joining a channel finished
+    channel, human_readable_message = args[-2:]
+    join = server_view.core.joining_in_progress.pop(channel.lower())
+    # join.topic is None, when creating channel on libera
+    _handle_internal_event(
+        server_view, SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+    )
+
+
+def _handle_endofmotd(server_view: views.ServerView) -> None:
+    # TODO: relying on MOTD good?
+    for channel in server_view.core.autojoin:
+        server_view.core.join_channel(channel)
+
+
+def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
+    channel, topic = args[1:]
+    server_view.core.joining_in_progress[channel.lower()].topic = topic
+
+
+def _handle_literally_topic(
+    server_view: views.ServerView, sender: str, args: list[str]
+) -> None:
+    channel, topic = args
+    _handle_internal_event(server_view, TopicChanged(sender, channel, topic))
+
+
+def _handle_unknown_message(
+    server_view: views.ServerView,
+    sender: str | None,
+    sender_is_server: bool,
+    command: str,
+    args: list[str],
+) -> None:
+    if sender_is_server:
+        _handle_internal_event(
+            server_view,
+            ServerMessage(
+                sender,
+                command,
+                args,
+                # Errors seem to always be 4xx, 5xx or 7xx.
+                # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
+                is_error=command.startswith(("4", "5", "7")),
+            ),
+        )
+    else:
+        _handle_internal_event(server_view, UnknownMessage(sender, command, args))
+
+
 def _handle_received_message(
     server_view: views.ServerView, msg: backend.ReceivedLine
 ) -> None:
     if msg.command == "PRIVMSG":
         assert msg.sender is not None
-        recipient, text = msg.args
-        _handle_internal_event(
-            server_view, ReceivedPrivmsg(msg.sender, recipient, text)
-        )
+        _handle_privmsg(server_view, msg.sender, msg.args)
 
     elif msg.command == "JOIN":
         assert msg.sender is not None
-        [channel] = msg.args
-        # When this user joins a channel, wait for RPL_ENDOFNAMES
-        if msg.sender != server_view.core.nick:
-            _handle_internal_event(server_view, UserJoined(msg.sender, channel))
+        _handle_join(server_view, msg.sender, msg.args)
 
     elif msg.command == "PART":
         assert msg.sender is not None
-        channel = msg.args[0]
-        reason = msg.args[1] if len(msg.args) >= 2 else None
-        if msg.sender == server_view.core.nick:
-            _handle_internal_event(server_view, SelfParted(channel))
-        else:
-            _handle_internal_event(server_view, UserParted(msg.sender, channel, reason))
+        _handle_part(server_view, msg.sender, msg.args)
 
     elif msg.command == "NICK":
         assert msg.sender is not None
-        old = msg.sender
-        [new] = msg.args
-        if old == server_view.core.nick:
-            server_view.core.nick = new
-            _handle_internal_event(server_view, SelfChangedNick(old, new))
-        else:
-            _handle_internal_event(server_view, UserChangedNick(old, new))
+        _handle_nick(server_view, msg.sender, msg.args)
 
     elif msg.command == "QUIT":
         assert msg.sender is not None
-        reason = msg.args[0] if msg.args else None
-        _handle_internal_event(server_view, UserQuit(msg.sender, reason or None))
+        _handle_quit(server_view, msg.sender, msg.args)
 
     elif msg.command == "MODE":
         assert msg.sender is not None
-        channel, mode_flags, nick = msg.args
-        _handle_internal_event(
-            server_view, ModeChange(channel, msg.sender, mode_flags, nick)
-        )
+        _handle_mode(server_view, msg.sender, msg.args)
 
     elif msg.command == "KICK":
         assert msg.sender is not None
-        kicker = msg.sender
-        channel, kicked_nick, reason = msg.args
-        _handle_internal_event(
-            server_view, Kick(kicker, channel, kicked_nick, reason or None)
-        )
+        _handle_kick(server_view, msg.sender, msg.args)
 
     elif msg.command == "CAP":
-        subcommand = msg.args[1]
-
-        if subcommand == "ACK":
-            acknowledged = set(msg.args[-1].split())
-
-            if "sasl" in acknowledged:
-                server_view.core.put_to_send_queue("AUTHENTICATE PLAIN")
-        elif subcommand == "NAK":
-            rejected = set(msg.args[-1].split())
-            if "sasl" in rejected:
-                # TODO: this good?
-                raise ValueError("The server does not support SASL.")
+        _handle_cap(server_view, msg.args)
 
     elif msg.command == "AUTHENTICATE":
-        query = f"\0{server_view.core.username}\0{server_view.core.password}"
-        b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
-        for i in range(0, len(b64_query), 400):
-            server_view.core.put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
+        _handle_authenticate(server_view)
 
     elif msg.command == RPL_LOGGEDIN:
         server_view.core.put_to_send_queue("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
-        # TODO: wtf are the first 2 args?
-        # rfc1459 doesn't mention them, but freenode
-        # gives 4-element msg.args lists
-        channel, names = msg.args[-2:]
-
-        # TODO: the prefixes have meanings
-        # https://modern.ircdocs.horse/#channel-membership-prefixes
-        server_view.core.joining_in_progress[channel.lower()].nicks.extend(
-            name.lstrip("~&@%+") for name in names.split()
-        )
+        _handle_namreply(server_view, msg.args)
 
     elif msg.command == RPL_ENDOFNAMES:
-        # joining a channel finished
-        channel, human_readable_message = msg.args[-2:]
-        join = server_view.core.joining_in_progress.pop(channel.lower())
-        # join.topic is None, when creating channel on libera
-        _handle_internal_event(
-            server_view, SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-        )
+        _handle_endofnames(server_view, msg.args)
 
     elif msg.command == RPL_ENDOFMOTD:
-        # TODO: relying on MOTD good?
-        for channel in server_view.core.autojoin:
-            server_view.core.join_channel(channel)
+        _handle_endofmotd(server_view)
 
     elif msg.command == RPL_TOPIC:
-        channel, topic = msg.args[1:]
-        server_view.core.joining_in_progress[channel.lower()].topic = topic
+        _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command == "TOPIC" and not msg.sender_is_server:
-        channel, topic = msg.args
         assert msg.sender is not None
-        _handle_internal_event(server_view, TopicChanged(msg.sender, channel, topic))
+        _handle_literally_topic(server_view, msg.sender, msg.args)
 
     else:
-        if msg.sender_is_server:
-            _handle_internal_event(
-                server_view,
-                ServerMessage(
-                    msg.sender,
-                    msg.command,
-                    msg.args,
-                    # Errors seem to always be 4xx, 5xx or 7xx.
-                    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-                    is_error=msg.command.startswith(("4", "5", "7")),
-                ),
-            )
-        else:
-            _handle_internal_event(
-                server_view, UnknownMessage(msg.sender, msg.command, msg.args)
-            )
+        _handle_unknown_message(
+            server_view, msg.sender, msg.sender_is_server, msg.command, msg.args
+        )
 
 
 def _handle_internal_event(server_view: views.ServerView, event: InternalEvent) -> None:
