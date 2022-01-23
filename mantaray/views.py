@@ -245,39 +245,6 @@ class View:
                 flush=True,
             )
 
-    def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
-        self.add_message("", (message, ["error" if error else "info"]))
-
-    def on_self_changed_nick(self, old: str, new: str) -> None:
-        # notify about the nick change everywhere, by putting this to base class
-        self.add_message(
-            "*", ("You are now known as ", []), (new, ["self-nick"]), (".", [])
-        )
-
-    def get_relevant_nicks(self) -> Sequence[str]:
-        return []
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        self.add_message(
-            "*",
-            (old, ["other-nick"]),
-            (" is now known as ", []),
-            (new, ["other-nick"]),
-            (".", []),
-        )
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (" quit." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
 
 class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
@@ -508,23 +475,6 @@ class ChannelView(View):
             (".", []),
         )
 
-    def on_self_changed_nick(self, old: str, new: str) -> None:
-        super().on_self_changed_nick(old, new)
-        self.userlist.remove_user(old)
-        self.userlist.add_user(new)
-
-    def get_relevant_nicks(self) -> tuple[str, ...]:
-        return self.userlist.get_nicks()
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-        self.userlist.remove_user(old)
-        self.userlist.add_user(new)
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        super().on_relevant_user_quit(nick, reason)
-        self.userlist.remove_user(nick)
-
     def show_topic(self, topic: str) -> None:
         self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
 
@@ -551,9 +501,14 @@ class PMView(View):
         )
 
     # Same as view_name, but only PM views have this attribute
+    # Do not set view_name directly, if you want log file name to update too
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
+
+    def set_nick_of_other_user(self, new_nick: str) -> None:
+        self.view_name = new_nick
+        self.reopen_log_file()
 
     def get_log_name(self) -> str:
         return self.nick_of_other_user
@@ -566,13 +521,3 @@ class PMView(View):
             [self.server_view.core.nick, self.nick_of_other_user],
         )
         self.add_message(sender, *chunks)
-
-    # quit isn't perfect: no way to notice a person quitting if not on a same
-    # channel with the user
-    def get_relevant_nicks(self) -> list[str]:
-        return [self.nick_of_other_user]
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-        self.view_name = new
-        self.reopen_log_file()

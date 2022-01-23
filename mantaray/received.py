@@ -5,6 +5,14 @@ import re
 from mantaray import backend, views
 
 
+def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
+    if isinstance(view, views.ChannelView):
+        return isinstance(view, views.ChannelView)
+    if isinstance(view, views.PMView):
+        return nick == view.nick_of_other_user
+    return False
+
+
 # Returns True this function should be called again, False if quitting
 def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> None:
     if isinstance(event, backend.SelfJoined):
@@ -30,8 +38,17 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
     elif isinstance(event, backend.SelfChangedNick):
         if server_view.irc_widget.get_current_view().server_view == server_view:
             server_view.irc_widget.nickbutton.config(text=event.new)
+
         for view in server_view.get_subviews(include_server=True):
-            view.on_self_changed_nick(event.old, event.new)
+            view.add_message(
+                "*",
+                ("You are now known as ", []),
+                (event.new, ["self-nick"]),
+                (".", []),
+            )
+            if isinstance(view, views.ChannelView):
+                view.userlist.remove_user(event.old)
+                view.userlist.add_user(event.new)
 
     elif isinstance(event, backend.SelfQuit):
         server_view.irc_widget.remove_server(server_view)
@@ -60,14 +77,42 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
         channel_view.on_kick(event.kicker, event.kicked_nick, event.reason)
 
     elif isinstance(event, backend.UserQuit):
+        # This isn't perfect, other person's QUIT not received if not both joined on the same channel
         for view in server_view.get_subviews(include_server=True):
-            if event.nick in view.get_relevant_nicks():
-                view.on_relevant_user_quit(event.nick, event.reason)
+            if not _nick_is_relevant_for_view(event.nick, view):
+                continue
+
+            if event.reason is None:
+                extra = ""
+            else:
+                extra = " (" + event.reason + ")"
+
+            view.add_message(
+                "*",
+                (event.nick, ["other-nick"]),
+                (" quit." + extra, []),
+                show_in_gui=view.server_view.should_show_join_leave_message(event.nick),
+            )
+            if isinstance(view, views.ChannelView):
+                view.userlist.remove_user(event.nick)
 
     elif isinstance(event, backend.UserChangedNick):
         for view in server_view.get_subviews(include_server=True):
-            if event.old in view.get_relevant_nicks():
-                view.on_relevant_user_changed_nick(event.old, event.new)
+            if not _nick_is_relevant_for_view(event.old, view):
+                continue
+
+            view.add_message(
+                "*",
+                (event.old, ["other-nick"]),
+                (" is now known as ", []),
+                (event.new, ["other-nick"]),
+                (".", []),
+            )
+            if isinstance(view, views.ChannelView):
+                view.userlist.remove_user(event.old)
+                view.userlist.add_user(event.new)
+            if isinstance(view, views.PMView):
+                view.set_nick_of_other_user(event.new)
 
     elif isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.recipient)
@@ -108,9 +153,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
             )
             channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
             channel_view.add_tag("pinged" if pinged else "new_message")
-            if pinged or (
-                channel_view.channel_name in server_view.extra_notifications
-            ):
+            if pinged or (channel_view.channel_name in server_view.extra_notifications):
                 channel_view.add_notification(f"<{event.sender}> {event.text}")
 
     elif isinstance(event, backend.ServerMessage):
@@ -133,7 +176,9 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
 
     elif isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
-            view.on_connectivity_message(event.message, error=event.is_error)
+            view.add_message(
+                "", (event.message, ["error" if event.is_error else "info"])
+            )
 
     elif isinstance(event, backend.TopicChanged):
         channel_view = server_view.find_channel(event.channel)
