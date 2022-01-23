@@ -1,5 +1,4 @@
 import os
-import sys
 
 import pytest
 
@@ -42,8 +41,8 @@ def test_colors(alice, bob, wait_until):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin",
-    reason="sometimes fails on macos github actions, don't know why",
+    os.environ.get("GITHUB_ACTIONS") == "true",
+    reason="sometimes fails on github actions, don't know why (#197)",
 )
 def test_nick_autocompletion(alice, bob):
     alice.entry.insert(0, "i think b")
@@ -54,8 +53,8 @@ def test_nick_autocompletion(alice, bob):
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin",
-    reason="sometimes fails on macos github actions, don't know why",
+    os.environ.get("GITHUB_ACTIONS") == "true",
+    reason="sometimes fails on github actions, don't know why (#197)",
 )
 def test_nick_autocompletion_after_entering_message(alice, bob):
     alice.entry.insert(0, "bhello there")
