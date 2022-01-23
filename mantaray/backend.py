@@ -10,17 +10,10 @@ import re
 import socket
 import threading
 import traceback
-from base64 import b64encode
 from typing import Union, Sequence, Iterator
 
 from . import config
 
-
-_RPL_ENDOFMOTD = "376"
-_RPL_NAMREPLY = "353"
-_RPL_ENDOFNAMES = "366"
-_RPL_LOGGEDIN = "900"
-_RPL_TOPIC = "332"
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -56,111 +49,17 @@ def find_nicks(
     yield (text[previous_end:], None)
 
 
-# fmt: off
-@dataclasses.dataclass
-class SelfJoined:
-    channel: str
-    topic: str
-    nicklist: list[str]
-@dataclasses.dataclass
-class SelfChangedNick:
-    old: str
-    new: str
-@dataclasses.dataclass
-class SelfParted:
-    channel: str
-@dataclasses.dataclass
-class SelfQuit:
-    pass
-@dataclasses.dataclass
-class UserJoined:
-    nick: str
-    channel: str
-@dataclasses.dataclass
-class UserChangedNick:
-    old: str
-    new: str
-@dataclasses.dataclass
-class UserParted:
-    nick: str
-    channel: str
-    reason: str | None
-@dataclasses.dataclass
-class ModeChange:
-    channel: str
-    setter_nick: str
-    mode_flags: str  # e.g. "+o" for opping, "-o" for deopping
-    target_nick : str
-@dataclasses.dataclass
-class Kick:
-    kicker: str
-    channel: str
-    kicked_nick: str
-    reason: str | None
-@dataclasses.dataclass
-class UserQuit:
-    nick: str
-    reason: str | None
-@dataclasses.dataclass
-class SentPrivmsg:
-    recipient: str  # channel or nick (PM)
-    text: str
-@dataclasses.dataclass
-class ReceivedPrivmsg:
-    sender: str  # channel or nick (PM)
-    recipient: str  # channel or user's nick
-    text: str
-@dataclasses.dataclass
-class TopicChanged:
-    who_changed: str
-    channel: str
-    topic: str
-@dataclasses.dataclass
-class ServerMessage:
-    sender: str | None  # I think this is a hostname. Not sure.
-    command: str  # e.g. '482'
-    args: list[str]  # e.g. ["Alice", "#foo", "You're not a channel operator"]
-    is_error: bool
-@dataclasses.dataclass
-class UnknownMessage:
-    sender: str | None
-    command: str
-    args: list[str]
-@dataclasses.dataclass
-class ConnectivityMessage:
-    message: str  # one line
-    is_error: bool
-@dataclasses.dataclass
-class HostChanged:
-    old: str
-    new: str
-# fmt: on
-
-IrcEvent = Union[
-    SelfJoined,
-    SelfChangedNick,
-    SelfParted,
-    SelfQuit,
-    UserJoined,
-    ModeChange,
-    Kick,
-    UserChangedNick,
-    UserParted,
-    UserQuit,
-    SentPrivmsg,
-    ReceivedPrivmsg,
-    TopicChanged,
-    ServerMessage,
-    UnknownMessage,
-    ConnectivityMessage,
-    HostChanged,
-]
-
 RECONNECT_SECONDS = 5
 
 
 @dataclasses.dataclass
-class _ReceivedAndParsedMessage:
+class _JoinInProgress:
+    topic: str | None
+    nicks: list[str]
+
+
+@dataclasses.dataclass
+class ReceivedLine:
     sender: str | None
     sender_is_server: bool
     command: str
@@ -168,9 +67,29 @@ class _ReceivedAndParsedMessage:
 
 
 @dataclasses.dataclass
-class _JoinInProgress:
-    topic: str | None
-    nicks: list[str]
+class ConnectivityMessage:
+    message: str  # one line
+    is_error: bool
+
+
+@dataclasses.dataclass
+class HostChanged:
+    old: str
+    new: str
+
+
+@dataclasses.dataclass
+class SentPrivmsg:
+    nick_or_channel: str
+    text: str
+
+
+@dataclasses.dataclass
+class Quit:
+    pass
+
+
+IrcEvent = Union[ReceivedLine, ConnectivityMessage, HostChanged, SentPrivmsg, Quit]
 
 
 def _recv_line(
@@ -200,7 +119,9 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._send_queue: queue.Queue[tuple[bytes, IrcEvent | None]] = queue.Queue()
+        self._send_queue: queue.Queue[
+            tuple[bytes, SentPrivmsg | Quit | None]
+        ] = queue.Queue()
         self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         # During connecting, sock is None and connected is False.
@@ -208,14 +129,18 @@ class IrcCore:
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._connected = False
 
-        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
+        # None means it's time to disconnect
+        self.event_queue: queue.Queue[
+            ReceivedLine | ConnectivityMessage | HostChanged | SentPrivmsg | Quit
+        ] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
         # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
         # the replies are collected here before emitting a self_joined event
         # Topic can also be sent before joining
         # TODO: this in rfc?
-        self._joining_in_progress: dict[str, _JoinInProgress] = {}
+        # TODO: this is in a funny place right now
+        self.joining_in_progress: dict[str, _JoinInProgress] = {}
 
         self._quit_event = threading.Event()
 
@@ -278,142 +203,13 @@ class IrcCore:
                 # get ready to connect again
                 self._disconnect()
 
-    def _put_to_send_queue(
-        self, message: str, *, done_event: IrcEvent | None = None
+    def put_to_send_queue(
+        self, message: str, *, done_event: SentPrivmsg | Quit | None = None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
-    def _handle_received_message(self, msg: _ReceivedAndParsedMessage) -> None:
-        if msg.command == "PRIVMSG":
-            assert msg.sender is not None
-            recipient, text = msg.args
-            self.event_queue.put(ReceivedPrivmsg(msg.sender, recipient, text))
-            return
-
-        if msg.command == "JOIN":
-            assert msg.sender is not None
-            [channel] = msg.args
-            if msg.sender != self.nick:
-                self.event_queue.put(UserJoined(msg.sender, channel))
-            return
-
-        if msg.command == "PART":
-            assert msg.sender is not None
-            channel = msg.args[0]
-            reason = msg.args[1] if len(msg.args) >= 2 else None
-            if msg.sender == self.nick:
-                self.event_queue.put(SelfParted(channel))
-            else:
-                self.event_queue.put(UserParted(msg.sender, channel, reason))
-            return
-
-        if msg.command == "NICK":
-            assert msg.sender is not None
-            old = msg.sender
-            [new] = msg.args
-            if old == self.nick:
-                self.nick = new
-                self.event_queue.put(SelfChangedNick(old, new))
-            else:
-                self.event_queue.put(UserChangedNick(old, new))
-            return
-
-        if msg.command == "QUIT":
-            assert msg.sender is not None
-            reason = msg.args[0] if msg.args else None
-            self.event_queue.put(UserQuit(msg.sender, reason or None))
-            return
-
-        if msg.command == "MODE":
-            assert msg.sender is not None
-            channel, mode_flags, nick = msg.args
-            self.event_queue.put(ModeChange(channel, msg.sender, mode_flags, nick))
-            return
-
-        if msg.command == "KICK":
-            assert msg.sender is not None
-            kicker = msg.sender
-            channel, kicked_nick, reason = msg.args
-            self.event_queue.put(Kick(kicker, channel, kicked_nick, reason or None))
-            return
-
-        if msg.sender_is_server:
-            if msg.command == "CAP":
-                subcommand = msg.args[1]
-
-                if subcommand == "ACK":
-                    acknowledged = set(msg.args[-1].split())
-
-                    if "sasl" in acknowledged:
-                        self._put_to_send_queue("AUTHENTICATE PLAIN")
-                elif subcommand == "NAK":
-                    rejected = set(msg.args[-1].split())
-                    if "sasl" in rejected:
-                        # TODO: this good?
-                        raise ValueError("The server does not support SASL.")
-
-            elif msg.command == "AUTHENTICATE":
-                query = f"\0{self.username}\0{self.password}"
-                b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
-                for i in range(0, len(b64_query), 400):
-                    self._put_to_send_queue("AUTHENTICATE " + b64_query[i : i + 400])
-
-            elif msg.command == _RPL_LOGGEDIN:
-                self._put_to_send_queue("CAP END")
-
-            elif msg.command == _RPL_NAMREPLY:
-                # TODO: wtf are the first 2 args?
-                # rfc1459 doesn't mention them, but freenode
-                # gives 4-element msg.args lists
-                channel, names = msg.args[-2:]
-
-                # TODO: the prefixes have meanings
-                # https://modern.ircdocs.horse/#channel-membership-prefixes
-                self._joining_in_progress[channel.lower()].nicks.extend(
-                    name.lstrip("~&@%+") for name in names.split()
-                )
-                return  # don't spam server view with nicks
-
-            elif msg.command == _RPL_ENDOFNAMES:
-                # joining a channel finished
-                channel, human_readable_message = msg.args[-2:]
-                join = self._joining_in_progress.pop(channel.lower())
-                # join.topic is None, when creating channel on libera
-                self.event_queue.put(
-                    SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-                )
-
-            elif msg.command == _RPL_ENDOFMOTD:
-                # TODO: relying on MOTD good?
-                for channel in self.autojoin:
-                    self.join_channel(channel)
-
-            elif msg.command == _RPL_TOPIC:
-                channel, topic = msg.args[1:]
-                self._joining_in_progress[channel.lower()].topic = topic
-
-            self.event_queue.put(
-                ServerMessage(
-                    msg.sender,
-                    msg.command,
-                    msg.args,
-                    # Errors seem to always be 4xx, 5xx or 7xx.
-                    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-                    is_error=msg.command.startswith(("4", "5", "7")),
-                )
-            )
-            return
-
-        if msg.command == "TOPIC":
-            channel, topic = msg.args
-            assert msg.sender is not None
-            self.event_queue.put(TopicChanged(msg.sender, channel, topic))
-            return
-
-        self.event_queue.put(UnknownMessage(msg.sender, msg.command, msg.args))
-
     @staticmethod
-    def _parse_received_message(line: str) -> _ReceivedAndParsedMessage:
+    def _parse_received_message(line: str) -> ReceivedLine:
         if not line.startswith(":"):
             sender_is_server = True  # TODO: when does this code run?
             sender = None
@@ -436,7 +232,7 @@ class IrcCore:
                 temp.append(" ".join(args[n:])[1:])
                 args = temp
                 break
-        return _ReceivedAndParsedMessage(sender, sender_is_server, command, args)
+        return ReceivedLine(sender, sender_is_server, command, args)
 
     def _recv_loop(self) -> None:
         assert self._connected
@@ -470,14 +266,10 @@ class IrcCore:
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
                 continue
             if line.startswith("PING"):
-                self._put_to_send_queue(line.replace("PING", "PONG", 1))
+                self.put_to_send_queue(line.replace("PING", "PONG", 1))
                 continue
 
-            message = self._parse_received_message(line)
-            try:
-                self._handle_received_message(message)
-            except Exception:
-                traceback.print_exc()
+            self.event_queue.put(self._parse_received_message(line))
 
     def _send_loop(self) -> None:
         # Ideally it would be posible to wait until quit_event is set OR queue has something
@@ -504,7 +296,7 @@ class IrcCore:
 
             if done_event is not None:
                 self.event_queue.put(done_event)
-                if isinstance(done_event, SelfQuit):
+                if isinstance(done_event, Quit):
                     self._quit_event.set()
                     self._disconnect()  # stop recv loop
 
@@ -528,11 +320,11 @@ class IrcCore:
             raise e
 
         if self.password is not None:
-            self._put_to_send_queue("CAP REQ sasl")
+            self.put_to_send_queue("CAP REQ sasl")
 
         # TODO: what if nick or user are in use? use alternatives?
-        self._put_to_send_queue(f"NICK {self.nick}")
-        self._put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
+        self.put_to_send_queue(f"NICK {self.nick}")
+        self.put_to_send_queue(f"USER {self.username} 0 * :{self.realname}")
 
     def _disconnect(self) -> None:
         sock = self._sock
@@ -560,45 +352,46 @@ class IrcCore:
             self.event_queue.put(HostChanged(old_host, self.host))
 
     def join_channel(self, channel: str) -> None:
-        self._joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
-        self._put_to_send_queue(f"JOIN {channel}")
+        self.joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
+        self.put_to_send_queue(f"JOIN {channel}")
 
     def part_channel(self, channel: str, reason: str | None = None) -> None:
         if reason is None:
-            self._put_to_send_queue(f"PART {channel}")
+            self.put_to_send_queue(f"PART {channel}")
         else:
             # FIXME: the reason thing doesn't seem to work?
-            self._put_to_send_queue(f"PART {channel} :{reason}")
+            self.put_to_send_queue(f"PART {channel} :{reason}")
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self._put_to_send_queue(
+        self.put_to_send_queue(
             f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
 
     def kick(self, channel: str, kicked_nick: str, reason: str | None = None) -> None:
         if reason is None:
-            self._put_to_send_queue(f"KICK {channel} {kicked_nick}")
+            self.put_to_send_queue(f"KICK {channel} {kicked_nick}")
         else:
-            self._put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
+            self.put_to_send_queue(f"KICK {channel} {kicked_nick} :{reason}")
 
     def mode(self, channel: str, nick: str, mode_flags: str) -> None:
-        self._put_to_send_queue(f"MODE {channel} {mode_flags} {nick}")
+        self.put_to_send_queue(f"MODE {channel} {mode_flags} {nick}")
 
     # emits SelfChangedNick event on success
 
     def change_nick(self, new_nick: str) -> None:
-        self._put_to_send_queue(f"NICK {new_nick}")
+        self.put_to_send_queue(f"NICK {new_nick}")
 
     def change_topic(self, channel: str, new_topic: str) -> None:
-        self._put_to_send_queue(f"TOPIC {channel} {new_topic}")
+        self.put_to_send_queue(f"TOPIC {channel} {new_topic}")
 
     def quit(self) -> None:
         sock = self._sock
         if sock is not None and self._connected:
             sock.settimeout(1)  # Do not freeze forever if sending is slow
-            self._put_to_send_queue("QUIT", done_event=SelfQuit())
+            self.put_to_send_queue("QUIT", done_event=Quit())
         else:
+            # TODO: duplicate code in done_event handling
             self._disconnect()
             self._quit_event.set()
-            self.event_queue.put(SelfQuit())
+            self.event_queue.put(Quit())
