@@ -264,6 +264,7 @@ class IrcCore:
                 # "Empty messages are silently ignored"
                 # https://tools.ietf.org/html/rfc2812#section-2.3.1
                 continue
+            # TODO: should be handled in received.py like everything else
             if line.startswith("PING"):
                 self.put_to_send_queue(line.replace("PING", "PONG", 1))
                 continue
