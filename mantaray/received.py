@@ -129,7 +129,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
                 (event.kicker, [kicker_tag]),
                 (" has kicked you from ", ["error"]),
                 (channel_view.channel_name, ["channel"]),
-                (f". (Reason: {reason}) You can still join by typing ", ["error"]),
+                (f". (Reason: {event.reason}) You can still join by typing ", ["error"]),
                 (f"/join {channel_view.channel_name}", ["pinged"]),
                 (".", ["error"]),
             )
