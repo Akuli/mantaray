@@ -125,9 +125,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         channel = msg.args[0]
         reason = msg.args[1] if len(msg.args) >= 2 else None
         if msg.sender == server_view.core.nick:
-            return (SelfParted(channel))
+            return SelfParted(channel)
         else:
-            return (UserParted(msg.sender, channel, reason))
+            return UserParted(msg.sender, channel, reason)
 
     if msg.command == "NICK":
         assert msg.sender is not None
@@ -135,25 +135,25 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         [new] = msg.args
         if old == server_view.core.nick:
             server_view.core.nick = new
-            return (SelfChangedNick(old, new))
+            return SelfChangedNick(old, new)
         else:
-            return (UserChangedNick(old, new))
+            return UserChangedNick(old, new)
 
     if msg.command == "QUIT":
         assert msg.sender is not None
         reason = msg.args[0] if msg.args else None
-        return (UserQuit(msg.sender, reason or None))
+        return UserQuit(msg.sender, reason or None)
 
     if msg.command == "MODE":
         assert msg.sender is not None
         channel, mode_flags, nick = msg.args
-        return (ModeChange(channel, msg.sender, mode_flags, nick))
+        return ModeChange(channel, msg.sender, mode_flags, nick)
 
     if msg.command == "KICK":
         assert msg.sender is not None
         kicker = msg.sender
         channel, kicked_nick, reason = msg.args
-        return (Kick(kicker, channel, kicked_nick, reason or None))
+        return Kick(kicker, channel, kicked_nick, reason or None)
 
     if msg.command == "CAP":
         subcommand = msg.args[1]
@@ -196,9 +196,7 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         channel, human_readable_message = msg.args[-2:]
         join = server_view.core.joining_in_progress.pop(channel.lower())
         # join.topic is None, when creating channel on libera
-        return (
-            SelfJoined(channel, join.topic or "(no topic)", join.nicks)
-        )
+        return SelfJoined(channel, join.topic or "(no topic)", join.nicks)
 
     elif msg.command == RPL_ENDOFMOTD:
         # TODO: relying on MOTD good?
@@ -212,20 +210,19 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
     if msg.command == "TOPIC" and not msg.sender_is_server:
         channel, topic = msg.args
         assert msg.sender is not None
-        return (TopicChanged(msg.sender, channel, topic))
+        return TopicChanged(msg.sender, channel, topic)
 
     if msg.sender_is_server:
-        return (
-            ServerMessage(
+        return ServerMessage(
                 msg.sender,
                 msg.command,
                 msg.args,
                 # Errors seem to always be 4xx, 5xx or 7xx.
                 # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
                 is_error=msg.command.startswith(("4", "5", "7")),
-            )
         )
-    return (UnknownMessage(msg.sender, msg.command, msg.args))
+    else:
+        return UnknownMessage(msg.sender, msg.command, msg.args)
 
 
 def _handle_internal_event(event: InternalEvent, server_view: views.ServerView) -> None:
