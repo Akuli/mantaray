@@ -305,6 +305,7 @@ def _handle_literally_topic(
         nick_tag = "self-nick"
     else:
         nick_tag = "other-nick"
+
     channel_view.add_message(
         "*",
         (who_changed, [nick_tag]),
