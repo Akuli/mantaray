@@ -98,6 +98,7 @@ InternalEvent = Union[
     UnknownMessage,
 ]
 
+
 def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
     if isinstance(view, views.ChannelView):
         return isinstance(view, views.ChannelView)
@@ -106,56 +107,63 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
     return False
 
 
-def _handle_received_message(server_view: views.ServerView, msg: backend.ReceivedLine) -> InternalEvent | None:
+def _handle_received_message(
+    server_view: views.ServerView, msg: backend.ReceivedLine
+) -> None:
     if msg.command == "PRIVMSG":
         assert msg.sender is not None
         recipient, text = msg.args
-        return ReceivedPrivmsg(msg.sender, recipient, text)
+        _handle_internal_event(
+            server_view, ReceivedPrivmsg(msg.sender, recipient, text)
+        )
 
-    if msg.command == "JOIN":
+    elif msg.command == "JOIN":
         assert msg.sender is not None
         [channel] = msg.args
-        if msg.sender == server_view.core.nick:
-            # Wait for RPL_ENDOFNAMES
-            return None
-        return UserJoined(msg.sender, channel)
+        # When this user joins a channel, wait for RPL_ENDOFNAMES
+        if msg.sender != server_view.core.nick:
+            _handle_internal_event(server_view, UserJoined(msg.sender, channel))
 
-    if msg.command == "PART":
+    elif msg.command == "PART":
         assert msg.sender is not None
         channel = msg.args[0]
         reason = msg.args[1] if len(msg.args) >= 2 else None
         if msg.sender == server_view.core.nick:
-            return SelfParted(channel)
+            _handle_internal_event(server_view, SelfParted(channel))
         else:
-            return UserParted(msg.sender, channel, reason)
+            _handle_internal_event(server_view, UserParted(msg.sender, channel, reason))
 
-    if msg.command == "NICK":
+    elif msg.command == "NICK":
         assert msg.sender is not None
         old = msg.sender
         [new] = msg.args
         if old == server_view.core.nick:
             server_view.core.nick = new
-            return SelfChangedNick(old, new)
+            _handle_internal_event(server_view, SelfChangedNick(old, new))
         else:
-            return UserChangedNick(old, new)
+            _handle_internal_event(server_view, UserChangedNick(old, new))
 
-    if msg.command == "QUIT":
+    elif msg.command == "QUIT":
         assert msg.sender is not None
         reason = msg.args[0] if msg.args else None
-        return UserQuit(msg.sender, reason or None)
+        _handle_internal_event(server_view, UserQuit(msg.sender, reason or None))
 
-    if msg.command == "MODE":
+    elif msg.command == "MODE":
         assert msg.sender is not None
         channel, mode_flags, nick = msg.args
-        return ModeChange(channel, msg.sender, mode_flags, nick)
+        _handle_internal_event(
+            server_view, ModeChange(channel, msg.sender, mode_flags, nick)
+        )
 
-    if msg.command == "KICK":
+    elif msg.command == "KICK":
         assert msg.sender is not None
         kicker = msg.sender
         channel, kicked_nick, reason = msg.args
-        return Kick(kicker, channel, kicked_nick, reason or None)
+        _handle_internal_event(
+            server_view, Kick(kicker, channel, kicked_nick, reason or None)
+        )
 
-    if msg.command == "CAP":
+    elif msg.command == "CAP":
         subcommand = msg.args[1]
 
         if subcommand == "ACK":
@@ -189,14 +197,15 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         server_view.core.joining_in_progress[channel.lower()].nicks.extend(
             name.lstrip("~&@%+") for name in names.split()
         )
-        return None  # don't spam server view with nicks
 
     elif msg.command == RPL_ENDOFNAMES:
         # joining a channel finished
         channel, human_readable_message = msg.args[-2:]
         join = server_view.core.joining_in_progress.pop(channel.lower())
         # join.topic is None, when creating channel on libera
-        return SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+        _handle_internal_event(
+            server_view, SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+        )
 
     elif msg.command == RPL_ENDOFMOTD:
         # TODO: relying on MOTD good?
@@ -207,25 +216,31 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         channel, topic = msg.args[1:]
         server_view.core.joining_in_progress[channel.lower()].topic = topic
 
-    if msg.command == "TOPIC" and not msg.sender_is_server:
+    elif msg.command == "TOPIC" and not msg.sender_is_server:
         channel, topic = msg.args
         assert msg.sender is not None
-        return TopicChanged(msg.sender, channel, topic)
+        _handle_internal_event(server_view, TopicChanged(msg.sender, channel, topic))
 
-    if msg.sender_is_server:
-        return ServerMessage(
-                msg.sender,
-                msg.command,
-                msg.args,
-                # Errors seem to always be 4xx, 5xx or 7xx.
-                # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-                is_error=msg.command.startswith(("4", "5", "7")),
-        )
     else:
-        return UnknownMessage(msg.sender, msg.command, msg.args)
+        if msg.sender_is_server:
+            _handle_internal_event(
+                server_view,
+                ServerMessage(
+                    msg.sender,
+                    msg.command,
+                    msg.args,
+                    # Errors seem to always be 4xx, 5xx or 7xx.
+                    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
+                    is_error=msg.command.startswith(("4", "5", "7")),
+                ),
+            )
+        else:
+            _handle_internal_event(
+                server_view, UnknownMessage(msg.sender, msg.command, msg.args)
+            )
 
 
-def _handle_internal_event(event: InternalEvent, server_view: views.ServerView) -> None:
+def _handle_internal_event(server_view: views.ServerView, event: InternalEvent) -> None:
     if isinstance(event, SelfJoined):
         channel_view = server_view.find_channel(event.channel)
         if channel_view is None:
@@ -465,9 +480,7 @@ def _handle_internal_event(event: InternalEvent, server_view: views.ServerView) 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool:
     if isinstance(event, backend.ReceivedLine):
         try:
-            internal_event = _handle_received_message(server_view, event)
-            if internal_event is not None:
-                _handle_internal_event(internal_event, server_view)
+            _handle_received_message(server_view, event)
         except Exception:
             traceback.print_exc()
         return True
