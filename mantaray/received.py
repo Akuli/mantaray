@@ -110,8 +110,34 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
 def _handle_privmsg(
     server_view: views.ServerView, sender: str, args: list[str]
 ) -> None:
+    # recipient is server or nick
     recipient, text = args
-    _handle_internal_event(server_view, ReceivedPrivmsg(sender, recipient, text))
+
+    if recipient == server_view.core.nick:  # PM
+        pm_view = server_view.find_pm(sender)
+        if pm_view is None:
+            # start of a new PM conversation
+            pm_view = views.PMView(server_view, sender)
+            server_view.irc_widget.add_view(pm_view)
+        pm_view.on_privmsg(sender, text)
+        pm_view.add_tag("new_message")
+        pm_view.add_notification(text)
+
+    else:
+        channel_view = server_view.find_channel(recipient)
+        assert channel_view is not None
+
+        pinged = any(
+            tag == "self-nick"
+            for substring, tag in backend.find_nicks(
+                text, server_view.core.nick, [server_view.core.nick]
+            )
+        )
+        channel_view.on_privmsg(sender, text, pinged=pinged)
+        channel_view.add_tag("pinged" if pinged else "new_message")
+        if pinged or (channel_view.channel_name in server_view.extra_notifications):
+            channel_view.add_notification(f"<{sender}> {text}")
+
 
 
 def _handle_join(server_view: views.ServerView, sender: str, args: list[str]) -> None:
@@ -194,10 +220,22 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
     join = server_view.core.joining_in_progress.pop(channel.lower())
-    # join.topic is None, when creating channel on libera
-    _handle_internal_event(
-        server_view, SelfJoined(channel, join.topic or "(no topic)", join.nicks)
+
+    channel_view = server_view.find_channel(channel)
+    if channel_view is None:
+        channel_view = views.ChannelView(server_view, channel, join.nicks)
+        server_view.irc_widget.add_view(channel_view)
+    else:
+        # Can exist already, when has been disconnected from server
+        channel_view.userlist.set_nicks(join.nicks)
+
+    topic = join.topic or "(no topic)"
+    channel_view.add_message(
+        "*", (f"The topic of {channel_view.channel_name} is: {topic}", [])
     )
+
+    if channel not in server_view.core.autojoin:
+        server_view.core.autojoin.append(channel)
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
