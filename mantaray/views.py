@@ -1,5 +1,4 @@
 from __future__ import annotations
-import re
 import queue
 import traceback
 import time

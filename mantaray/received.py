@@ -1,7 +1,7 @@
 """Handle commands received from the IRC server."""
 
 from __future__ import annotations
-
+import re
 from mantaray import backend, views
 
 
@@ -78,7 +78,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
             pm_view = server_view.find_pm(event.recipient)
             if pm_view is None:
                 # start of a new PM conversation
-                pm_view = PMView(server_view, event.recipient)
+                pm_view = views.PMView(server_view, event.recipient)
                 server_view.irc_widget.add_view(pm_view)
             pm_view.on_privmsg(server_view.core.nick, event.text)
         else:
@@ -90,7 +90,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
             pm_view = server_view.find_pm(event.sender)
             if pm_view is None:
                 # start of a new PM conversation
-                pm_view = PMView(server_view, event.sender)
+                pm_view = views.PMView(server_view, event.sender)
                 server_view.irc_widget.add_view(pm_view)
             pm_view.on_privmsg(event.sender, event.text)
             pm_view.add_tag("new_message")
