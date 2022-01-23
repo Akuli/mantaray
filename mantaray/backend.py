@@ -129,7 +129,6 @@ class IrcCore:
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._connected = False
 
-        # None means it's time to disconnect
         self.event_queue: queue.Queue[
             ReceivedLine | ConnectivityMessage | HostChanged | SentPrivmsg | Quit
         ] = queue.Queue()
