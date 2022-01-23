@@ -1,5 +1,4 @@
 from __future__ import annotations
-import re
 import queue
 import traceback
 import time
@@ -10,7 +9,7 @@ from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, Sequence, TYPE_CHECKING, IO
 
-from mantaray import backend, colors, config
+from mantaray import backend, colors, config, received
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -246,39 +245,6 @@ class View:
                 flush=True,
             )
 
-    def on_connectivity_message(self, message: str, *, error: bool = False) -> None:
-        self.add_message("", (message, ["error" if error else "info"]))
-
-    def on_self_changed_nick(self, old: str, new: str) -> None:
-        # notify about the nick change everywhere, by putting this to base class
-        self.add_message(
-            "*", ("You are now known as ", []), (new, ["self-nick"]), (".", [])
-        )
-
-    def get_relevant_nicks(self) -> Sequence[str]:
-        return []
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        self.add_message(
-            "*",
-            (old, ["other-nick"]),
-            (" is now known as ", []),
-            (new, ["other-nick"]),
-            (".", []),
-        )
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (" quit." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
 
 class ServerView(View):
     core: backend.IrcCore  # no idea why mypy need this
@@ -352,149 +318,11 @@ class ServerView(View):
             except queue.Empty:
                 break
 
-            if isinstance(event, backend.SelfJoined):
-                channel_view = self.find_channel(event.channel)
-                if channel_view is None:
-                    channel_view = ChannelView(self, event.channel, event.nicklist)
-                    self.irc_widget.add_view(channel_view)
-                else:
-                    # Can exist already, when has been disconnected from server
-                    channel_view.userlist.set_nicks(event.nicklist)
-
-                channel_view.show_topic(event.topic)
-                if event.channel not in self.core.autojoin:
-                    self.core.autojoin.append(event.channel)
-
-            elif isinstance(event, backend.SelfParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                self.irc_widget.remove_view(channel_view)
-                if event.channel in self.core.autojoin:
-                    self.core.autojoin.remove(event.channel)
-
-            elif isinstance(event, backend.SelfChangedNick):
-                if self.irc_widget.get_current_view().server_view == self:
-                    self.irc_widget.nickbutton.config(text=event.new)
-                for view in self.get_subviews(include_server=True):
-                    view.on_self_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SelfQuit):
+            should_keep_going = received.handle_event(event, self)
+            if not should_keep_going:
                 self.irc_widget.after_cancel(next_call_id)
                 self.irc_widget.remove_server(self)
-                return
-
-            elif isinstance(event, backend.UserJoined):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_join(event.nick)
-
-            elif isinstance(event, backend.UserParted):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_part(event.nick, event.reason)
-
-            elif isinstance(event, backend.ModeChange):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_mode_change(
-                    event.setter_nick, event.mode_flags, event.target_nick
-                )
-
-            elif isinstance(event, backend.Kick):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_kick(event.kicker, event.kicked_nick, event.reason)
-
-            elif isinstance(event, backend.UserQuit):
-                for view in self.get_subviews(include_server=True):
-                    if event.nick in view.get_relevant_nicks():
-                        view.on_relevant_user_quit(event.nick, event.reason)
-
-            elif isinstance(event, backend.UserChangedNick):
-                for view in self.get_subviews(include_server=True):
-                    if event.old in view.get_relevant_nicks():
-                        view.on_relevant_user_changed_nick(event.old, event.new)
-
-            elif isinstance(event, backend.SentPrivmsg):
-                channel_view = self.find_channel(event.recipient)
-                if channel_view is None:
-                    assert not re.fullmatch(
-                        backend.CHANNEL_REGEX, event.recipient
-                    ), event.recipient
-                    pm_view = self.find_pm(event.recipient)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.recipient)
-                        self.irc_widget.add_view(pm_view)
-                    pm_view.on_privmsg(self.core.nick, event.text)
-                else:
-                    channel_view.on_privmsg(self.core.nick, event.text)
-
-            elif isinstance(event, backend.ReceivedPrivmsg):
-                # sender and recipient are channels or nicks
-                if event.recipient == self.core.nick:  # PM
-                    pm_view = self.find_pm(event.sender)
-                    if pm_view is None:
-                        # start of a new PM conversation
-                        pm_view = PMView(self, event.sender)
-                        self.irc_widget.add_view(pm_view)
-                    pm_view.on_privmsg(event.sender, event.text)
-                    pm_view.add_tag("new_message")
-                    pm_view.add_notification(event.text)
-
-                else:
-                    channel_view = self.find_channel(event.recipient)
-                    assert channel_view is not None
-
-                    pinged = any(
-                        tag == "self-nick"
-                        for substring, tag in backend.find_nicks(
-                            event.text, self.core.nick, [self.core.nick]
-                        )
-                    )
-                    channel_view.on_privmsg(event.sender, event.text, pinged=pinged)
-                    channel_view.add_tag("pinged" if pinged else "new_message")
-                    if pinged or (
-                        channel_view.channel_name in self.extra_notifications
-                    ):
-                        channel_view.add_notification(f"<{event.sender}> {event.text}")
-
-            elif isinstance(event, backend.ServerMessage):
-                if event.is_error:
-                    view = self.irc_widget.get_current_view()
-                else:
-                    view = self
-                view.add_message(
-                    event.sender or "???",
-                    (
-                        " ".join([event.command] + event.args),
-                        ["error"] if event.is_error else [],
-                    ),
-                )
-
-            elif isinstance(event, backend.UnknownMessage):
-                self.add_message(
-                    event.sender or "???", (" ".join([event.command] + event.args), [])
-                )
-
-            elif isinstance(event, backend.ConnectivityMessage):
-                for view in self.get_subviews(include_server=True):
-                    view.on_connectivity_message(event.message, error=event.is_error)
-
-            elif isinstance(event, backend.TopicChanged):
-                channel_view = self.find_channel(event.channel)
-                assert channel_view is not None
-                channel_view.on_topic_changed(event.who_changed, event.topic)
-
-            elif isinstance(event, backend.HostChanged):
-                self.view_name = event.new
-                for subview in self.get_subviews(include_server=True):
-                    subview.reopen_log_file()
-
-            else:
-                # If mypy says 'error: unused "type: ignore" comment', you
-                # forgot to check for some class
-                print("can't happen")  # type: ignore
+                break
 
     def get_current_config(self) -> config.ServerConfig:
         channels = [
@@ -569,116 +397,6 @@ class ChannelView(View):
         )
         self.add_message(sender, *chunks, pinged=pinged)
 
-    def on_join(self, nick: str) -> None:
-        self.userlist.add_user(nick)
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" joined {self.channel_name}.", []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def on_part(self, nick: str, reason: str | None) -> None:
-        self.userlist.remove_user(nick)
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" left {self.channel_name}." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def on_kick(self, kicker: str, kicked_nick: str, reason: str | None) -> None:
-        self.userlist.remove_user(kicked_nick)
-        if reason is None:
-            reason = ""
-        if kicker == self.server_view.core.nick:
-            kicker_tag = "self-nick"
-        else:
-            kicker_tag = "other-nick"
-        if kicked_nick == self.server_view.core.nick:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked you from ", ["error"]),
-                (self.channel_name, ["channel"]),
-                (f". (Reason: {reason}) You can still join by typing ", ["error"]),
-                (f"/join {self.channel_name}", ["pinged"]),
-                (".", ["error"]),
-            )
-        else:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked ", []),
-                (kicked_nick, ["other-nick"]),
-                (" from ", []),
-                (self.channel_name, ["channel"]),
-                (f". (Reason: {reason})", []),
-            )
-
-    def on_mode_change(
-        self, setter_nick: str, mode_flags: str, target_nick: str
-    ) -> None:
-        if mode_flags == "+o":
-            message = "gives channel operator permissions to"
-        elif mode_flags == "-o":
-            message = "removes channel operator permissions from"
-        else:
-            message = f"sets mode {mode_flags} on"
-
-        if target_nick == self.server_view.core.nick:
-            target_tag = "self-nick"
-        else:
-            target_tag = "other-nick"
-
-        if setter_nick == self.server_view.core.nick:
-            setter_tag = "self-nick"
-        else:
-            setter_tag = "other-nick"
-
-        self.add_message(
-            "*",
-            (setter_nick, [setter_tag]),
-            (f" {message} ", []),
-            (target_nick, [target_tag]),
-            (".", []),
-        )
-
-    def on_self_changed_nick(self, old: str, new: str) -> None:
-        super().on_self_changed_nick(old, new)
-        self.userlist.remove_user(old)
-        self.userlist.add_user(new)
-
-    def get_relevant_nicks(self) -> tuple[str, ...]:
-        return self.userlist.get_nicks()
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-        self.userlist.remove_user(old)
-        self.userlist.add_user(new)
-
-    def on_relevant_user_quit(self, nick: str, reason: str | None) -> None:
-        super().on_relevant_user_quit(nick, reason)
-        self.userlist.remove_user(nick)
-
-    def show_topic(self, topic: str) -> None:
-        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
-
-    def on_topic_changed(self, nick: str, topic: str) -> None:
-        if nick == self.server_view.core.nick:
-            nick_tag = "self-nick"
-        else:
-            nick_tag = "other-nick"
-        self.add_message(
-            "*",
-            (nick, [nick_tag]),
-            (f" changed the topic of {self.channel_name}: {topic}", []),
-        )
-
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
@@ -691,9 +409,14 @@ class PMView(View):
         )
 
     # Same as view_name, but only PM views have this attribute
+    # Do not set view_name directly, if you want log file name to update too
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
+
+    def set_nick_of_other_user(self, new_nick: str) -> None:
+        self.view_name = new_nick
+        self.reopen_log_file()
 
     def get_log_name(self) -> str:
         return self.nick_of_other_user
@@ -706,13 +429,3 @@ class PMView(View):
             [self.server_view.core.nick, self.nick_of_other_user],
         )
         self.add_message(sender, *chunks)
-
-    # quit isn't perfect: no way to notice a person quitting if not on a same
-    # channel with the user
-    def get_relevant_nicks(self) -> list[str]:
-        return [self.nick_of_other_user]
-
-    def on_relevant_user_changed_nick(self, old: str, new: str) -> None:
-        super().on_relevant_user_changed_nick(old, new)
-        self.view_name = new
-        self.reopen_log_file()

@@ -1,4 +1,5 @@
 import copy
+import os
 import sys
 from pathlib import Path
 from tkinter import ttk
@@ -131,6 +132,9 @@ def test_default_settings(root_window, monkeypatch):
 
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fails github actions and I don't know why"
+)
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
 )
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     bob.entry.insert("end", "/join #lol")
