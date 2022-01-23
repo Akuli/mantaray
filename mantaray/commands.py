@@ -37,9 +37,9 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
     if not entry_content:
         return False
 
-    if re.fullmatch("/[a-z]+( .*)?", entry_content):
+    if re.fullmatch("/[A-Za-z]+( .*)?", entry_content):
         try:
-            func = _commands[entry_content.split()[0]]
+            func = _commands[entry_content.split()[0].lower()]
         except KeyError:
             view.add_message(
                 "*", (f"No command named '{entry_content.split()[0]}'", [])
