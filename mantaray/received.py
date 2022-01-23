@@ -123,8 +123,6 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
         assert channel_view is not None
 
         channel_view.userlist.remove_user(event.kicked_nick)
-        if event.reason is None:
-            reason = ""
         if event.kicker == channel_view.server_view.core.nick:
             kicker_tag = "self-nick"
         else:
@@ -136,7 +134,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
                 (" has kicked you from ", ["error"]),
                 (channel_view.channel_name, ["channel"]),
                 (
-                    f". (Reason: {event.reason}) You can still join by typing ",
+                    f". (Reason: {event.reason or ''}) You can still join by typing ",
                     ["error"],
                 ),
                 (f"/join {channel_view.channel_name}", ["pinged"]),
@@ -150,7 +148,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> boo
                 (event.kicked_nick, ["other-nick"]),
                 (" from ", []),
                 (channel_view.channel_name, ["channel"]),
-                (f". (Reason: {reason})", []),
+                (f". (Reason: {event.reason or ''})", []),
             )
 
     elif isinstance(event, backend.UserQuit):
