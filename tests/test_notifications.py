@@ -1,9 +1,13 @@
+import os
 import re
 import pytest
 
 from mantaray import views
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
+)
 def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
 
@@ -25,6 +29,9 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     assert set(bob_tags) == {"text", "received-privmsg", "pinged", "self-nick"}
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
+)
 @pytest.mark.parametrize("window_focused", [True, False])
 def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused):
     alice.get_server_views()[0].core.join_channel("#bobnotify")
