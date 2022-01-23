@@ -14,7 +14,7 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
 
 
 # Returns True this function should be called again, False if quitting
-def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> None:
+def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> bool:
     if isinstance(event, backend.SelfJoined):
         channel_view = server_view.find_channel(event.channel)
         if channel_view is None:
@@ -24,7 +24,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
             # Can exist already, when has been disconnected from server
             channel_view.userlist.set_nicks(event.nicklist)
 
-        channel_view.show_topic(event.topic)
+        channel_view.add_message("*", (f"The topic of {channel_view.channel_name} is: {event.topic}", []))
         if event.channel not in server_view.core.autojoin:
             server_view.core.autojoin.append(event.channel)
 
@@ -57,24 +57,92 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
     elif isinstance(event, backend.UserJoined):
         channel_view = server_view.find_channel(event.channel)
         assert channel_view is not None
-        channel_view.on_join(event.nick)
+
+        channel_view.userlist.add_user(event.nick)
+        channel_view.add_message(
+            "*",
+            (event.nick, ["other-nick"]),
+            (f" joined {channel_view.channel_name}.", []),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(event.nick),
+        )
 
     elif isinstance(event, backend.UserParted):
         channel_view = server_view.find_channel(event.channel)
         assert channel_view is not None
-        channel_view.on_part(event.nick, event.reason)
+        channel_view.userlist.remove_user(event.nick)
+
+        if event.reason is None:
+            extra = ""
+        else:
+            extra = " (" + event.reason + ")"
+
+        channel_view.add_message(
+            "*",
+            (event.nick, ["other-nick"]),
+            (f" left {channel_view.channel_name}." + extra, []),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(event.nick),
+        )
 
     elif isinstance(event, backend.ModeChange):
         channel_view = server_view.find_channel(event.channel)
         assert channel_view is not None
-        channel_view.on_mode_change(
-            event.setter_nick, event.mode_flags, event.target_nick
+
+        if event.mode_flags == "+o":
+            message = "gives channel operator permissions to"
+        elif event.mode_flags == "-o":
+            message = "removes channel operator permissions from"
+        else:
+            message = f"sets mode {event.mode_flags} on"
+
+        if event.target_nick == channel_view.server_view.core.nick:
+            target_tag = "self-nick"
+        else:
+            target_tag = "other-nick"
+
+        if event.setter_nick == channel_view.server_view.core.nick:
+            setter_tag = "self-nick"
+        else:
+            setter_tag = "other-nick"
+
+        channel_view.add_message(
+            "*",
+            (event.setter_nick, [setter_tag]),
+            (f" {message} ", []),
+            (event.target_nick, [target_tag]),
+            (".", []),
         )
 
     elif isinstance(event, backend.Kick):
         channel_view = server_view.find_channel(event.channel)
         assert channel_view is not None
-        channel_view.on_kick(event.kicker, event.kicked_nick, event.reason)
+
+        channel_view.userlist.remove_user(event.kicked_nick)
+        if event.reason is None:
+            reason = ""
+        if event.kicker == channel_view.server_view.core.nick:
+            kicker_tag = "self-nick"
+        else:
+            kicker_tag = "other-nick"
+        if event.kicked_nick == channel_view.server_view.core.nick:
+            channel_view.add_message(
+                "*",
+                (event.kicker, [kicker_tag]),
+                (" has kicked you from ", ["error"]),
+                (channel_view.channel_name, ["channel"]),
+                (f". (Reason: {reason}) You can still join by typing ", ["error"]),
+                (f"/join {channel_view.channel_name}", ["pinged"]),
+                (".", ["error"]),
+            )
+        else:
+            channel_view.add_message(
+                "*",
+                (event.kicker, [kicker_tag]),
+                (" has kicked ", []),
+                (event.kicked_nick, ["other-nick"]),
+                (" from ", []),
+                (channel_view.channel_name, ["channel"]),
+                (f". (Reason: {reason})", []),
+            )
 
     elif isinstance(event, backend.UserQuit):
         # This isn't perfect, other person's QUIT not received if not both joined on the same channel
@@ -146,7 +214,7 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
             assert channel_view is not None
 
             pinged = any(
-                tag == "server_view-nick"
+                tag == "self-nick"
                 for substring, tag in backend.find_nicks(
                     event.text, server_view.core.nick, [server_view.core.nick]
                 )
@@ -183,7 +251,16 @@ def handle_event(event: backend._IrcEvent, server_view: views.ServerView) -> Non
     elif isinstance(event, backend.TopicChanged):
         channel_view = server_view.find_channel(event.channel)
         assert channel_view is not None
-        channel_view.on_topic_changed(event.who_changed, event.topic)
+
+        if event.who_changed == channel_view.server_view.core.nick:
+            nick_tag = "self-nick"
+        else:
+            nick_tag = "other-nick"
+        channel_view.add_message(
+            "*",
+            (event.who_changed, [nick_tag]),
+            (f" changed the topic of {channel_view.channel_name}: {event.topic}", []),
+        )
 
     elif isinstance(event, backend.HostChanged):
         server_view.view_name = event.new

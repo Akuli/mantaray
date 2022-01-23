@@ -321,7 +321,7 @@ class ServerView(View):
             should_keep_going = received.handle_event(event, self)
             if not should_keep_going:
                 self.irc_widget.after_cancel(next_call_id)
-                return
+                break
 
     def get_current_config(self) -> config.ServerConfig:
         channels = [
@@ -395,99 +395,6 @@ class ChannelView(View):
             sender, message, self.server_view.core.nick, self.userlist.get_nicks()
         )
         self.add_message(sender, *chunks, pinged=pinged)
-
-    def on_join(self, nick: str) -> None:
-        self.userlist.add_user(nick)
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" joined {self.channel_name}.", []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def on_part(self, nick: str, reason: str | None) -> None:
-        self.userlist.remove_user(nick)
-        if reason is None:
-            extra = ""
-        else:
-            extra = " (" + reason + ")"
-        self.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (f" left {self.channel_name}." + extra, []),
-            show_in_gui=self.server_view.should_show_join_leave_message(nick),
-        )
-
-    def on_kick(self, kicker: str, kicked_nick: str, reason: str | None) -> None:
-        self.userlist.remove_user(kicked_nick)
-        if reason is None:
-            reason = ""
-        if kicker == self.server_view.core.nick:
-            kicker_tag = "self-nick"
-        else:
-            kicker_tag = "other-nick"
-        if kicked_nick == self.server_view.core.nick:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked you from ", ["error"]),
-                (self.channel_name, ["channel"]),
-                (f". (Reason: {reason}) You can still join by typing ", ["error"]),
-                (f"/join {self.channel_name}", ["pinged"]),
-                (".", ["error"]),
-            )
-        else:
-            self.add_message(
-                "*",
-                (kicker, [kicker_tag]),
-                (" has kicked ", []),
-                (kicked_nick, ["other-nick"]),
-                (" from ", []),
-                (self.channel_name, ["channel"]),
-                (f". (Reason: {reason})", []),
-            )
-
-    def on_mode_change(
-        self, setter_nick: str, mode_flags: str, target_nick: str
-    ) -> None:
-        if mode_flags == "+o":
-            message = "gives channel operator permissions to"
-        elif mode_flags == "-o":
-            message = "removes channel operator permissions from"
-        else:
-            message = f"sets mode {mode_flags} on"
-
-        if target_nick == self.server_view.core.nick:
-            target_tag = "self-nick"
-        else:
-            target_tag = "other-nick"
-
-        if setter_nick == self.server_view.core.nick:
-            setter_tag = "self-nick"
-        else:
-            setter_tag = "other-nick"
-
-        self.add_message(
-            "*",
-            (setter_nick, [setter_tag]),
-            (f" {message} ", []),
-            (target_nick, [target_tag]),
-            (".", []),
-        )
-
-    def show_topic(self, topic: str) -> None:
-        self.add_message("*", (f"The topic of {self.channel_name} is: {topic}", []))
-
-    def on_topic_changed(self, nick: str, topic: str) -> None:
-        if nick == self.server_view.core.nick:
-            nick_tag = "self-nick"
-        else:
-            nick_tag = "other-nick"
-        self.add_message(
-            "*",
-            (nick, [nick_tag]),
-            (f" changed the topic of {self.channel_name}: {topic}", []),
-        )
 
 
 # PM = private messages, also known as DM = direct messages
