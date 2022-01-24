@@ -129,9 +129,7 @@ class IrcCore:
         self._sock: socket.socket | ssl.SSLSocket | None = None
         self._connected = False
 
-        self.event_queue: queue.Queue[
-            ReceivedLine | ConnectivityMessage | HostChanged | SentPrivmsg | Quit
-        ] = queue.Queue()
+        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
         # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
