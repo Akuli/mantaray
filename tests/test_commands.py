@@ -40,11 +40,6 @@ def test_part_last_channel(alice, bob, wait_until):
     wait_until(lambda: isinstance(alice.get_current_view(), ServerView))
 
 
-@pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail doesn't support nick changes yet",
-    strict=True,
-)
 def test_nick_change(alice, bob, wait_until):
     alice.entry.insert("end", "/nick lolwat")
     alice.on_enter_pressed()
@@ -58,8 +53,8 @@ def test_nick_change(alice, bob, wait_until):
 
 
 @pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail doesn't support topics yet",
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd is buggy",
     strict=True,
 )
 def test_topic_change(alice, bob, wait_until):
@@ -68,8 +63,9 @@ def test_topic_change(alice, bob, wait_until):
     wait_until(
         lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
     )
-
-    # TODO: bug in hircd: Bob doesn't get a notification about Alice changed topic
+    wait_until(
+        lambda: "Alice changed the topic of #autojoin: blah blah\n" in bob.text()
+    )
 
     bob.entry.insert("end", "/part #autojoin")
     bob.on_enter_pressed()
@@ -77,12 +73,9 @@ def test_topic_change(alice, bob, wait_until):
 
     bob.entry.insert("end", "/join #autojoin")
     bob.on_enter_pressed()
-    # FIXME: hircd sends TOPIC when it should send 332
-
-
-#    wait_until(
-#        lambda: "The topic of #autojoin is: blah blah\n" in bob.text()
-#    )
+    wait_until(
+        lambda: "The topic of #autojoin is: blah blah\n" in bob.text()
+    )
 
 
 @pytest.mark.skipif(
@@ -149,7 +142,7 @@ def test_op_deop(alice, bob, wait_until):
 
     alice.entry.insert("end", "/op nonexistent")
     alice.on_enter_pressed()
-    wait_until(lambda: "401 nonexistent No such nick/channel" in alice.text())
+    wait_until(lambda: "401 Alice nonexistent No such nick/channel" in alice.text())
 
     # TODO: modes other than +o and -o are displayed differently.
     # Should test them when available in mantatail
@@ -208,11 +201,6 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
     wait_until(lambda: "/home/alice" in bob.text())
 
 
-@pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="mantatail doesn't support nick changes",
-    strict=True,
-)
 def test_nickserv_and_memoserv(alice, bob, wait_until):
     # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
     bob.get_server_views()[0].core.send("NICK NickServ")
@@ -258,5 +246,5 @@ def test_incorrect_usage(alice, wait_until, command, error):
 def test_error_response(alice, wait_until):
     alice.entry.insert("end", "/kick xyz")
     alice.on_enter_pressed()
-    wait_until(lambda: alice.text().endswith("401 xyz No such nick/channel\n"))
+    wait_until(lambda: alice.text().endswith("401 Alice xyz No such nick/channel\n"))
     assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
