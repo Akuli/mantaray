@@ -25,6 +25,7 @@ def check_log(wait_until):
         except RuntimeError as e:
             print(path.read_text("utf-8"))
             raise e
+
     return actually_check_log
 
 
