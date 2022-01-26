@@ -198,7 +198,7 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
 
 
 def test_nickserv_and_memoserv(alice, bob, wait_until):
-    # Bob shall pretend he is nickserv, because hircd doesn't natively support nickserv
+    # Bob shall pretend he is nickserv, because hircd and mantatail don't have nickserv
     bob.get_server_views()[0].core.send("NICK NickServ")
     wait_until(lambda: "You are now known as NickServ.\n" in bob.text())
 
