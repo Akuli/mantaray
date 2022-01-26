@@ -1,26 +1,34 @@
 import re
-import time
 from mantaray.views import ServerView
 
+import pytest
 
-def _remove_timestamps(string):
-    return re.sub(
+
+def _read_file(path):
+    string = path.read_text("utf-8")
+    string = re.sub(
         r"[A-Z][a-z][a-z] [A-Z][a-z][a-z] [ \d]\d \d\d:\d\d:\d\d \d\d\d\d",
         "<time>",
         string,
     )
+    string = string.expandtabs()
+    return string
 
 
-def check_log(path, expected_content):
-    content = _remove_timestamps(path.read_text("utf-8")).expandtabs()
-    if content != expected_content:
-        # Sometimes it takes a while for logging to show up
-        time.sleep(0.5)
-    content = _remove_timestamps(path.read_text("utf-8")).expandtabs()
-    assert content == expected_content
+@pytest.fixture
+def check_log(wait_until):
+    def actually_check_log(path, expected_content):
+        # Sometimes it takes a while for logging to show up.
+        # For example, when sending a message, there's two queues polled every 100ms.
+        try:
+            wait_until(lambda: _read_file(path) == expected_content)
+        except RuntimeError as e:
+            print(path.read_text("utf-8"))
+            raise e
+    return actually_check_log
 
 
-def test_basic(alice, bob, wait_until):
+def test_basic(alice, bob, wait_until, check_log):
     alice.entry.insert("end", "Hello")
     alice.on_enter_pressed()
     wait_until(lambda: "Hello" in bob.text())
@@ -47,7 +55,7 @@ def test_basic(alice, bob, wait_until):
     )
 
 
-def test_pm_logs(alice, bob, wait_until):
+def test_pm_logs(alice, bob, wait_until, check_log):
     alice.entry.insert("end", "/msg Bob hey")
     alice.on_enter_pressed()
     wait_until(lambda: "hey" in bob.text())
@@ -96,7 +104,7 @@ def test_pm_logs(alice, bob, wait_until):
     )
 
 
-def test_funny_filenames(alice, bob, wait_until):
+def test_funny_filenames(alice, bob, wait_until, check_log):
     alice.entry.insert("end", "/nick {Bruh}")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as {Bruh}." in alice.text())
@@ -114,7 +122,7 @@ def test_funny_filenames(alice, bob, wait_until):
     )
 
 
-def test_same_log_file_name(alice, bob, wait_until):
+def test_same_log_file_name(alice, bob, wait_until, check_log):
     # Prevent Bob from noticing nick change, to make Alice appear as two different users.
     # Ideally there would be a way for tests to have 3 different people talking with each other
     alice.entry.insert("end", "/part #autojoin")
@@ -154,7 +162,7 @@ def test_same_log_file_name(alice, bob, wait_until):
     )
 
 
-def test_someone_has_nickname_server(alice, bob, wait_until):
+def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
     alice.entry.insert("end", "/nick server")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as server." in alice.text())
