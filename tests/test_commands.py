@@ -53,9 +53,7 @@ def test_nick_change(alice, bob, wait_until):
 
 
 @pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "hircd",
-    reason="hircd is buggy",
-    strict=True,
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd is buggy", strict=True
 )
 def test_topic_change(alice, bob, wait_until):
     alice.entry.insert("end", "/topic blah blah")
@@ -73,9 +71,7 @@ def test_topic_change(alice, bob, wait_until):
 
     bob.entry.insert("end", "/join #autojoin")
     bob.on_enter_pressed()
-    wait_until(
-        lambda: "The topic of #autojoin is: blah blah\n" in bob.text()
-    )
+    wait_until(lambda: "The topic of #autojoin is: blah blah\n" in bob.text())
 
 
 @pytest.mark.skipif(
