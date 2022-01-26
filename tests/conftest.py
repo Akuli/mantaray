@@ -135,6 +135,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
 
     try:
         for name in ["alice", "bob"]:
+            users_who_join_before = list(irc_widgets_dict.values())
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path(name)),
@@ -147,6 +148,11 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
                 timeout=15,
             )
+
+            for user in users_who_join_before:
+                wait_until(
+                    lambda: f"{name.capitalize()} joined #autojoin" in user.text()
+                )
 
         yield irc_widgets_dict
 
