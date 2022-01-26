@@ -1,15 +1,6 @@
-import os
-import sys
 import re
+import time
 from mantaray.views import ServerView
-
-import pytest
-
-
-pytestmark = pytest.mark.skipif(
-    os.environ.get("GITHUB_ACTIONS") == "true",
-    reason="sometimes fails on github actions, don't know why (#194)",
-)
 
 
 def _remove_timestamps(string):
@@ -21,7 +12,12 @@ def _remove_timestamps(string):
 
 
 def check_log(path, expected_content):
-    assert _remove_timestamps(path.read_text("utf-8")).expandtabs() == expected_content
+    content = _remove_timestamps(path.read_text("utf-8")).expandtabs()
+    if content != expected_content:
+        # Sometimes it takes a while for logging to show up
+        time.sleep(0.5)
+    content = _remove_timestamps(path.read_text("utf-8")).expandtabs()
+    assert content == expected_content
 
 
 def test_basic(alice, bob, wait_until):
@@ -158,11 +154,6 @@ def test_same_log_file_name(alice, bob, wait_until):
     )
 
 
-@pytest.mark.xfail(
-    sys.platform == "darwin",
-    reason="fragile, stuff doesn't always get logged",
-    strict=False,
-)
 def test_someone_has_nickname_server(alice, bob, wait_until):
     alice.entry.insert("end", "/nick server")
     alice.on_enter_pressed()
