@@ -150,7 +150,9 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             )
 
             for user in users_who_join_before:
-                wait_until(lambda: f"{name.capitalize()} joined #autojoin" in user.text())
+                wait_until(
+                    lambda: f"{name.capitalize()} joined #autojoin" in user.text()
+                )
 
         yield irc_widgets_dict
 
