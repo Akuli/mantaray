@@ -50,7 +50,7 @@ Running tests with [hircd](https://github.com/fboender/hircd)
     $ IRC_SERVER=hircd python3 -m pytest
 
 To experiment with new features locally, you can use [Mantatail](https://github.com/ThePhilgrim/MantaTail).
-It is a very simple and fast irc server that runs entirely on your computer.
+It is a simple irc server that runs entirely on your computer.
 The `git submodule` command above downloads it.
 
     $ cd tests/MantaTail
