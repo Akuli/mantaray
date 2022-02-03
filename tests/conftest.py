@@ -11,7 +11,7 @@ from mantaray import gui, config
 import pytest
 from ttkthemes import ThemedTk
 
-os.environ.setdefault("IRC_SERVER", "hircd")
+os.environ.setdefault("IRC_SERVER", "mantatail")
 
 
 @pytest.fixture(scope="session")

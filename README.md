@@ -44,27 +44,27 @@ Running tests: (use `py` instead of `python3` on Windows)
     $ git submodule init --update
     $ python3 -m pytest
 
-Running tests with [Mantatail](https://github.com/ThePhilgrim/MantaTail)
-(default is [hircd](https://github.com/fboender/hircd)):
+Running tests with [hircd](https://github.com/fboender/hircd)
+(default is [Mantatail](https://github.com/ThePhilgrim/MantaTail)):
 
-    $ IRC_SERVER=mantatail python3 -m pytest
+    $ IRC_SERVER=hircd python3 -m pytest
 
-To experiment with new features locally, you can use [hircd](https://github.com/fboender/hircd).
-It is a very simple and fast irc server that runs entirely on your computer.
+To experiment with new features locally, you can use [Mantatail](https://github.com/ThePhilgrim/MantaTail).
+It is a simple irc server that runs entirely on your computer.
 The `git submodule` command above downloads it.
 
-    $ cd hircd
-    $ python3 hircd.py --foreground --verbose --log-stdout
+    $ cd tests/MantaTail
+    $ python3 mantatail.py
 
 Then in another terminal, run Mantaray.
-It comes with the correct configuration for connecting to hircd.
+It comes with the correct configuration for connecting to Mantatail.
 In fact, there's two, in folders `alice` and `bob`,
 because it's often handy to simultaneously run two instances of Mantaray
 connected to each other.
 
     $ python3 -m mantaray --config-dir alice --dont-save-config
 
-This should connect Mantaray to hircd.
+This should connect Mantaray to Mantatail.
 You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `bob` instead of `alice`.
 
