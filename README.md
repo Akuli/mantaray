@@ -57,14 +57,14 @@ The `git submodule` command above downloads it.
     $ python3 mantatail.py
 
 Then in another terminal, run Mantaray.
-It comes with the correct configuration for connecting to hircd.
+It comes with the correct configuration for connecting to Mantatail.
 In fact, there's two, in folders `alice` and `bob`,
 because it's often handy to simultaneously run two instances of Mantaray
 connected to each other.
 
     $ python3 -m mantaray --config-dir alice --dont-save-config
 
-This should connect Mantaray to hircd.
+This should connect Mantaray to Mantatail.
 You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `bob` instead of `alice`.
 
