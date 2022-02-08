@@ -16,14 +16,7 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         core.send_privmsg(view.nick_of_other_user, message)
     else:
         view.add_message(
-            "*",
-            (
-                (
-                    "You can't send messages here. "
-                    "Join a channel instead and send messages there."
-                ),
-                [],
-            ),
+            "*", (("You can't send messages here. " "Join a channel instead and send messages there."), [])
         )
 
 
@@ -41,9 +34,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         try:
             func = _commands[entry_content.split()[0].lower()]
         except KeyError:
-            view.add_message(
-                "*", (f"No command named '{entry_content.split()[0]}'", [])
-            )
+            view.add_message("*", (f"No command named '{entry_content.split()[0]}'", []))
             return False
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
@@ -95,6 +86,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
         core.join_channel(channel)
+        if "away-notify" in view.server_view.cap_list:
+            who(view, core, channel)
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
@@ -103,9 +96,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             core.send(f"PART {view.channel_name}")
         else:
             view.add_message("*", ("Usage: /part [<channel>]", []))
-            view.add_message(
-                "*", ("Channel is needed unless you are currently on a channel.", [])
-            )
+            view.add_message("*", ("Channel is needed unless you are currently on a channel.", []))
 
     # Doesn't support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
@@ -158,6 +149,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         else:
             view.add_message("You can use /kick only on a channel.")
 
+    def who(view: View, core: IrcCore, nick_or_channel: str) -> None:
+        core.send_who(nick_or_channel)
+
     return {
         "/join": join,
         "/part": part,
@@ -175,6 +169,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/op": op,
         "/deop": deop,
         "/kick": kick,
+        "/who": who,
     }
 
 

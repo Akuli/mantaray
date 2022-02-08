@@ -23,9 +23,7 @@ def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
     return False
 
 
-def _handle_privmsg(
-    server_view: views.ServerView, sender: str, args: list[str]
-) -> None:
+def _handle_privmsg(server_view: views.ServerView, sender: str, args: list[str]) -> None:
     # recipient is server or nick
     recipient, text = args
 
@@ -45,9 +43,7 @@ def _handle_privmsg(
 
         pinged = any(
             tag == "self-nick"
-            for substring, tag in backend.find_nicks(
-                text, server_view.core.nick, [server_view.core.nick]
-            )
+            for substring, tag in backend.find_nicks(text, server_view.core.nick, [server_view.core.nick])
         )
         channel_view.on_privmsg(sender, text, pinged=pinged)
         channel_view.add_tag("pinged" if pinged else "new_message")
@@ -73,9 +69,7 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     )
 
 
-def _handle_part(
-    server_view: views.ServerView, parting_nick: str, args: list[str]
-) -> None:
+def _handle_part(server_view: views.ServerView, parting_nick: str, args: list[str]) -> None:
     channel = args[0]
     reason = args[1] if len(args) >= 2 else None
 
@@ -99,9 +93,7 @@ def _handle_part(
             "*",
             (parting_nick, ["other-nick"]),
             (f" left {channel_view.channel_name}." + extra, []),
-            show_in_gui=channel_view.server_view.should_show_join_leave_message(
-                parting_nick
-            ),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(parting_nick),
         )
 
 
@@ -113,9 +105,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             server_view.irc_widget.nickbutton.config(text=new_nick)
 
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(
-                "*", ("You are now known as ", []), (new_nick, ["self-nick"]), (".", [])
-            )
+            view.add_message("*", ("You are now known as ", []), (new_nick, ["self-nick"]), (".", []))
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
@@ -125,11 +115,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 continue
 
             view.add_message(
-                "*",
-                (old_nick, ["other-nick"]),
-                (" is now known as ", []),
-                (new_nick, ["other-nick"]),
-                (".", []),
+                "*", (old_nick, ["other-nick"]), (" is now known as ", []), (new_nick, ["other-nick"]), (".", [])
             )
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
@@ -159,9 +145,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.remove_user(nick)
 
 
-def _handle_mode(
-    server_view: views.ServerView, setter_nick: str, args: list[str]
-) -> None:
+def _handle_mode(server_view: views.ServerView, setter_nick: str, args: list[str]) -> None:
     channel, mode_flags, target_nick = args
 
     channel_view = server_view.find_channel(channel)
@@ -185,11 +169,7 @@ def _handle_mode(
         setter_tag = "other-nick"
 
     channel_view.add_message(
-        "*",
-        (setter_nick, [setter_tag]),
-        (f" {message} ", []),
-        (target_nick, [target_tag]),
-        (".", []),
+        "*", (setter_nick, [setter_tag]), (f" {message} ", []), (target_nick, [target_tag]), (".", [])
     )
 
 
@@ -233,11 +213,16 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
         acknowledged = set(args[-1].split())
         if "sasl" in acknowledged:
             server_view.core.send("AUTHENTICATE PLAIN")
+        if "away-notify" in acknowledged:
+            server_view.cap_list.add("away-notify")
+            server_view.core.send("CAP END")
     elif subcommand == "NAK":
         rejected = set(args[-1].split())
         if "sasl" in rejected:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
+        if "away-notify" in rejected:
+            raise ValueError("The server does not support away-notify.")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -255,9 +240,7 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
 
     # TODO: the prefixes have meanings
     # https://modern.ircdocs.horse/#channel-membership-prefixes
-    server_view.core.joining_in_progress[channel.lower()].nicks.extend(
-        name.lstrip("~&@%+") for name in names.split()
-    )
+    server_view.core.joining_in_progress[channel.lower()].nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
 
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
@@ -274,9 +257,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         channel_view.userlist.set_nicks(join.nicks)
 
     topic = join.topic or "(no topic)"
-    channel_view.add_message(
-        "*", (f"The topic of {channel_view.channel_name} is: {topic}", [])
-    )
+    channel_view.add_message("*", (f"The topic of {channel_view.channel_name} is: {topic}", []))
 
     if channel not in server_view.core.autojoin:
         server_view.core.autojoin.append(channel)
@@ -286,6 +267,8 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.join_channel(channel)
+        if "away-notify" in server_view.cap_list:
+            server_view.core.send_who(channel)
 
 
 def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
@@ -293,9 +276,7 @@ def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) ->
     server_view.core.joining_in_progress[channel.lower()].topic = topic
 
 
-def _handle_literally_topic(
-    server_view: views.ServerView, who_changed: str, args: list[str]
-) -> None:
+def _handle_literally_topic(server_view: views.ServerView, who_changed: str, args: list[str]) -> None:
     channel, topic = args
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
@@ -306,18 +287,12 @@ def _handle_literally_topic(
         nick_tag = "other-nick"
 
     channel_view.add_message(
-        "*",
-        (who_changed, [nick_tag]),
-        (f" changed the topic of {channel_view.channel_name}: {topic}", []),
+        "*", (who_changed, [nick_tag]), (f" changed the topic of {channel_view.channel_name}: {topic}", [])
     )
 
 
 def _handle_unknown_message(
-    server_view: views.ServerView,
-    sender: str | None,
-    sender_is_server: bool,
-    command: str,
-    args: list[str],
+    server_view: views.ServerView, sender: str | None, sender_is_server: bool, command: str, args: list[str]
 ) -> None:
     if sender_is_server:
         # Errors seem to always be 4xx, 5xx or 7xx.
@@ -328,17 +303,13 @@ def _handle_unknown_message(
             view = server_view.irc_widget.get_current_view()
         else:
             view = server_view
-        view.add_message(
-            sender or "???", (" ".join([command] + args), ["error"] if is_error else [])
-        )
+        view.add_message(sender or "???", (" ".join([command] + args), ["error"] if is_error else []))
 
     else:
         server_view.add_message(sender or "???", (" ".join([command] + args), []))
 
 
-def _handle_received_message(
-    server_view: views.ServerView, msg: backend.ReceivedLine
-) -> None:
+def _handle_received_message(server_view: views.ServerView, msg: backend.ReceivedLine) -> None:
     if msg.command == "PRIVMSG":
         assert msg.sender is not None
         _handle_privmsg(server_view, msg.sender, msg.args)
@@ -393,9 +364,7 @@ def _handle_received_message(
         _handle_literally_topic(server_view, msg.sender, msg.args)
 
     else:
-        _handle_unknown_message(
-            server_view, msg.sender, msg.sender_is_server, msg.command, msg.args
-        )
+        _handle_unknown_message(server_view, msg.sender, msg.sender_is_server, msg.command, msg.args)
 
 
 # Returns True this function should be called again, False if quitting
@@ -409,9 +378,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
 
     if isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(
-                "", (event.message, ["error" if event.is_error else "info"])
-            )
+            view.add_message("", (event.message, ["error" if event.is_error else "info"]))
         return True
 
     if isinstance(event, backend.HostChanged):
@@ -423,9 +390,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
     if isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)
         if channel_view is None:
-            assert not re.fullmatch(
-                backend.CHANNEL_REGEX, event.nick_or_channel
-            ), event.nick_or_channel
+            assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), event.nick_or_channel
             pm_view = server_view.find_pm(event.nick_or_channel)
             if pm_view is None:
                 # start of a new PM conversation
