@@ -89,7 +89,7 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
             yield (substring, tags)
 
 
-# TODO: this file should probably be renamed
+# TODO: this file should probably be renamed, links have nothing to do with colors
 def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
     # i hate how badly tkinter exposes tag_ranges()
     fucking_flat_tuple = event.widget.tag_ranges("url")
