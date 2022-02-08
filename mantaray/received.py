@@ -11,6 +11,7 @@ from mantaray import backend, views
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
+RPL_WHOREPLY = "352"
 RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
 
@@ -276,6 +277,10 @@ def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) ->
     server_view.core.joining_in_progress[channel.lower()].topic = topic
 
 
+def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
+    server_view.add_message(sender or "???", (" ".join([command] + args), []))
+
+
 def _handle_literally_topic(server_view: views.ServerView, who_changed: str, args: list[str]) -> None:
     channel, topic = args
     channel_view = server_view.find_channel(channel)
@@ -358,6 +363,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
 
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
+
+    elif msg.command == RPL_WHOREPLY:
+        _handle_whoreply(server_view, msg.sender, msg.command, msg.args)
 
     elif msg.command == "TOPIC" and not msg.sender_is_server:
         assert msg.sender is not None
