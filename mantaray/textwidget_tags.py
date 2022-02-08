@@ -89,6 +89,33 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
             yield (substring, tags)
 
 
+def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
+    search_start = start
+    while True:
+        match_start = textwidget.search(
+            r"\mhttps?://[a-z0-9:]", search_start, end, nocase=True, regexp=True
+        )
+        if not match_start:  # empty string means not found
+            break
+
+        url = textwidget.get(match_start, f"{match_start} lineend")
+
+        url = url.split(" ")[0]
+        url = url.split("'")[0]
+        url = url.split('"')[0]
+        url = url.split("`")[0]
+
+        # URL, and URL. URL? URL! (also URL). (also URL.)
+        url = url.rstrip(".,?!")
+        if "(" not in url:  # urls can contain spaces (e.g. wikipedia)
+            url = url.rstrip(")")
+        url = url.rstrip(".,?!")
+
+        match_end = f"{match_start} + {len(url)} chars"
+        textwidget.tag_add("url", match_start, match_end)
+        search_start = f"{match_end} + 1 char"
+
+
 # TODO: this file should probably be renamed, links have nothing to do with colors
 def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.

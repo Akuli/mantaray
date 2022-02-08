@@ -92,33 +92,6 @@ def _parse_privmsg(
     return (sender, chunks)
 
 
-def _add_tags_to_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
-    search_start = start
-    while True:
-        match_start = textwidget.search(
-            r"\mhttps?://[a-z0-9:]", search_start, end, nocase=True, regexp=True
-        )
-        if not match_start:  # empty string means not found
-            break
-
-        url = textwidget.get(match_start, f"{match_start} lineend")
-
-        url = url.split(" ")[0]
-        url = url.split("'")[0]
-        url = url.split('"')[0]
-        url = url.split("`")[0]
-
-        # URL, and URL. URL? URL! (also URL). (also URL.)
-        url = url.rstrip(".,?!")
-        if "(" not in url:  # urls can contain spaces (e.g. wikipedia)
-            url = url.rstrip(")")
-        url = url.rstrip(".,?!")
-
-        match_end = f"{match_start} + {len(url)} chars"
-        textwidget.tag_add("url", match_start, match_end)
-        search_start = f"{match_end} + 1 char"
-
-
 class View:
     def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -259,7 +232,7 @@ class View:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
             self.textwidget.config(state="disabled")
 
-            _add_tags_to_urls(self.textwidget, start, "end")
+            textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 
             if do_the_scroll:
                 self.textwidget.see("end")
