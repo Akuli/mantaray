@@ -93,7 +93,9 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
 def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
     # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
-    start, end = event.widget.tag_prevrange("url", "current + 1 char")
+    tag_range = event.widget.tag_prevrange("url", "current + 1 char")
+    assert tag_range
+    start, end = tag_range
     url = event.widget.get(start, end)
     webbrowser.open(url)
 
