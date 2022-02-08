@@ -116,7 +116,6 @@ def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
         search_start = f"{match_end} + 1 char"
 
 
-# TODO: this file should probably be renamed, links have nothing to do with colors
 def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
     # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
