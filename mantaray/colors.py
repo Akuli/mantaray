@@ -91,13 +91,11 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
 
 # TODO: this file should probably be renamed, links have nothing to do with colors
 def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
-    # i hate how badly tkinter exposes tag_ranges()
-    fucking_flat_tuple = event.widget.tag_ranges("url")
-    for start, end in zip(fucking_flat_tuple[0::2], fucking_flat_tuple[1::2]):
-        if event.widget.compare(start, "<=", "current") and event.widget.compare("current", "<=", end):
-            url = event.widget.get(start, end)
-            webbrowser.open(url)
-            break
+    # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
+    # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
+    start, end = event.widget.tag_prevrange("url", "current + 1 char")
+    url = event.widget.get(start, end)
+    webbrowser.open(url)
 
 
 def config_tags(textwidget: tkinter.Text) -> None:
@@ -123,4 +121,6 @@ def config_tags(textwidget: tkinter.Text) -> None:
     default_cursor = textwidget["cursor"]
     textwidget.tag_bind("url", "<Button-1>", _on_url_clicked)
     textwidget.tag_bind("url", "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
-    textwidget.tag_bind("url", "<Leave>", (lambda e: textwidget.config(cursor=default_cursor)))
+    textwidget.tag_bind(
+        "url", "<Leave>", (lambda e: textwidget.config(cursor=default_cursor))
+    )

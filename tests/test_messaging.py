@@ -152,10 +152,10 @@ def test_urls(alice, bob, wait_until):
     alice.entry.insert(0, "last message")
     alice.on_enter_pressed()
 
-    wait_until(lambda: "last message" in alice.text())
     wait_until(lambda: "last message" in bob.text())
-
     textwidget = bob.get_current_view().textwidget
+
+    # i hate how badly tkinter exposes tag_ranges()
     fucking_flat_tuple = textwidget.tag_ranges("url")
     urls = [
         textwidget.get(start, end)
