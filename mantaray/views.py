@@ -9,7 +9,7 @@ from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, Sequence, TYPE_CHECKING, IO
 
-from mantaray import backend, colors, config, received
+from mantaray import backend, textwidget_tags, config, received
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -77,7 +77,7 @@ def _parse_privmsg(
         message = message[7:-1]  # keep the space
         sender = "*"
 
-    for substring, base_tags in colors.parse_text(message):
+    for substring, base_tags in textwidget_tags.parse_text(message):
         for subsubstring, nick_tag in backend.find_nicks(
             substring, self_nick, all_nicks
         ):
@@ -138,7 +138,7 @@ class View:
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-        colors.config_tags(self.textwidget)
+        textwidget_tags.config_tags(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()

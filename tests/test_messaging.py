@@ -9,7 +9,7 @@ def test_basic(alice, bob, wait_until):
     wait_until(lambda: "Hello there\n" in bob.text())
 
 
-def test_colors(alice, bob, wait_until):
+def test_textwidget_tags(alice, bob, wait_until):
     alice.entry.insert(
         "end",
         "\x0311,4cyan on red\x0f \x02bold\x0f \x1funderline\x0f \x0311,4\x02\x1feverything\x0f nothing",
