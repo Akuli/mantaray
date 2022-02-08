@@ -146,6 +146,17 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.remove_user(nick)
 
 
+def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
+    for view in server_view.get_subviews(include_server=True):
+        if not _nick_is_relevant_for_view(nick, view):
+            continue
+
+        if args is None:
+            view.add_message("*", (nick, ["other-nick"]), (" is no longer away.", []))
+        else:
+            view.add_message("*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', []))
+
+
 def _handle_mode(server_view: views.ServerView, setter_nick: str, args: list[str]) -> None:
     channel, mode_flags, target_nick = args
 
@@ -342,6 +353,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
     elif msg.command == "KICK":
         assert msg.sender is not None
         _handle_kick(server_view, msg.sender, msg.args)
+
+    elif msg.command == "AWAY":
+        _handle_away(server_view, msg.sender, msg.args)
 
     elif msg.command == "CAP":
         _handle_cap(server_view, msg.args)
