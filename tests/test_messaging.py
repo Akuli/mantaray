@@ -1,6 +1,6 @@
 import os
-
 import pytest
+from mantaray import colors
 
 
 def test_basic(alice, bob, wait_until):
@@ -128,6 +128,46 @@ def test_private_messages(alice, bob, wait_until):
     bob.on_enter_pressed()
     wait_until(lambda: "Hey Alice" in alice.text())
     wait_until(lambda: "Hey Alice" in bob.text())
+
+
+def test_urls(alice, bob, wait_until):
+    alice.entry.insert(0, "please use https://www.google.com...")
+    alice.on_enter_pressed()
+    alice.entry.insert(0, "log in to https://github.com/, or do not contribute lol?")
+    alice.on_enter_pressed()
+    alice.entry.insert(
+        0, "why do you ask me (ever heard of https://stackoverflow.com/)?"
+    )
+    alice.on_enter_pressed()
+    alice.entry.insert(
+        0, "why do you ask me (ever heard of https://stackoverflow.com/?)"
+    )
+    alice.on_enter_pressed()
+    alice.entry.insert(
+        0, "this is lol https://en.wikipedia.org/wiki/Whitespace_(programming_language)"
+    )
+    alice.on_enter_pressed()
+    alice.entry.insert(0, "google.com is not a valid URL, it's just a hostname")
+    alice.on_enter_pressed()
+    alice.entry.insert(0, "last message")
+    alice.on_enter_pressed()
+
+    wait_until(lambda: "last message" in alice.text())
+    wait_until(lambda: "last message" in bob.text())
+
+    textwidget = bob.get_current_view().textwidget
+    fucking_flat_tuple = textwidget.tag_ranges("url")
+    urls = [
+        textwidget.get(start, end)
+        for start, end in zip(fucking_flat_tuple[0::2], fucking_flat_tuple[1::2])
+    ]
+    assert urls == [
+        "https://www.google.com",
+        "https://github.com/",
+        "https://stackoverflow.com/",
+        "https://stackoverflow.com/",
+        "https://en.wikipedia.org/wiki/Whitespace_(programming_language)",
+    ]
 
 
 def test_history(alice, bob, wait_until):

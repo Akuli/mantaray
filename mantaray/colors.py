@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import tkinter
+import webbrowser
 from typing import Iterator
 
 # https://www.mirc.com/colors.html
@@ -88,6 +89,17 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
             yield (substring, tags)
 
 
+# TODO: this file should probably be renamed
+def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
+    # i hate how badly tkinter exposes tag_ranges()
+    fucking_flat_tuple = event.widget.tag_ranges("url")
+    for start, end in zip(fucking_flat_tuple[0::2], fucking_flat_tuple[1::2]):
+        if event.widget.compare(start, "<=", "current") and event.widget.compare("current", "<=", end):
+            url = event.widget.get(start, end)
+            webbrowser.open(url)
+            break
+
+
 def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
@@ -106,3 +118,9 @@ def config_tags(textwidget: tkinter.Text) -> None:
         textwidget.tag_configure(f"background-{number}", background=hexcolor)
         textwidget.tag_raise(f"foreground-{number}", "pinged")
         textwidget.tag_raise(f"background-{number}", "pinged")
+
+    textwidget.tag_configure("url", underline=True)
+    default_cursor = textwidget["cursor"]
+    textwidget.tag_bind("url", "<Button-1>", _on_url_clicked)
+    textwidget.tag_bind("url", "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
+    textwidget.tag_bind("url", "<Leave>", (lambda e: textwidget.config(cursor=default_cursor)))
