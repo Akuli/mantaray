@@ -9,7 +9,7 @@ from tkinter.font import Font
 from typing import Any
 from pathlib import Path
 
-from mantaray import config, commands, colors, logs
+from mantaray import config, commands, textwidget_tags, logs
 from mantaray.views import View, ServerView, ChannelView, PMView
 
 
@@ -142,9 +142,9 @@ class IrcWidget(ttk.PanedWindow):
         self.entry = tkinter.Entry(
             entryframe,
             font=self.font,
-            fg=colors.FOREGROUND,
-            bg=colors.BACKGROUND,
-            insertbackground=colors.FOREGROUND,
+            fg=textwidget_tags.FOREGROUND,
+            bg=textwidget_tags.BACKGROUND,
+            insertbackground=textwidget_tags.FOREGROUND,
         )
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
