@@ -1,6 +1,6 @@
 import os
+
 import pytest
-from mantaray import colors
 
 
 def test_basic(alice, bob, wait_until):
