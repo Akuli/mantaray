@@ -149,6 +149,12 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         else:
             view.add_message("You can use /kick only on a channel.")
 
+    def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
+        if away_message is None:
+            core.send("AWAY :")
+        else:
+            core.send(f"AWAY :{away_message}")
+
     def who(view: View, core: IrcCore, nick_or_channel: str) -> None:
         core.send_who(nick_or_channel)
 
@@ -169,6 +175,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/op": op,
         "/deop": deop,
         "/kick": kick,
+        "/away": away,
         "/who": who,
     }
 
