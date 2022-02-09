@@ -416,10 +416,6 @@ class PMView(View):
     def nick_of_other_user(self) -> str:
         return self.view_name
 
-    def set_nick_of_other_user(self, new_nick: str) -> None:
-        self.view_name = new_nick
-        self.reopen_log_file()
-
     def get_log_name(self) -> str:
         return self.nick_of_other_user
 

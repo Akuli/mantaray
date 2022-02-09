@@ -15,12 +15,19 @@ RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
 
 
-def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
-    if isinstance(view, views.ChannelView):
-        return nick in view.userlist.get_nicks()
-    if isinstance(view, views.PMView):
-        return nick == view.nick_of_other_user
-    return False
+def _get_views_relevant_for_nick(
+    server_view: views.ServerView, nick: str
+) -> list[views.ChannelView | views.PMView]:
+    result: list[views.ChannelView | views.PMView] = []
+    for view in server_view.get_subviews():
+        if isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks():
+            result.append(view)
+
+    pm_view = server_view.find_pm(nick)
+    if pm_view is not None:
+        result.append(pm_view)
+
+    return result
 
 
 def _handle_privmsg(
@@ -120,10 +127,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
     else:
-        for view in server_view.get_subviews(include_server=True):
-            if not _nick_is_relevant_for_view(old_nick, view):
-                continue
-
+        for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
                 "*",
                 (old_nick, ["other-nick"]),
@@ -131,11 +135,19 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 (new_nick, ["other-nick"]),
                 (".", []),
             )
+
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
+
             if isinstance(view, views.PMView):
-                view.set_nick_of_other_user(new_nick)
+                # Someone else might have had this nick before
+                old_view = server_view.find_pm(new_nick)
+                if old_view is not None and old_view != view:
+                    server_view.irc_widget.remove_view(old_view)
+
+                view.view_name = new_nick
+                view.reopen_log_file()
 
 
 def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -145,10 +157,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
         reason_string = ""
 
     # This isn't perfect, other person's QUIT not received if not both joined on the same channel
-    for view in server_view.get_subviews(include_server=True):
-        if not _nick_is_relevant_for_view(nick, view):
-            continue
-
+    for view in _get_views_relevant_for_nick(server_view, nick):
         view.add_message(
             "*",
             (nick, ["other-nick"]),
