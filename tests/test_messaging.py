@@ -130,7 +130,6 @@ def test_private_messages(alice, bob, wait_until):
     wait_until(lambda: "Hey Alice" in bob.text())
 
 
-<<<<<<< HEAD
 def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     bob.entry.insert(0, "/msg Alice hello")
     bob.on_enter_pressed()
@@ -160,7 +159,9 @@ def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     assert [v.view_name for v in alice.get_server_views()[0].get_subviews()] == [
         "#autojoin",
         "Bob",
-=======
+    ]
+
+
 def test_urls(alice, bob, wait_until):
     alice.entry.insert(0, "please use https://www.google.com...")
     alice.on_enter_pressed()
@@ -198,7 +199,6 @@ def test_urls(alice, bob, wait_until):
         "https://stackoverflow.com/",
         "https://stackoverflow.com/",
         "https://en.wikipedia.org/wiki/Whitespace_(programming_language)",
->>>>>>> origin/master
     ]
 
 
