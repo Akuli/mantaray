@@ -15,7 +15,9 @@ RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
 
 
-def _get_views_relevant_for_nick(server_view: views.ServerView, nick: str) -> list[views.ChannelView | views.PMView]:
+def _get_views_relevant_for_nick(
+    server_view: views.ServerView, nick: str
+) -> list[views.ChannelView | views.PMView]:
     result: list[views.ChannelView | views.PMView] = []
     for view in server_view.get_subviews():
         if isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks():
