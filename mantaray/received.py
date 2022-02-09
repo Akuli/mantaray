@@ -141,7 +141,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             if isinstance(view, views.PMView):
                 # Someone else might have had this nick before
                 old_view = server_view.find_pm(new_nick)
-                if old_view is not None:
+                if old_view is not None and old_view != view:
                     server_view.irc_widget.remove_view(old_view)
 
                 view.view_name = new_nick
