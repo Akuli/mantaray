@@ -151,10 +151,10 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
         if away_message is None:
-            core.send("AWAY :")
+            core.send("AWAY")
         else:
-            core.send(f"AWAY {away_message}")
-        # TODO: Make own nick gray
+            core.send(f"AWAY :{away_message}")
+        # TODO: Make own nick gray (306) and back to white (305)
 
     def who(view: View, core: IrcCore, nick_or_channel: str) -> None:
         core.send_who(nick_or_channel)

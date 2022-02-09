@@ -151,7 +151,7 @@ def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> N
         if not _nick_is_relevant_for_view(nick, view):
             continue
 
-        if args is None:
+        if not args[0]:
             view.add_message("*", (nick, ["other-nick"]), (" is no longer away.", []))
         else:
             view.add_message("*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', []))
