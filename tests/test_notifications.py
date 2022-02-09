@@ -34,8 +34,8 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
 )
 @pytest.mark.parametrize("window_focused", [True, False])
 def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused):
-    alice.get_server_views()[0].core.join_channel("#bobnotify")
-    bob.get_server_views()[0].core.join_channel("#bobnotify")
+    alice.get_server_views()[0].core.send("JOIN #bobnotify")
+    bob.get_server_views()[0].core.send("JOIN #bobnotify")
     wait_until(lambda: alice.get_current_view().channel_name == "#bobnotify")
     wait_until(lambda: bob.get_current_view().channel_name == "#bobnotify")
 
@@ -69,7 +69,7 @@ def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused
 
 def test_new_message_tags(alice, bob, wait_until):
     alice_autojoin = alice.get_current_view()
-    alice.get_server_views()[0].core.join_channel("#lol")
+    alice.get_server_views()[0].core.send("JOIN #lol")
     wait_until(lambda: "The topic of #lol is" in alice.text())
     assert not alice.view_selector.item(alice.get_current_view().view_id, "tags")
 
