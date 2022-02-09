@@ -251,7 +251,6 @@ class IrcCore:
             if self._verbose:
                 print("Recv:", line_bytes)
 
-            line_bytes = line_bytes.rstrip(b"\n")
             # Allow \r\n line endings, or \r in middle of message
             if line_bytes.endswith(b"\r"):
                 line_bytes = line_bytes[:-1]
