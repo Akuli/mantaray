@@ -368,7 +368,8 @@ def _handle_received_message(
         assert msg.sender is not None
         _handle_quit(server_view, msg.sender, msg.args)
 
-    elif msg.command == "MODE":
+    # TODO: figure out what MODE with 2 args is
+    elif msg.command == "MODE" and len(msg.args) != 2:
         assert msg.sender is not None
         _handle_mode(server_view, msg.sender, msg.args)
 
