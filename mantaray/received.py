@@ -289,7 +289,7 @@ def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) ->
 
 
 def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
-    server_view.add_message(sender or "???", (" ".join([command] + args), []))
+    pass
 
 
 def _handle_literally_topic(server_view: views.ServerView, who_changed: str, args: list[str]) -> None:
@@ -355,6 +355,7 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         _handle_kick(server_view, msg.sender, msg.args)
 
     elif msg.command == "AWAY":
+        assert msg.sender is not None
         _handle_away(server_view, msg.sender, msg.args)
 
     elif msg.command == "CAP":
@@ -379,6 +380,7 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command == RPL_WHOREPLY:
+        assert msg.sender is not None
         _handle_whoreply(server_view, msg.sender, msg.command, msg.args)
 
     elif msg.command == "TOPIC" and not msg.sender_is_server:

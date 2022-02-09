@@ -154,9 +154,6 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             core.send(f"AWAY :{away_message}")
         # TODO: Make own nick gray (306) and back to white (305)
 
-    def who(view: View, core: IrcCore, nick_or_channel: str) -> None:
-        core.send_who(nick_or_channel)
-
     return {
         "/join": join,
         "/part": part,
@@ -175,7 +172,6 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/deop": deop,
         "/kick": kick,
         "/away": away,
-        "/who": who,
     }
 
 

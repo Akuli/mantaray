@@ -10,7 +10,7 @@ import re
 import socket
 import threading
 import traceback
-from typing import Union, Sequence, Iterator
+from typing import Union, Sequence, Iterator, Set
 
 from . import config
 
@@ -133,7 +133,7 @@ class IrcCore:
         self.joining_in_progress: dict[str, _JoinInProgress] = {}
 
         # "CAP LIST" shows capabilities enabled on the client's connection
-        self.cap_list = set()
+        self.cap_list: Set[str] = set()
 
         self._quit_event = threading.Event()
 
