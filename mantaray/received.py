@@ -268,7 +268,7 @@ _joins_in_progress: dict[tuple[views.ServerView, str], _JoinInProgress] = {}
 def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
     channel, topic = args[1:]
     join = _joins_in_progress.setdefault(
-        (server_view, channel.lower()), _JoinInProgress()
+        (server_view, channel), _JoinInProgress()
     )
     join.topic = topic
 
@@ -283,7 +283,7 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: get the prefixes actually used from RPL_ISUPPORT
     # https://modern.ircdocs.horse/#channel-membership-prefixes
     join = _joins_in_progress.setdefault(
-        (server_view, channel.lower()), _JoinInProgress()
+        (server_view, channel), _JoinInProgress()
     )
     join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
@@ -291,7 +291,7 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
-    join = _joins_in_progress.pop((server_view, channel.lower()))
+    join = _joins_in_progress.pop((server_view, channel))
 
     channel_view = server_view.find_channel(channel)
     if channel_view is None:
