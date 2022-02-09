@@ -132,6 +132,9 @@ class IrcCore:
         # TODO: this in rfc?
         self.joining_in_progress: dict[str, _JoinInProgress] = {}
 
+        # "CAP LIST" shows capabilities enabled on the client's connection
+        self.cap_list = set()
+
         self._quit_event = threading.Event()
 
     def _apply_config(self, server_config: config.ServerConfig) -> None:
@@ -331,6 +334,9 @@ class IrcCore:
     def join_channel(self, channel: str) -> None:
         self.joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
         self.send(f"JOIN {channel}")
+
+        if "away-notify" in self.cap_list:
+            self.send_who(channel)
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self.send(f"PRIVMSG {nick_or_channel} :{text}", done_event=SentPrivmsg(nick_or_channel, text))

@@ -60,7 +60,7 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
                 server.setdefault("audio_notification", False)
-                server.setdefault("away_notify", False)
+                server.setdefault("away_notify", True)
                 server.setdefault("join_leave_hiding", {"show_by_default": True, "exception_nicks": []})
             if "font_family" not in result or "font_size" not in result:
                 result["font_family"], result["font_size"] = get_default_fixed_font()
@@ -370,7 +370,7 @@ def show_connection_settings_dialog(
                 "extra_notifications": [],
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
                 "audio_notification": False,
-                "away_notify": False,
+                "away_notify": True,
             },
             connecting_to_new_server=True,
         )

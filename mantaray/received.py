@@ -62,6 +62,7 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     assert channel_view is not None
 
     channel_view.userlist.add_user(nick)
+
     channel_view.add_message(
         "*",
         (nick, ["other-nick"]),
@@ -151,7 +152,7 @@ def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> N
         if not _nick_is_relevant_for_view(nick, view):
             continue
 
-        if not args[0]:
+        if not args:
             view.add_message("*", (nick, ["other-nick"]), (" is no longer away.", []))
         else:
             view.add_message("*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', []))
@@ -226,8 +227,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
         if "sasl" in acknowledged:
             server_view.core.send("AUTHENTICATE PLAIN")
         if "away-notify" in acknowledged:
-            server_view.cap_list.add("away-notify")
-            server_view.core.send("CAP END")
+            server_view.core.cap_list.add("away-notify")
     elif subcommand == "NAK":
         rejected = set(args[-1].split())
         if "sasl" in rejected:
@@ -235,6 +235,8 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
             raise ValueError("The server does not support SASL.")
         if "away-notify" in rejected:
             raise ValueError("The server does not support away-notify.")
+
+    server_view.core.send("CAP END")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -279,8 +281,6 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.join_channel(channel)
-        if "away-notify" in server_view.cap_list:
-            server_view.core.send_who(channel)
 
 
 def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
@@ -363,8 +363,8 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
-    elif msg.command == RPL_LOGGEDIN:
-        server_view.core.send("CAP END")
+    # elif msg.command == RPL_LOGGEDIN:
+    #     server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
         _handle_namreply(server_view, msg.args)

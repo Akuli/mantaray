@@ -231,7 +231,6 @@ class ServerView(View):
         self.extra_notifications = set(server_config["extra_notifications"])
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
-        self.cap_list = set()  # "CAP LIST" shows capabilities enabled on the client's connection
 
         self.core.start_threads()
 
