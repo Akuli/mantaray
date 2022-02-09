@@ -94,7 +94,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 def _define_commands() -> dict[str, Callable[..., None]]:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
-        core.join_channel(channel)
+        core.send(f"JOIN {channel}")
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:

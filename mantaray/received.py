@@ -256,6 +256,21 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
         server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
 
 
+class _JoinInProgress:
+    def __init__(self) -> None:
+        self.topic: str | None = None
+        self.nicks: list[str] = []
+
+
+_joins_in_progress: dict[tuple[views.ServerView, str], _JoinInProgress] = {}
+
+
+def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
+    channel, topic = args[1:]
+    join = _joins_in_progress.setdefault((server_view, channel.lower()), _JoinInProgress())
+    join.topic = topic
+
+
 def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: wtf are the first 2 args?
     # rfc1459 doesn't mention them, but freenode
@@ -263,8 +278,10 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     channel, names = args[-2:]
 
     # TODO: the prefixes have meanings
+    # TODO: get the prefixes actually used from RPL_ISUPPORT
     # https://modern.ircdocs.horse/#channel-membership-prefixes
-    server_view.core.joining_in_progress[channel.lower()].nicks.extend(
+    join = _joins_in_progress.setdefault((server_view, channel.lower()), _JoinInProgress())
+    join.nicks.extend(
         name.lstrip("~&@%+") for name in names.split()
     )
 
@@ -272,7 +289,7 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
-    join = server_view.core.joining_in_progress.pop(channel.lower())
+    join = _joins_in_progress.pop((server_view, channel.lower()))
 
     channel_view = server_view.find_channel(channel)
     if channel_view is None:
@@ -294,12 +311,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
-        server_view.core.join_channel(channel)
-
-
-def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
-    channel, topic = args[1:]
-    server_view.core.joining_in_progress[channel.lower()].topic = topic
+        server_view.core.send(f"JOIN {channel}")
 
 
 def _handle_literally_topic(
