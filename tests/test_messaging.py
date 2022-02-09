@@ -130,6 +130,38 @@ def test_private_messages(alice, bob, wait_until):
     wait_until(lambda: "Hey Alice" in bob.text())
 
 
+def test_private_messages_nick_changing_bug(alice, bob, wait_until):
+    bob.entry.insert(0, "/msg Alice hello")
+    bob.on_enter_pressed()
+    wait_until(lambda: "hello" in alice.text())
+
+    bob.entry.insert(0, "/part #autojoin")
+    bob.on_enter_pressed()
+    bob.entry.insert(0, "/nick Bob2")
+    bob.on_enter_pressed()
+    bob.entry.insert(0, "/msg Alice hello2")
+    bob.on_enter_pressed()
+    wait_until(lambda: "hello2" in alice.text())
+
+    assert [v.view_name for v in alice.get_server_views()[0].get_subviews()] == [
+        "#autojoin",
+        "Bob",
+        "Bob2",
+    ]
+
+    bob.entry.insert(0, "/join #autojoin")
+    bob.on_enter_pressed()
+    wait_until(lambda: "The topic of #autojoin is" in bob.text())
+    bob.entry.insert(0, "/nick Bob")
+    bob.on_enter_pressed()
+
+    wait_until(lambda: alice.get_server_views()[0].find_pm("Bob2") is None)
+    assert [v.view_name for v in alice.get_server_views()[0].get_subviews()] == [
+        "#autojoin",
+        "Bob",
+    ]
+
+
 def test_history(alice, bob, wait_until):
     # Alice presses first arrow up, then arrow down
     assert not alice.entry.get()
