@@ -8,6 +8,7 @@ import queue
 import ssl
 import re
 import socket
+import sys
 import threading
 import traceback
 from typing import Union, Sequence, Iterator
@@ -113,9 +114,7 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._send_queue: queue.Queue[
-            tuple[bytes, SentPrivmsg | Quit | None]
-        ] = queue.Queue()
+        self._send_queue: queue.Queue[tuple[bytes, SentPrivmsg | None]] = queue.Queue()
         self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         # During connecting, sock is None and connected is False.
@@ -154,16 +153,18 @@ class IrcCore:
         for thread in self._threads:
             thread.start()
 
-    def wait_for_threads_to_stop(self, verbose: bool = False) -> None:
+    def wait_for_threads_to_stop(self) -> None:
         for thread in self._threads:
-            if verbose:
-                print("Waiting for thread to stop:", thread)
-            thread.join()
-        if verbose:
-            print("Threads stopped for", self.nick)
+            thread.join(timeout=5)
+            if thread.is_alive():
+                stack_trace = traceback.format_stack(sys._current_frames()[thread.ident])
+                raise RuntimeError(f"thread doesn't stop: {thread}\n" + "".join(stack_trace))
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
+            # Clear send queue, its content were meant for previous connection
+            self._send_queue = queue.Queue()
+
             try:
                 self.event_queue.put(
                     ConnectivityMessage(
@@ -192,7 +193,7 @@ class IrcCore:
                 self._disconnect()
 
     def send(
-        self, message: str, *, done_event: SentPrivmsg | Quit | None = None
+        self, message: str, *, done_event: SentPrivmsg | None = None
     ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
@@ -228,17 +229,21 @@ class IrcCore:
         assert sock is not None
 
         while True:
-            # Stop this thread if we disconnect or reconnect
+            try:
+                line_bytes = _recv_line(sock, self._recv_buffer)
+                error = None
+            except (OSError, ssl.SSLError) as e:
+                # socket can be closed while receiving
+                line_bytes = None
+                error = e
+
+            # Receiving fails if we disconnected, silence those errors
             if self._sock is not sock or not self._connected:
                 break
 
-            try:
-                line_bytes = _recv_line(sock, self._recv_buffer)
-            except (OSError, ssl.SSLError) as e:
-                # socket can be closed while receiving
-                if self._sock is not sock or not self._connected:
-                    break
-                raise e
+            if error is not None:
+                raise error
+            assert line_bytes is not None
 
             if self._verbose:
                 print("Recv:", line_bytes + b"\n")
@@ -260,11 +265,14 @@ class IrcCore:
             self.event_queue.put(self._parse_received_message(line))
 
     def _send_loop(self) -> None:
-        # Ideally it would be posible to wait until quit_event is set OR queue has something
-        while not self._quit_event.is_set():
+        while True:
             try:
                 bytez, done_event = self._send_queue.get(timeout=0.1)
             except queue.Empty:
+                if self._quit_event.is_set():
+                    self._disconnect()  # stop recv loop, flush socket
+                    self.event_queue.put(Quit())
+                    break
                 continue
 
             sock = self._sock
@@ -284,10 +292,6 @@ class IrcCore:
 
             if done_event is not None:
                 self.event_queue.put(done_event)
-                if isinstance(done_event, Quit):
-                    self._quit_event.set()
-                    self._disconnect()  # stop recv loop
-
     def _connect(self) -> None:
         assert self._sock is None and not self._connected
 
@@ -346,12 +350,13 @@ class IrcCore:
         )
 
     def quit(self) -> None:
+        # Do not freeze forever if sending is slow
         sock = self._sock
-        if sock is not None and self._connected:
-            sock.settimeout(1)  # Do not freeze forever if sending is slow
-            self.send("QUIT", done_event=Quit())
-        else:
-            # TODO: duplicate code in done_event handling
-            self._disconnect()
-            self._quit_event.set()
-            self.event_queue.put(Quit())
+        if sock is not None:
+            sock.settimeout(1)
+
+        # Tell send loop to quit after adding QUIT to send queue.
+        # This way it will finish sending.
+        # It checks whether it should quit only when the queue is empty.
+        self.send("QUIT")
+        self._quit_event.set()
