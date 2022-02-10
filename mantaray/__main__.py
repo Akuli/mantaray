@@ -35,16 +35,6 @@ def main() -> None:
     legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--dont-save-config",
-        action="store_true",
-        help="do not write to config.json in the config dir",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="print everything sent and received, useful for development and understanding IRC",
-    )
 
     config_dir_group = parser.add_mutually_exclusive_group()
     config_dir_group.add_argument(
@@ -65,6 +55,17 @@ def main() -> None:
         "--bob",
         action="store_true",
         help="equivalent to '--config-dir bob --dont-save-config', useful for developing mantaray",
+    )
+
+    parser.add_argument(
+        "--dont-save-config",
+        action="store_true",
+        help="do not write to config.json in the config dir",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print everything sent and received, useful for development and understanding IRC",
     )
 
     args = parser.parse_args()
