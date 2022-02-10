@@ -62,13 +62,12 @@ In fact, there's two, in folders `alice` and `bob`,
 because it's often handy to simultaneously run two instances of Mantaray
 connected to each other.
 
-    $ python3 -m mantaray --config-dir alice --dont-save-config
+    $ python3 -m mantaray --alice
 
 This should connect Mantaray to Mantatail.
 You can connect other IRC clients too,
-or you can connect another instance of Mantaray with `bob` instead of `alice`.
+or you can connect another instance of Mantaray with `--bob` instead of `--alice`.
 
-To see what config dir Mantaray uses when `--config-dir` is not specified,
-and what other options you can specify, run:
+To see what other options you can specify, run:
 
     $ python3 -m mantaray --help
