@@ -58,9 +58,9 @@ def _show_popup(title: str, text: str) -> None:
 
 
 class MessagePart:
-    def __init__(self, text: str, tags: Sequence[str] = ()):
+    def __init__(self, text: str, *, tags: list[str] = []):
         self.text = text
-        self.tags = tags
+        self.tags = tags.copy()
 
 
 class View:
@@ -196,7 +196,7 @@ class View:
                 insert_args: list[Any] = []
                 for part in message:
                     insert_args.append(part.text)
-                    insert_args.append(list(part.tags) + ["text", tag])
+                    insert_args.append(part.tags + ["text", tag])
                 self.textwidget.insert("end", *insert_args)
 
             self.textwidget.insert("end", "\n")

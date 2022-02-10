@@ -68,7 +68,7 @@ def _add_privmsg_to_view(
             tags = base_tags.copy()
             if nick_tag is not None:
                 tags.append(nick_tag)
-            parts.append(views.MessagePart(subsubstring, tags))
+            parts.append(views.MessagePart(subsubstring, tags=tags))
 
     if slash_me:
         view.add_message(
