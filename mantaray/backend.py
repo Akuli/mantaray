@@ -51,12 +51,6 @@ RECONNECT_SECONDS = 5
 
 
 @dataclasses.dataclass
-class _JoinInProgress:
-    topic: str | None
-    nicks: list[str]
-
-
-@dataclasses.dataclass
 class ReceivedLine:
     sender: str | None
     sender_is_server: bool
@@ -126,12 +120,6 @@ class IrcCore:
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
-        # servers seem to send RPL_NAMREPLY followed by RPL_ENDOFNAMES when joining channel
-        # the replies are collected here before emitting a self_joined event
-        # Topic can also be sent before joining
-        # TODO: this in rfc?
-        self.joining_in_progress: dict[str, _JoinInProgress] = {}
-
         # "CAP LIST" shows capabilities enabled on the client's connection
         self.cap_list: Set[str] = set()
 
@@ -157,9 +145,13 @@ class IrcCore:
         for thread in self._threads:
             thread.start()
 
-    def wait_for_threads_to_stop(self) -> None:
+    def wait_for_threads_to_stop(self, verbose: bool = False) -> None:
         for thread in self._threads:
+            if verbose:
+                print("Waiting for thread to stop:", thread)
             thread.join()
+        if verbose:
+            print("Threads stopped for", self.nick)
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
@@ -231,9 +223,8 @@ class IrcCore:
                 raise e
 
             if self._verbose:
-                print("Recv:", line_bytes)
+                print("Recv:", line_bytes + b"\n")
 
-            line_bytes = line_bytes.rstrip(b"\n")
             # Allow \r\n line endings, or \r in middle of message
             if line_bytes.endswith(b"\r"):
                 line_bytes = line_bytes[:-1]
@@ -330,13 +321,6 @@ class IrcCore:
 
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
-
-    def join_channel(self, channel: str) -> None:
-        self.joining_in_progress[channel.lower()] = _JoinInProgress(None, [])
-        self.send(f"JOIN {channel}")
-
-        if "away-notify" in self.cap_list:
-            self.send_who(channel)
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self.send(f"PRIVMSG {nick_or_channel} :{text}", done_event=SentPrivmsg(nick_or_channel, text))

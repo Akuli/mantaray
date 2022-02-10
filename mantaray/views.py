@@ -9,7 +9,7 @@ from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, Sequence, TYPE_CHECKING, IO
 
-from mantaray import backend, colors, config, received
+from mantaray import backend, textwidget_tags, config, received
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -70,7 +70,7 @@ def _parse_privmsg(
         message = message[7:-1]  # keep the space
         sender = "*"
 
-    for substring, base_tags in colors.parse_text(message):
+    for substring, base_tags in textwidget_tags.parse_text(message):
         for subsubstring, nick_tag in backend.find_nicks(substring, self_nick, all_nicks):
             tags = base_tags.copy()
             if nick_tag is not None:
@@ -102,7 +102,7 @@ class View:
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-        colors.config_tags(self.textwidget)
+        textwidget_tags.config_tags(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
@@ -212,6 +212,8 @@ class View:
             if pinged:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
             self.textwidget.config(state="disabled")
+
+            textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 
             if do_the_scroll:
                 self.textwidget.see("end")
@@ -362,10 +364,6 @@ class PMView(View):
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
-
-    def set_nick_of_other_user(self, new_nick: str) -> None:
-        self.view_name = new_nick
-        self.reopen_log_file()
 
     def get_log_name(self) -> str:
         return self.nick_of_other_user

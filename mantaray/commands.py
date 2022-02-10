@@ -85,7 +85,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 def _define_commands() -> dict[str, Callable[..., None]]:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
-        core.join_channel(channel)
+        core.send(f"JOIN {channel}")
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
@@ -130,13 +130,13 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} +o :{nick}")
         else:
-            view.add_message("You can use /op only on a channel.")
+            view.add_message("*", ("You can use /op only on a channel.", ["error"]))
 
     def deop(view: View, core: IrcCore, nick: str) -> None:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} -o :{nick}")
         else:
-            view.add_message("You can use /deop only on a channel.")
+            view.add_message("*", ("You can use /deop only on a channel.", ["error"]))
 
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
@@ -145,7 +145,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             else:
                 core.send(f"KICK {view.channel_name} {nick} :{reason}")
         else:
-            view.add_message("You can use /kick only on a channel.")
+            view.add_message("*", ("You can use /kick only on a channel.", ["error"]))
 
     def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
         if away_message is None:

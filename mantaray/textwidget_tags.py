@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import tkinter
+import webbrowser
 from typing import Iterator
 
 # https://www.mirc.com/colors.html
@@ -88,6 +89,43 @@ def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
             yield (substring, tags)
 
 
+def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
+    search_start = start
+    while True:
+        match_start = textwidget.search(
+            r"\mhttps?://[a-z0-9:]", search_start, end, nocase=True, regexp=True
+        )
+        if not match_start:  # empty string means not found
+            break
+
+        url = textwidget.get(match_start, f"{match_start} lineend")
+
+        url = url.split(" ")[0]
+        url = url.split("'")[0]
+        url = url.split('"')[0]
+        url = url.split("`")[0]
+
+        # URL, and URL. URL? URL! (also URL). (also URL.)
+        url = url.rstrip(".,?!")
+        if "(" not in url:  # urls can contain spaces (e.g. wikipedia)
+            url = url.rstrip(")")
+        url = url.rstrip(".,?!")
+
+        match_end = f"{match_start} + {len(url)} chars"
+        textwidget.tag_add("url", match_start, match_end)
+        search_start = f"{match_end} + 1 char"
+
+
+def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
+    # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
+    # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
+    tag_range = event.widget.tag_prevrange("url", "current + 1 char")
+    assert tag_range
+    start, end = tag_range
+    url = event.widget.get(start, end)
+    webbrowser.open(url)
+
+
 def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
@@ -106,3 +144,11 @@ def config_tags(textwidget: tkinter.Text) -> None:
         textwidget.tag_configure(f"background-{number}", background=hexcolor)
         textwidget.tag_raise(f"foreground-{number}", "pinged")
         textwidget.tag_raise(f"background-{number}", "pinged")
+
+    textwidget.tag_configure("url", underline=True)
+    default_cursor = textwidget["cursor"]
+    textwidget.tag_bind("url", "<Button-1>", _on_url_clicked)
+    textwidget.tag_bind("url", "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
+    textwidget.tag_bind(
+        "url", "<Leave>", (lambda e: textwidget.config(cursor=default_cursor))
+    )

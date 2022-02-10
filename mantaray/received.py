@@ -16,12 +16,17 @@ RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
 
 
-def _nick_is_relevant_for_view(nick: str, view: views.View) -> bool:
-    if isinstance(view, views.ChannelView):
-        return nick in view.userlist.get_nicks()
-    if isinstance(view, views.PMView):
-        return nick == view.nick_of_other_user
-    return False
+def _get_views_relevant_for_nick(server_view: views.ServerView, nick: str) -> list[views.ChannelView | views.PMView]:
+    result: list[views.ChannelView | views.PMView] = []
+    for view in server_view.get_subviews():
+        if isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks():
+            result.append(view)
+
+    pm_view = server_view.find_pm(nick)
+    if pm_view is not None:
+        result.append(pm_view)
+
+    return result
 
 
 def _handle_privmsg(server_view: views.ServerView, sender: str, args: list[str]) -> None:
@@ -112,18 +117,23 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
     else:
-        for view in server_view.get_subviews(include_server=True):
-            if not _nick_is_relevant_for_view(old_nick, view):
-                continue
-
+        for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
                 "*", (old_nick, ["other-nick"]), (" is now known as ", []), (new_nick, ["other-nick"]), (".", [])
             )
+
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
+
             if isinstance(view, views.PMView):
-                view.set_nick_of_other_user(new_nick)
+                # Someone else might have had this nick before
+                old_view = server_view.find_pm(new_nick)
+                if old_view is not None and old_view != view:
+                    server_view.irc_widget.remove_view(old_view)
+
+                view.view_name = new_nick
+                view.reopen_log_file()
 
 
 def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -133,10 +143,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
         reason_string = ""
 
     # This isn't perfect, other person's QUIT not received if not both joined on the same channel
-    for view in server_view.get_subviews(include_server=True):
-        if not _nick_is_relevant_for_view(nick, view):
-            continue
-
+    for view in _get_views_relevant_for_nick(server_view, nick):
         view.add_message(
             "*",
             (nick, ["other-nick"]),
@@ -246,6 +253,21 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
         server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
 
 
+class _JoinInProgress:
+    def __init__(self) -> None:
+        self.topic: str | None = None
+        self.nicks: list[str] = []
+
+
+_joins_in_progress: dict[tuple[views.ServerView, str], _JoinInProgress] = {}
+
+
+def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
+    channel, topic = args[1:]
+    join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
+    join.topic = topic
+
+
 def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: wtf are the first 2 args?
     # rfc1459 doesn't mention them, but freenode
@@ -253,14 +275,16 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     channel, names = args[-2:]
 
     # TODO: the prefixes have meanings
+    # TODO: get the prefixes actually used from RPL_ISUPPORT
     # https://modern.ircdocs.horse/#channel-membership-prefixes
-    server_view.core.joining_in_progress[channel.lower()].nicks.extend(name.lstrip("~&@%+") for name in names.split())
+    join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
+    join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
 
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
-    join = server_view.core.joining_in_progress.pop(channel.lower())
+    join = _joins_in_progress.pop((server_view, channel))
 
     channel_view = server_view.find_channel(channel)
     if channel_view is None:
@@ -280,12 +304,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
-        server_view.core.join_channel(channel)
-
-
-def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
-    channel, topic = args[1:]
-    server_view.core.joining_in_progress[channel.lower()].topic = topic
+        server_view.core.send(f"JOIN {channel}")
 
 
 def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
@@ -346,7 +365,8 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         assert msg.sender is not None
         _handle_quit(server_view, msg.sender, msg.args)
 
-    elif msg.command == "MODE":
+    # TODO: figure out what MODE with 2 args is
+    elif msg.command == "MODE" and len(msg.args) != 2:
         assert msg.sender is not None
         _handle_mode(server_view, msg.sender, msg.args)
 

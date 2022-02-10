@@ -35,7 +35,9 @@ def main() -> None:
     legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+
+    config_dir_group = parser.add_mutually_exclusive_group()
+    config_dir_group.add_argument(
         "--config-dir",
         type=Path,
         default=default_config_dir,
@@ -44,6 +46,17 @@ def main() -> None:
             + f" (default: {default_config_dir})"
         ),
     )
+    config_dir_group.add_argument(
+        "--alice",
+        action="store_true",
+        help="equivalent to '--config-dir alice --dont-save-config', useful for developing mantaray",
+    )
+    config_dir_group.add_argument(
+        "--bob",
+        action="store_true",
+        help="equivalent to '--config-dir bob --dont-save-config', useful for developing mantaray",
+    )
+
     parser.add_argument(
         "--dont-save-config",
         action="store_true",
@@ -54,7 +67,13 @@ def main() -> None:
         action="store_true",
         help="print everything sent and received, useful for development and understanding IRC",
     )
+
     args = parser.parse_args()
+
+    if args.alice:
+        args.config_dir = Path("alice")
+    if args.bob:
+        args.config_dir = Path("bob")
 
     if args.config_dir != default_config_dir and not args.config_dir.is_dir():
         parser.error("the specified --config-dir must exist and be a directory")
@@ -95,7 +114,7 @@ def main() -> None:
             root.after_idle(irc_widget.entry.focus)
 
     def save_config_and_quit_all_servers() -> None:
-        if not args.dont_save_config:
+        if not (args.alice or args.bob or args.dont_save_config):
             config.save_to_file(args.config_dir, irc_widget.get_current_config())
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
