@@ -7,7 +7,7 @@ import tkinter
 import subprocess
 from playsound import playsound  # type: ignore
 from tkinter import ttk
-from typing import Any, Sequence, TYPE_CHECKING, IO
+from typing import Any, TYPE_CHECKING, IO
 
 from mantaray import backend, textwidget_tags, config, received
 

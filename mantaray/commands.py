@@ -17,7 +17,7 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
-            tag="error"
+            tag="error",
         )
 
 
@@ -35,9 +35,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         try:
             func = _commands[entry_content.split()[0].lower()]
         except KeyError:
-            view.add_message(
-                f"No command named '{entry_content.split()[0]}'"
-            )
+            view.add_message(f"No command named '{entry_content.split()[0]}'")
             return False
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
@@ -97,7 +95,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             core.send(f"PART {view.channel_name}")
         else:
             view.add_message("Usage: /part [<channel>]")
-            view.add_message("Channel is needed unless you are currently on a channel.", tag="error")
+            view.add_message(
+                "Channel is needed unless you are currently on a channel.", tag="error"
+            )
 
     # Doesn't support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
@@ -111,7 +111,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if isinstance(view, ChannelView):
             core.send(f"TOPIC {view.channel_name} :{new_topic}")
         else:
-            view.add_message("You must be on a channel to change its topic.", tag="error")
+            view.add_message(
+                "You must be on a channel to change its topic.", tag="error"
+            )
 
     def me(view: View, core: IrcCore, message: str) -> None:
         _send_privmsg(view, core, "\x01ACTION " + message + "\x01")
