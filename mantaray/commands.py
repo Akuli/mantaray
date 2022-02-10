@@ -141,13 +141,13 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} +o :{nick}")
         else:
-            view.add_message("You can use /op only on a channel.")
+            view.add_message("*", ("You can use /op only on a channel.", ["error"]))
 
     def deop(view: View, core: IrcCore, nick: str) -> None:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} -o :{nick}")
         else:
-            view.add_message("You can use /deop only on a channel.")
+            view.add_message("*", ("You can use /deop only on a channel.", ["error"]))
 
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
@@ -156,7 +156,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             else:
                 core.send(f"KICK {view.channel_name} {nick} :{reason}")
         else:
-            view.add_message("You can use /kick only on a channel.")
+            view.add_message("*", ("You can use /kick only on a channel.", ["error"]))
 
     return {
         "/join": join,
