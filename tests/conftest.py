@@ -161,7 +161,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
         for irc_widget in irc_widgets_dict.values():
             for server_view in irc_widget.get_server_views():
                 server_view.core.quit()
-                server_view.core.wait_for_threads_to_stop()
+                server_view.core.wait_for_threads_to_stop(verbose=True)
             # On windows, we need to wait until log files are closed before removing them
             wait_until(lambda: not irc_widget.winfo_exists())
             shutil.rmtree(irc_widget.log_manager.log_dir)
