@@ -20,8 +20,11 @@ def check_log(wait_until):
     def actually_check_log(path, expected_content):
         # Sometimes it takes a while for logging to show up.
         # For example, when sending a message, there's two queues polled every 100ms.
+        #
+        # What exactly is logged when quitting depends on irc server.
+        # It doesn't really matter.
         try:
-            wait_until(lambda: _read_file(path) == expected_content)
+            wait_until(lambda: _read_file(path).startswith(expected_content))
         except RuntimeError as e:
             print(path.read_text("utf-8"))
             raise e
@@ -51,7 +54,6 @@ def test_basic(alice, bob, wait_until, check_log):
 <time>  *       Bob joined #autojoin.
 <time>  Alice   Hello
 <time>  Bob     Hiii
-*** LOGGING ENDS <time>
 """,
     )
 
@@ -81,7 +83,6 @@ def test_pm_logs(alice, bob, wait_until, check_log):
 <time>  *       The topic of #autojoin is: (no topic)
 <time>  *       Bob joined #autojoin.
 <time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
 """,
     )
     check_log(
@@ -91,7 +92,6 @@ def test_pm_logs(alice, bob, wait_until, check_log):
 *** LOGGING BEGINS <time>
 <time>  Alice   hey
 <time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
 """,
     )
     check_log(
@@ -100,7 +100,6 @@ def test_pm_logs(alice, bob, wait_until, check_log):
 
 *** LOGGING BEGINS <time>
 <time>  Alice   its ur new nick
-*** LOGGING ENDS <time>
 """,
     )
 
