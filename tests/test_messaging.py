@@ -2,6 +2,8 @@ import os
 
 import pytest
 
+from mantaray.views import ChannelView
+
 
 def test_basic(alice, bob, wait_until):
     alice.entry.insert(0, "Hello there")
@@ -142,7 +144,7 @@ def test_private_messages_nick_changing_bug(alice, bob, wait_until):
 
     bob.entry.insert(0, "/part #autojoin")
     bob.on_enter_pressed()
-    wait_until(lambda: alice.get_current_view().view_name != "#autojoin")
+    wait_until(lambda: not isinstance(alice.get_current_view(), ChannelView))
 
     bob.entry.insert(0, "/nick Bob2")
     bob.on_enter_pressed()
