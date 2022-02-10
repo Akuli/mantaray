@@ -159,6 +159,7 @@ class IrcCore:
         for thread in self._threads:
             thread.join(timeout=5)
             if thread.is_alive():
+                # TODO: hopefully this disgusting debug prints can remove some day
                 assert thread.ident is not None
                 stack_trace = traceback.format_stack(
                     sys._current_frames()[thread.ident]
