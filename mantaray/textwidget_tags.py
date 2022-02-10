@@ -138,6 +138,13 @@ def config_tags(textwidget: tkinter.Text) -> None:
     # TODO: make nicks clickable
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
+    textwidget.tag_configure("received-privmsg", foreground=FOREGROUND)
+    textwidget.tag_configure("sent-privmsg", foreground=FOREGROUND)
+
+    for lower_tag in ["info", "error", "sent-privmsg", "received-privmsg"]:
+        textwidget.tag_lower(lower_tag, "pinged")
+    for upper_tag in ["history-selection", "channel", "self-nick", "other-nick"]:
+        textwidget.tag_raise(upper_tag, "pinged")
 
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
