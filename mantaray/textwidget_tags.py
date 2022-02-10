@@ -126,7 +126,11 @@ else:
     ClickableTag = None
 
 
-def _on_link_clicked(tag: ClickableTag, link_click_callback: Callable[[ClickableTag, str], None], event: tkinter.Event[tkinter.Text]) -> None:
+def _on_link_clicked(
+    tag: ClickableTag,
+    link_click_callback: Callable[[ClickableTag, str], None],
+    event: tkinter.Event[tkinter.Text],
+) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
     # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
     tag_range = event.widget.tag_prevrange(tag, "current + 1 char")
@@ -136,7 +140,9 @@ def _on_link_clicked(tag: ClickableTag, link_click_callback: Callable[[Clickable
     link_click_callback(tag, text)
 
 
-def config_tags(textwidget: tkinter.Text, link_click_callback: Callable[[ClickableTag, str], None]) -> None:
+def config_tags(
+    textwidget: tkinter.Text, link_click_callback: Callable[[ClickableTag, str], None]
+) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
     textwidget.tag_configure("url", underline=True)
@@ -166,8 +172,12 @@ def config_tags(textwidget: tkinter.Text, link_click_callback: Callable[[Clickab
 
     default_cursor = textwidget["cursor"]
     for tag in ["url", "other-nick"]:
-        textwidget.tag_bind(tag, "<Button-1>", partial(_on_link_clicked, tag, link_click_callback))
-        textwidget.tag_bind(tag, "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
+        textwidget.tag_bind(
+            tag, "<Button-1>", partial(_on_link_clicked, tag, link_click_callback)
+        )
+        textwidget.tag_bind(
+            tag, "<Enter>", (lambda e: textwidget.config(cursor="hand2"))
+        )
         textwidget.tag_bind(
             tag, "<Leave>", (lambda e: textwidget.config(cursor=default_cursor))
         )
