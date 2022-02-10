@@ -149,8 +149,10 @@ def config_tags(textwidget: tkinter.Text) -> None:
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
         textwidget.tag_configure(f"background-{number}", background=hexcolor)
-        textwidget.tag_raise(f"foreground-{number}", "pinged")
-        textwidget.tag_raise(f"background-{number}", "pinged")
+        textwidget.tag_raise(f"foreground-{number}", "sent-privmsg")
+        textwidget.tag_raise(f"background-{number}", "sent-privmsg")
+        textwidget.tag_raise(f"foreground-{number}", "received-privmsg")
+        textwidget.tag_raise(f"background-{number}", "received-privmsg")
 
     textwidget.tag_configure("url", underline=True)
     default_cursor = textwidget["cursor"]
