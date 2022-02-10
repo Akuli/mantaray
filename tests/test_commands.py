@@ -109,6 +109,12 @@ def test_kick(alice, bob, wait_until):
         )
     )
 
+    alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
+    alice.entry.insert("end", "/kick bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: alice.text().endswith("You can use /kick only on a channel.\n"))
+    assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
+
 
 def test_me(alice, bob, wait_until):
     alice.entry.insert("end", "/me does something")
@@ -142,6 +148,18 @@ def test_op_deop(alice, bob, wait_until):
 
     # TODO: modes other than +o and -o are displayed differently.
     # Should test them when available in mantatail
+
+    alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
+
+    alice.entry.insert("end", "/op bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: alice.text().endswith("You can use /op only on a channel.\n"))
+    assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
+
+    alice.entry.insert("end", "/deop bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: alice.text().endswith("You can use /deop only on a channel.\n"))
+    assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
 
 
 def switch_to_channel_view(user, channel_name):
