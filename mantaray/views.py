@@ -5,6 +5,7 @@ import time
 import sys
 import tkinter
 import subprocess
+import webbrowser
 from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, TYPE_CHECKING, IO
@@ -82,10 +83,21 @@ class View:
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-        textwidget_tags.config_tags(self.textwidget)
+        textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
+
+    def _on_link_clicked(self, tag: textwidget_tags.ClickableTag, text: str) -> None:
+        if tag == "url":
+            webbrowser.open(text)
+        if tag == "other-nick":
+            # text is a nickname being clicked
+            existing_view = self.server_view.find_pm(text)
+            if existing_view is None:
+                self.irc_widget.add_view(PMView(self.server_view, text))
+            else:
+                self.irc_widget.view_selector.selection_set(existing_view.view_id)
 
     def get_log_name(self) -> str:
         raise NotImplementedError

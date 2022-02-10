@@ -1,8 +1,11 @@
 from __future__ import annotations
 import re
 import tkinter
-import webbrowser
-from typing import Iterator
+from functools import partial
+from typing import Callable, Iterator, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import Literal
 
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
@@ -116,26 +119,33 @@ def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
         search_start = f"{match_end} + 1 char"
 
 
-def _on_url_clicked(event: tkinter.Event[tkinter.Text]) -> None:
+if TYPE_CHECKING:
+    ClickableTag = Literal["url", "other-nick"]
+else:
+    # The value doesn't matter, but avoid errors e.g. when importing
+    ClickableTag = None
+
+
+def _on_link_clicked(tag: ClickableTag, link_click_callback: Callable[[ClickableTag, str], None], event: tkinter.Event[tkinter.Text]) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
     # That finds bugs where it finds the wrong URL, or only works in the middle of URL, etc.
-    tag_range = event.widget.tag_prevrange("url", "current + 1 char")
+    tag_range = event.widget.tag_prevrange(tag, "current + 1 char")
     assert tag_range
     start, end = tag_range
-    url = event.widget.get(start, end)
-    webbrowser.open(url)
+    text = event.widget.get(start, end)
+    link_click_callback(tag, text)
 
 
-def config_tags(textwidget: tkinter.Text) -> None:
+def config_tags(textwidget: tkinter.Text, link_click_callback: Callable[[ClickableTag, str], None]) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
+    textwidget.tag_configure("url", underline=True)
     textwidget.tag_configure("underline", underline=True)
     textwidget.tag_configure("pinged", foreground="#a1e37b")
     textwidget.tag_configure("error", foreground="#bd2f2f")
     textwidget.tag_configure("info", foreground="#FFE6C7")
     textwidget.tag_configure("history-selection", background="#5a5c50")
     textwidget.tag_configure("channel", foreground="#f7e452")
-    # TODO: make nicks clickable
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
     textwidget.tag_configure("received-privmsg", foreground=FOREGROUND)
@@ -154,10 +164,10 @@ def config_tags(textwidget: tkinter.Text) -> None:
         textwidget.tag_raise(f"foreground-{number}", "received-privmsg")
         textwidget.tag_raise(f"background-{number}", "received-privmsg")
 
-    textwidget.tag_configure("url", underline=True)
     default_cursor = textwidget["cursor"]
-    textwidget.tag_bind("url", "<Button-1>", _on_url_clicked)
-    textwidget.tag_bind("url", "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
-    textwidget.tag_bind(
-        "url", "<Leave>", (lambda e: textwidget.config(cursor=default_cursor))
-    )
+    for tag in ["url", "other-nick"]:
+        textwidget.tag_bind(tag, "<Button-1>", partial(_on_link_clicked, tag, link_click_callback))
+        textwidget.tag_bind(tag, "<Enter>", (lambda e: textwidget.config(cursor="hand2")))
+        textwidget.tag_bind(
+            tag, "<Leave>", (lambda e: textwidget.config(cursor=default_cursor))
+        )
