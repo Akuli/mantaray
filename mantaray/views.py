@@ -166,16 +166,19 @@ class View:
         assert isinstance(parent_view, ServerView)
         return parent_view
 
-    def _add_message_internal(
+    def add_message(
         self,
-        sender: str,
-        sender_tag: str | None,
-        parts: list[MessagePart],
-        text_tag: Literal["info", "error", "sent-privmsg", "received-privmsg"],
+        message: str | list[MessagePart],
         *,
-        pinged: bool = False,
+        sender: str = "*",
+        sender_tag: str | None = None,
+        tag: Literal["info", "error", "sent-privmsg", "received-privmsg"] = "info",
         show_in_gui: bool = True,
+        pinged: bool = False,
     ) -> None:
+        if isinstance(message, str):
+            message = [MessagePart(message)]
+
         if show_in_gui:
             # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
@@ -189,11 +192,11 @@ class View:
             )
             self.textwidget.insert("end", "\t")
 
-            if parts:
+            if message:
                 insert_args: list[Any] = []
-                for part in parts:
+                for part in message:
                     insert_args.append(part.text)
-                    insert_args.append(list(part.tags) + ["text", text_tag])
+                    insert_args.append(list(part.tags) + ["text", tag])
                 self.textwidget.insert("end", *insert_args)
 
             self.textwidget.insert("end", "\n")
@@ -210,74 +213,11 @@ class View:
             print(
                 time.asctime(),
                 sender,
-                "".join(part.text for part in parts),
+                "".join(part.text for part in message),
                 sep="\t",
                 file=self.log_file,
                 flush=True,
             )
-
-    def add_message(
-        self,
-        message: str | list[MessagePart],
-        *,
-        sender: str = "*",
-        tag: Literal["info", "error"] = "info",
-        show_in_gui: bool = True,
-        pinged: bool = False,
-    ) -> None:
-        if isinstance(message, str):
-            message = [MessagePart(message)]
-
-        if tag is not None:
-            for part in message:
-                part.tags = list(part.tags)
-                part.tags.append(tag)
-
-        self._add_message_internal(sender, None, message, tag, show_in_gui=show_in_gui, pinged=pinged)
-
-    def add_user_message(self, sender: str, text: str, *, pinged: bool = False) -> None:
-        if sender == self.server_view.core.nick:
-            sender_tag = "self-nick"
-            privmsg_tag: Literal["sent-privmsg", "received-privmsg"] = "sent-privmsg"
-        else:
-            sender_tag = "other-nick"
-            privmsg_tag = "received-privmsg"
-
-        # /me asdf --> "\x01ACTION asdf\x01"
-        if text.startswith("\x01ACTION ") and text.endswith("\x01"):
-            slash_me = True
-            text = text[8:-1]
-        else:
-            slash_me = False
-
-        if isinstance(self, ChannelView):
-            all_nicks = self.userlist.get_nicks()
-        elif isinstance(self, PMView):
-            all_nicks = (self.nick_of_other_user, self.server_view.core.nick)
-        else:
-            all_nicks = ()
-
-        parts = []
-        for substring, base_tags in textwidget_tags.parse_text(text):
-            for subsubstring, nick_tag in backend.find_nicks(
-                substring, self.server_view.core.nick, all_nicks
-            ):
-                tags = base_tags.copy()
-                if nick_tag is not None:
-                    tags.append(nick_tag)
-                if not slash_me:
-                    tags.append(privmsg_tag)
-                parts.append(MessagePart(subsubstring, tags))
-
-        if slash_me:
-            self.add_message(
-                [
-                    MessagePart(sender, tags=[sender_tag]),
-                    MessagePart(" "),
-                ] + parts, pinged=pinged
-            )
-        else:
-            self._add_message_internal(sender, sender_tag, parts, privmsg_tag, pinged=pinged)
 
 
 class ServerView(View):
