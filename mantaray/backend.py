@@ -154,9 +154,13 @@ class IrcCore:
         for thread in self._threads:
             thread.start()
 
-    def wait_for_threads_to_stop(self) -> None:
+    def wait_for_threads_to_stop(self, verbose: bool = False) -> None:
         for thread in self._threads:
+            if verbose:
+                print("Waiting for thread to stop:", thread)
             thread.join()
+        if verbose:
+            print("Threads stopped for", self.nick)
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
