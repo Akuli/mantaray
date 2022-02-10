@@ -132,7 +132,7 @@ def config_tags(textwidget: tkinter.Text) -> None:
     textwidget.tag_configure("underline", underline=True)
     textwidget.tag_configure("pinged", foreground="#a1e37b")
     textwidget.tag_configure("error", foreground="#bd2f2f")
-    textwidget.tag_configure("info", foreground="#de8c28")
+    textwidget.tag_configure("info", foreground="#FFE6C7")
     textwidget.tag_configure("history-selection", background="#5a5c50")
     textwidget.tag_configure("channel", foreground="#f7e452")
     # TODO: make nicks clickable
