@@ -159,8 +159,13 @@ class IrcCore:
         for thread in self._threads:
             thread.join(timeout=5)
             if thread.is_alive():
-                stack_trace = traceback.format_stack(sys._current_frames()[thread.ident])
-                raise RuntimeError(f"thread doesn't stop: {thread}\n" + "".join(stack_trace))
+                assert thread.ident is not None
+                stack_trace = traceback.format_stack(
+                    sys._current_frames()[thread.ident]
+                )
+                raise RuntimeError(
+                    f"thread doesn't stop: {thread}\n" + "".join(stack_trace)
+                )
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
