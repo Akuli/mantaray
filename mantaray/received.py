@@ -155,10 +155,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 
 
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
-    for view in server_view.get_subviews(include_server=True):
-        if not _nick_is_relevant_for_view(nick, view):
-            continue
-
+    for view in _get_views_relevant_for_nick(server_view, nick):
         if not args:
             view.add_message("*", (nick, ["other-nick"]), (" is no longer away.", []))
         else:
@@ -305,6 +302,8 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
+        if "away-notify" in server_view.core.cap_list:
+            server_view.core.send_who(channel)
 
 
 def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
@@ -383,9 +382,6 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
-
-    # elif msg.command == RPL_LOGGEDIN:
-    #     server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
         _handle_namreply(server_view, msg.args)

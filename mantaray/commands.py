@@ -86,6 +86,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def join(view: View, core: IrcCore, channel: str) -> None:
         # TODO: plain '/join' for joining the current channel after kick?
         core.send(f"JOIN {channel}")
+        if "away-notify" in core.cap_list:
+            core.send_who(channel)
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
