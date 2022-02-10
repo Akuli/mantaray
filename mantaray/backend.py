@@ -8,6 +8,7 @@ import queue
 import ssl
 import re
 import socket
+import sys
 import threading
 import traceback
 from typing import Union, Sequence, Iterator
@@ -154,13 +155,12 @@ class IrcCore:
         for thread in self._threads:
             thread.start()
 
-    def wait_for_threads_to_stop(self, verbose: bool = False) -> None:
+    def wait_for_threads_to_stop(self) -> None:
         for thread in self._threads:
-            if verbose:
-                print("Waiting for thread to stop:", thread)
-            thread.join()
-        if verbose:
-            print("Threads stopped for", self.nick)
+            thread.join(timeout=5)
+            if thread.is_alive():
+                stack_trace = traceback.format_stack(sys._current_frames()[thread.ident])
+                raise RuntimeError(f"thread doesn't stop: {thread}\n" + "".join(stack_trace))
 
     def _connect_and_recv_loop(self) -> None:
         while not self._quit_event.is_set():
