@@ -35,7 +35,9 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         try:
             func = _commands[entry_content.split()[0].lower()]
         except KeyError:
-            view.add_message(f"No command named '{entry_content.split()[0]}'", tag="error")
+            view.add_message(
+                f"No command named '{entry_content.split()[0]}'", tag="error"
+            )
             return False
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
