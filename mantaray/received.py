@@ -42,8 +42,8 @@ def _handle_privmsg(
             # start of a new PM conversation
             pm_view = views.PMView(server_view, sender)
             server_view.irc_widget.add_view(pm_view)
-        pm_view.on_privmsg(sender, text)
-        pm_view.add_tag("new_message")
+        pm_view.add_user_message(sender, text)
+        pm_view.add_view_selector_tag("new_message")
         pm_view.add_notification(text)
 
     else:
@@ -56,8 +56,8 @@ def _handle_privmsg(
                 text, server_view.core.nick, [server_view.core.nick]
             )
         )
-        channel_view.on_privmsg(sender, text, pinged=pinged)
-        channel_view.add_tag("pinged" if pinged else "new_message")
+        channel_view.add_user_message(sender, text, pinged=pinged)
+        channel_view.add_view_selector_tag("pinged" if pinged else "new_message")
         if pinged or (channel_view.channel_name in server_view.extra_notifications):
             channel_view.add_notification(f"<{sender}> {text}")
 
@@ -73,9 +73,10 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
 
     channel_view.userlist.add_user(nick)
     channel_view.add_message(
-        "*",
-        (nick, ["other-nick"]),
-        (f" joined {channel_view.channel_name}.", []),
+        [
+            views.MessagePart(nick, tags=["other-nick"]),
+            views.MessagePart(f" joined {channel_view.channel_name}."),
+        ],
         show_in_gui=channel_view.server_view.should_show_join_leave_message(nick),
     )
 
@@ -103,9 +104,10 @@ def _handle_part(
             extra = " (" + reason + ")"
 
         channel_view.add_message(
-            "*",
-            (parting_nick, ["other-nick"]),
-            (f" left {channel_view.channel_name}." + extra, []),
+            [
+                views.MessagePart(parting_nick, tags=["other-nick"]),
+                views.MessagePart(f" left {channel_view.channel_name}." + extra),
+            ],
             show_in_gui=channel_view.server_view.should_show_join_leave_message(
                 parting_nick
             ),
@@ -121,7 +123,11 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
 
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
-                "*", ("You are now known as ", []), (new_nick, ["self-nick"]), (".", [])
+                [
+                    views.MessagePart("You are now known as "),
+                    views.MessagePart(new_nick, tags=["self-nick"]),
+                    views.MessagePart("."),
+                ]
             )
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
@@ -129,11 +135,12 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
-                "*",
-                (old_nick, ["other-nick"]),
-                (" is now known as ", []),
-                (new_nick, ["other-nick"]),
-                (".", []),
+                [
+                    views.MessagePart(old_nick, tags=["other-nick"]),
+                    views.MessagePart(" is now known as "),
+                    views.MessagePart(new_nick, tags=["other-nick"]),
+                    views.MessagePart("."),
+                ]
             )
 
             if isinstance(view, views.ChannelView):
@@ -159,9 +166,10 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
     # This isn't perfect, other person's QUIT not received if not both joined on the same channel
     for view in _get_views_relevant_for_nick(server_view, nick):
         view.add_message(
-            "*",
-            (nick, ["other-nick"]),
-            (" quit." + reason_string, []),
+            [
+                views.MessagePart(nick, tags=["other-nick"]),
+                views.MessagePart(" quit." + reason_string),
+            ],
             show_in_gui=view.server_view.should_show_join_leave_message(nick),
         )
         if isinstance(view, views.ChannelView):
@@ -194,11 +202,12 @@ def _handle_mode(
         setter_tag = "other-nick"
 
     channel_view.add_message(
-        "*",
-        (setter_nick, [setter_tag]),
-        (f" {message} ", []),
-        (target_nick, [target_tag]),
-        (".", []),
+        [
+            views.MessagePart(setter_nick, tags=[setter_tag]),
+            views.MessagePart(f" {message} "),
+            views.MessagePart(target_nick, tags=[target_tag]),
+            views.MessagePart("."),
+        ]
     )
 
 
@@ -216,23 +225,29 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
 
     if kicked_nick == channel_view.server_view.core.nick:
         channel_view.add_message(
-            "*",
-            (kicker, [kicker_tag]),
-            (" has kicked you from ", ["error"]),
-            (channel_view.channel_name, ["channel"]),
-            (f". (Reason: {reason or ''}) You can still join by typing ", ["error"]),
-            (f"/join {channel_view.channel_name}", ["pinged"]),
-            (".", ["error"]),
+            [
+                views.MessagePart(kicker, tags=[kicker_tag]),
+                views.MessagePart(" has kicked you from "),
+                # TODO: use the channel tag more, make clickable?
+                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart(f". (Reason: {reason}) You can still join by typing "),
+                # TODO: new tag instead of abusing the "pinged" tag for this
+                views.MessagePart(f"/join {channel_view.channel_name}", tags=["pinged"]),
+                views.MessagePart("."),
+            ],
+            tag="error",
         )
     else:
         channel_view.add_message(
-            "*",
-            (kicker, [kicker_tag]),
-            (" has kicked ", []),
-            (kicked_nick, ["other-nick"]),
-            (" from ", []),
-            (channel_view.channel_name, ["channel"]),
-            (f". (Reason: {reason or ''})", []),
+            [
+                views.MessagePart(kicker, tags=[kicker_tag]),
+                views.MessagePart(" has kicked "),
+                views.MessagePart(kicked_nick, tags=["other-nick"]),
+                views.MessagePart(" from "),
+                # TODO: use the channel tag more, make clickable?
+                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart(f". (Reason: {reason})"),
+            ]
         )
 
 
@@ -299,7 +314,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 
     topic = join.topic or "(no topic)"
     channel_view.add_message(
-        "*", (f"The topic of {channel_view.channel_name} is: {topic}", [])
+        f"The topic of {channel_view.channel_name} is: {topic}"
     )
 
     if channel not in server_view.core.autojoin:
@@ -325,9 +340,10 @@ def _handle_literally_topic(
         nick_tag = "other-nick"
 
     channel_view.add_message(
-        "*",
-        (who_changed, [nick_tag]),
-        (f" changed the topic of {channel_view.channel_name}: {topic}", []),
+        [
+            views.MessagePart(who_changed, tags=[nick_tag]),
+            views.MessagePart(f" changed the topic of {channel_view.channel_name}: {topic}"),
+        ]
     )
 
 
@@ -338,21 +354,15 @@ def _handle_unknown_message(
     command: str,
     args: list[str],
 ) -> None:
-    if sender_is_server:
-        # Errors seem to always be 4xx, 5xx or 7xx.
-        # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-        is_error = command.startswith(("4", "5", "7"))
-
-        if is_error:
-            view = server_view.irc_widget.get_current_view()
-        else:
-            view = server_view
-        view.add_message(
-            sender or "???", (" ".join([command] + args), ["error"] if is_error else [])
-        )
-
+    # Errors seem to always be 4xx, 5xx or 7xx.
+    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
+    if sender_is_server and command.startswith(("4", "5", "7")):
+        # If server view selected, don't add twice
+        server_view.irc_widget.get_current_view().add_message(
+                " ".join([command] + args), sender=(sender or "???"), tag="error"
+            )
     else:
-        server_view.add_message(sender or "???", (" ".join([command] + args), []))
+        server_view.add_message(" ".join([command] + args), sender=(sender or "???"))
 
 
 def _handle_received_message(
@@ -429,9 +439,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
 
     if isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(
-                "", (event.message, ["error" if event.is_error else "info"])
-            )
+            view.add_message(event.message, tag=("error" if event.is_error else "info"))
         return True
 
     if isinstance(event, backend.HostChanged):
@@ -451,9 +459,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
                 # start of a new PM conversation
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
-            pm_view.on_privmsg(server_view.core.nick, event.text)
+            pm_view.add_user_message(server_view.core.nick, event.text)
         else:
-            channel_view.on_privmsg(server_view.core.nick, event.text)
+            channel_view.add_user_message(server_view.core.nick, event.text)
         return True
 
     if isinstance(event, backend.Quit):
