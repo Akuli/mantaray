@@ -120,6 +120,8 @@ class IrcCore:
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
         self._threads: list[threading.Thread] = []
 
+        # Will contain the capabilities to negotiate with the server
+        self.cap_req: list[str] = []
         # "CAP LIST" shows capabilities enabled on the client's connection
         self.cap_list: Set[str] = set()
 
@@ -288,10 +290,13 @@ class IrcCore:
             raise e
 
         if self.password is not None:
-            self.send("CAP REQ sasl")
+            self.cap_req.append("sasl")
 
         if self.away_notify:
-            self.send("CAP REQ away-notify")
+            self.cap_req.append("away-notify")
+
+        for capability in self.cap_req:
+            self.send(f"CAP REQ {capability}")
 
         # TODO: what if nick or user are in use? use alternatives?
         self.send(f"NICK {self.nick}")

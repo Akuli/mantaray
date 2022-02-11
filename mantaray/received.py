@@ -58,11 +58,14 @@ def _handle_privmsg(server_view: views.ServerView, sender: str, args: list[str])
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
+    [channel] = args
     # When this user joins a channel, wait for RPL_ENDOFNAMES
     if nick == server_view.core.nick:
+        if "away-notify" in server_view.core.cap_list:
+            server_view.core.send_who(channel)
         return
 
-    [channel] = args
+    
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
@@ -231,6 +234,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     if subcommand == "ACK":
         acknowledged = set(args[-1].split())
         if "sasl" in acknowledged:
+            server_view.core.cap_list.add("sasl")
             server_view.core.send("AUTHENTICATE PLAIN")
         if "away-notify" in acknowledged:
             server_view.core.cap_list.add("away-notify")
@@ -242,7 +246,10 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
         if "away-notify" in rejected:
             raise ValueError("The server does not support away-notify.")
 
-    server_view.core.send("CAP END")
+    server_view.core.cap_req.pop()  # To evaluate how many more ACK/NAKs will be received from server
+
+    if len(server_view.core.cap_req) == 0:
+        server_view.core.send("CAP END")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -304,12 +311,17 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
-        if "away-notify" in server_view.core.cap_list:
-            server_view.core.send_who(channel)
+    
 
 
 def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
-    pass
+    assert len(args) == 8
+    nick = args[5]
+    away_status = args[6][0]
+    view = server_view.find_channel(args[1])
+
+    if away_status.lower() == "g":
+        view.userlist.treeview.item(nick, tag=["away"])
 
 
 def _handle_literally_topic(server_view: views.ServerView, who_changed: str, args: list[str]) -> None:
