@@ -227,7 +227,6 @@ class IrcCore:
             # manages to do it in a way that makes connecting slow on my system)
             sock.settimeout(15)
             sock.connect((self.host, self.port))
-            sock.setblocking(False)
         except Exception as e:
             sock.close()
             raise e
@@ -237,71 +236,90 @@ class IrcCore:
     # I used to have separate send and receive threads, but I decided to use select() instead.
     # It's more code, but avoiding race conditions is easier with less threads.
     def _send_and_recv_loop(self, sock: socket.socket | ssl.SSLSocket) -> bool:
+        sock.setblocking(False)
         recv_buffer = bytearray()
 
         while True:
-            can_read, can_write, error = select.select(
-                [sock, self._loop_notify_recv], [sock] if self._send_queue else [], []
-            )
+            wanna_recv = set()
+            wanna_send = set()
 
-            if error:
-                # manual pages are quite vague about when this happens
-                raise OSError(
-                    "the socket is in an exceptional state according to select()"
-                )
-
-            if self._loop_notify_recv in can_read:
-                byte = self._loop_notify_recv.recv(1)
-                if byte == _QUIT_THE_SERVER:
-                    return True
-                elif byte == _RECONNECT:
-                    return False
-                elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
-                    continue
+            while True:
+                try:
+                    byte = self._loop_notify_recv.recv(1)
+                except BlockingIOError:
+                    wanna_recv.add(self._loop_notify_recv)
+                    break
                 else:
-                    raise ValueError(byte)
+                    if byte == _QUIT_THE_SERVER:
+                        return True
+                    elif byte == _RECONNECT:
+                        return False
+                    elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
+                        # The purpose of this byte is to wake up the select() below.
+                        pass
+                    else:
+                        raise ValueError(byte)
 
-            if sock in can_read:
-                received = sock.recv(4096)
-                if not received:
-                    raise OSError("Server closed the connection!")
-                recv_buffer += received
+            while True:
+                try:
+                    received = sock.recv(4096)
+                except (ssl.SSLWantReadError, BlockingIOError):
+                    wanna_recv.add(sock)
+                    break
+                except ssl.SSLWantWriteError:
+                    wanna_send.add(sock)
+                    break
+                else:
+                    if not received:
+                        raise OSError("Server closed the connection!")
+                    recv_buffer += received
 
-                # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
-                split_result = recv_buffer.split(b"\n")
-                recv_buffer = split_result.pop()
-                lines = [bytes(line) + b"\n" for line in split_result]
+                    # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+                    split_result = recv_buffer.split(b"\n")
+                    recv_buffer = split_result.pop()
+                    for line in split_result:
+                        self._handle_received_line(bytes(line) + b"\n")
 
-                for line in lines:
+            while self._send_queue:
+                data, done_event = self._send_queue[0]
+                try:
+                    n = sock.send(data)
+                except ssl.SSLWantReadError:
+                    wanna_send.add(sock)
+                    break
+                except (ssl.SSLWantWriteError, BlockingIOError):
+                    wanna_send.add(sock)
+                    break
+                else:
                     if self._verbose:
-                        print("Recv:", line)
-                    # Allow \r\n line endings, or \r in middle of message
-                    line = line.replace(b"\r\n", b"\n").rstrip(b"\n")
+                        print("Send:", data[:n])
+                    if n == len(data):
+                        self._send_queue.popleft()
+                        if done_event is not None:
+                            self.event_queue.put(done_event)
+                            if isinstance(done_event, Quit):
+                                return True
+                    else:
+                        self._send_queue[0] = (data[n:], done_event)
 
-                    if not line:
-                        # "Empty messages are silently ignored"
-                        # https://tools.ietf.org/html/rfc2812#section-2.3.1
-                        continue
-                    line_string = line.decode("utf-8", errors="replace")
-                    # TODO: should be handled in received.py like everything else
-                    if line_string.startswith("PING"):
-                        self.send(line_string.replace("PING", "PONG", 1))
-                        continue
-                    self.event_queue.put(self._parse_received_message(line_string))
+            select.select(wanna_recv, wanna_send, [])
 
-            if sock in can_write:
-                data, done_event = self._send_queue.popleft()
-                n = sock.send(data)
-                if self._verbose:
-                    print("Send:", data[:n])
+    def _handle_received_line(self, line: bytes) -> None:
+        if self._verbose:
+            print("Recv:", line)
+        # Allow \r\n line endings, or \r in middle of message
+        line = line.replace(b"\r\n", b"\n").rstrip(b"\n")
 
-                if n == len(data):
-                    if done_event is not None:
-                        self.event_queue.put(done_event)
-                        if isinstance(done_event, Quit):
-                            return True
-                else:
-                    self._send_queue.appendleft((data[n:], done_event))
+        if not line:
+            # "Empty messages are silently ignored"
+            # https://tools.ietf.org/html/rfc2812#section-2.3.1
+            return
+        line_string = line.decode("utf-8", errors="replace")
+        # TODO: should be handled in received.py like everything else
+        if line_string.startswith("PING"):
+            self.send(line_string.replace("PING", "PONG", 1))
+            return
+        self.event_queue.put(self._parse_received_message(line_string))
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
