@@ -163,7 +163,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
         if away_message is None:
             core.send("AWAY")
-            for view in view.server_view.get_subviews():
+            for view in view.server_view.get_subviews(include_server=True):
                 view.add_message(
                     "*", ("You are no longer marked as being away", ["info"])
                 )
@@ -171,12 +171,10 @@ def _define_commands() -> dict[str, Callable[..., None]]:
                     view.userlist.treeview.item(core.nick, tag=[])
         else:
             core.send(f"AWAY :{away_message}")
-            for view in view.server_view.get_subviews():
+            for view in view.server_view.get_subviews(include_server=True):
                 view.add_message("*", ("You have been marked as being away", ["info"]))
                 if isinstance(view, ChannelView):
                     view.userlist.treeview.item(core.nick, tag=["away"])
-
-        # TODO: Make own nick gray (306) and back to white (305)
 
     return {
         "/join": join,

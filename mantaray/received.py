@@ -177,14 +177,8 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
         if not args:
-            view.add_message(
-                "*", (nick, ["other-nick"]), (" is no longer away.", ["info"])
-            )
             view.userlist.treeview.item(nick, tag=[])
         else:
-            view.add_message(
-                "*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', ["info"])
-            )
             view.userlist.treeview.item(nick, tag=["away"])
 
 
