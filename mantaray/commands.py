@@ -162,19 +162,27 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
         if away_message is None:
-            core.send("AWAY")
-            for view in view.server_view.get_subviews(include_server=True):
-                view.add_message(
-                    "*", ("You are no longer marked as being away", ["info"])
-                )
-                if isinstance(view, ChannelView):
-                    view.userlist.treeview.item(core.nick, tag=[])
+            current_view = view.server_view.irc_widget.get_current_view()
+            current_view.add_message(
+                "*",
+                (
+                    'Please use "/AWAY <away message>" to mark yourself as Away, or "/BACK" to remove your Away status.',
+                    ["error"],
+                ),
+            )
         else:
             core.send(f"AWAY :{away_message}")
             for view in view.server_view.get_subviews(include_server=True):
                 view.add_message("*", ("You have been marked as being away", ["info"]))
                 if isinstance(view, ChannelView):
                     view.userlist.treeview.item(core.nick, tag=["away"])
+
+    def back(view: View, core: IrcCore) -> None:
+        core.send("AWAY")
+        for view in view.server_view.get_subviews(include_server=True):
+            view.add_message("*", ("You are no longer marked as being away", ["info"]))
+            if isinstance(view, ChannelView):
+                view.userlist.treeview.item(core.nick, tag=[])
 
     return {
         "/join": join,
@@ -194,6 +202,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/deop": deop,
         "/kick": kick,
         "/away": away,
+        "/back": back,
     }
 
 
