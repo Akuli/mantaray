@@ -231,7 +231,7 @@ class IrcCore:
         return sock
 
     # I used to have separate send and receive threads, but I decided to use select() instead.
-    # It's more code, but avoiding race conditions is easier with select().
+    # It's more code, but avoiding race conditions is easier with less threads.
     def _send_and_recv_loop(self, sock: socket.socket | ssl.SSLSocket) -> bool:
         recv_buffer = bytearray()
 
