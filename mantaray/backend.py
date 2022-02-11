@@ -125,7 +125,7 @@ class IrcCore:
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
 
-    def start_threads(self) -> None:
+    def start_thread(self) -> None:
         assert self._thread is None
         self._thread = threading.Thread(
             name=f"core-thread-{hex(id(self))}-{self.nick}", target=self._connect_loop
