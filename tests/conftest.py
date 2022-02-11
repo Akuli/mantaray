@@ -38,7 +38,10 @@ def wait_until(root_window, irc_widgets_dict):
                 return
         raise RuntimeError(
             "timed out waiting"
-            + "".join(f"\n{name}'s text = {widget.text()!r}" for name, widget in irc_widgets_dict.items())
+            + "".join(
+                f"\n{name}'s text = {widget.text()!r}"
+                for name, widget in irc_widgets_dict.items()
+            )
         )
 
     return actually_wait_until
@@ -54,10 +57,16 @@ class _IrcServer:
         env["PYTHONUNBUFFERED"] = "1"
 
         if os.environ["IRC_SERVER"] == "mantatail":
-            command = [sys.executable, "server.py"]
+            command = [sys.executable, "mantatail.py"]
             working_dir = "tests/MantaTail"
         elif os.environ["IRC_SERVER"] == "hircd":
-            command = [sys.executable, "hircd.py", "--foreground", "--verbose", "--log-stdout"]
+            command = [
+                sys.executable,
+                "hircd.py",
+                "--foreground",
+                "--verbose",
+                "--log-stdout",
+            ]
             working_dir = "tests/hircd"
         else:
             raise RuntimeError(
@@ -71,14 +80,19 @@ class _IrcServer:
                 for line in file:
                     if line.strip() == "path = " + working_dir:
                         raise RuntimeError(
-                            f"'{working_dir}' not found." f" Please run 'git submodule update --init' and try again."
+                            f"'{working_dir}' not found."
+                            f" Please run 'git submodule update --init' and try again."
                         )
 
         # Ensure there is not a currently running process
         assert self.process is None or self.process.poll() is not None
 
         self.process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, cwd=working_dir
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=working_dir,
         )
 
         # Wait for it to start
@@ -123,21 +137,22 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
         for name in ["alice", "bob"]:
             users_who_join_before = list(irc_widgets_dict.values())
             irc_widgets_dict[name] = gui.IrcWidget(
-<<<<<<< Updated upstream
                 root_window,
                 config.load_from_file(Path(name)),
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
-=======
-                root_window, config.load_from_file(Path(name)), Path(tempfile.mkdtemp(prefix="mantaray-tests-"))
->>>>>>> Stashed changes
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
             # Fails sometimes on macos github actions, don't know yet why
             # TODO: still failing with bigger timeout?
-            wait_until(lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(), timeout=15)
+            wait_until(
+                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
+                timeout=15,
+            )
 
             for user in users_who_join_before:
-                wait_until(lambda: f"{name.capitalize()} joined #autojoin" in user.text())
+                wait_until(
+                    lambda: f"{name.capitalize()} joined #autojoin" in user.text()
+                )
 
         yield irc_widgets_dict
 
