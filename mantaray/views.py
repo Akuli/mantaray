@@ -244,7 +244,7 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        self.core.start_threads()
+        self.core.start_thread()
 
     def get_log_name(self) -> str:
         # Log to file named logs/foobar/server.log.
