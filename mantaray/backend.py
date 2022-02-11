@@ -7,9 +7,11 @@ import dataclasses
 import queue
 import ssl
 import re
+import select
 import socket
 import sys
 import threading
+import time
 import traceback
 from typing import Union, Sequence, Iterator
 
@@ -87,25 +89,18 @@ class Quit:
 IrcEvent = Union[ReceivedLine, ConnectivityMessage, HostChanged, SentPrivmsg, Quit]
 
 
-def _recv_line(
-    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]
-) -> bytes:
-    if not buffer:
-        data = bytearray()
+# Simple version of select() to be used when disconnected
+def _wait_until_can_read(
+    sock: socket.socket | ssl.SSLSocket, *, timeout: float = 0
+) -> bool:
+    can_read, can_write, error = select.select([sock], [], [], timeout)
+    return sock in can_read
 
-        # accepts both \r\n and \n
-        while not data.endswith(b"\n"):
-            assert sock is not None
-            chunk = sock.recv(4096)
-            if chunk:
-                data += chunk
-            else:
-                raise OSError("Server closed the connection!")
 
-        # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
-        buffer.extend(bytes(data)[:-1].split(b"\n"))
-
-    return buffer.popleft()
+# Special bytes to be put to loop notify socketpair
+_QUIT_THE_SERVER = b"q"
+_RECONNECT = b"r"
+_BYTES_ADDED_TO_SEND_QUEUE = b"s"
 
 
 class IrcCore:
@@ -114,18 +109,19 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._send_queue: queue.Queue[tuple[bytes, SentPrivmsg | None]] = queue.Queue()
-        self._recv_buffer: collections.deque[bytes] = collections.deque()
 
-        # During connecting, sock is None and connected is False.
-        # If connected is True, sock shouldn't be None.
-        self._sock: socket.socket | ssl.SSLSocket | None = None
-        self._connected = False
+        self._send_queue: collections.deque[
+            tuple[bytes, SentPrivmsg | None]
+        ] = collections.deque()
+
+        # Sending to _loop_notify_send tells the select() loop to do something special
+        self._loop_notify_send, self._loop_notify_recv = socket.socketpair()
+        self._loop_notify_recv.setblocking(False)
+
+        self._send_and_recv_loop_running = False
 
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
-        self._threads: list[threading.Thread] = []
-
-        self._quit_event = threading.Event()
+        self._thread: threading.Thread | None = None
 
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
@@ -138,38 +134,16 @@ class IrcCore:
         self.autojoin = server_config["joined_channels"].copy()
 
     def start_threads(self) -> None:
-        assert not self._threads
-        self._threads.append(
-            threading.Thread(
-                target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"
-            )
+        assert self._thread is None
+        self._thread = threading.Thread(
+            name=f"core-thread-{hex(id(self))}-{self.nick}", target=self._connect_loop
         )
-        self._threads.append(
-            threading.Thread(
-                target=self._connect_and_recv_loop,
-                name=f"connect-and-recv-{hex(id(self))}-{self.nick}",
-            )
-        )
-        for thread in self._threads:
-            thread.start()
+        self._thread.start()
 
-    def wait_for_threads_to_stop(self) -> None:
-        for thread in self._threads:
-            thread.join(timeout=5)
-            if thread.is_alive():
-                # TODO: hopefully this disgusting debug prints can remove some day
-                assert thread.ident is not None
-                stack_trace = traceback.format_stack(
-                    sys._current_frames()[thread.ident]
-                )
-                raise RuntimeError(
-                    f"thread doesn't stop: {thread}\n" + "".join(stack_trace)
-                )
-
-    def _connect_and_recv_loop(self) -> None:
-        while not self._quit_event.is_set():
-            # Clear send queue, its content were meant for previous connection
-            self._send_queue = queue.Queue()
+    def _connect_loop(self) -> None:
+        while True:
+            # send queue contents were for previous connection
+            self._send_queue.clear()
 
             try:
                 self.event_queue.put(
@@ -177,7 +151,7 @@ class IrcCore:
                         f"Connecting to {self.host} port {self.port}...", is_error=False
                     )
                 )
-                self._connect()
+                sock = self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
                     ConnectivityMessage(
@@ -185,23 +159,151 @@ class IrcCore:
                         is_error=True,
                     )
                 )
-                self._quit_event.wait(timeout=RECONNECT_SECONDS)
+                end = time.monotonic() + RECONNECT_SECONDS
+                while True:
+                    timeout = end - time.monotonic()
+                    if timeout < 0:
+                        break
+                    if _wait_until_can_read(self._loop_notify_recv, timeout=timeout):
+                        byte = self._loop_notify_recv.recv(1)
+                        if byte == _QUIT_THE_SERVER:
+                            self.event_queue.put(Quit())
+                            self._loop_notify_send.close()
+                            self._loop_notify_recv.close()
+                            return
+                        if byte == _RECONNECT:
+                            break
                 continue
 
+            if self.password is not None:
+                self.send("CAP REQ sasl")
+            # TODO: what if nick or user are in use? use alternatives?
+            self.send(f"NICK {self.nick}")
+            self.send(f"USER {self.username} 0 * :{self.realname}")
+
+            self._send_and_recv_loop_running = True
             try:
-                # If this succeeds, it stops when connection is closed
-                self._recv_loop()
+                quitting = self._send_and_recv_loop(sock)
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
+                    ConnectivityMessage(f"Connection error: {e}", is_error=True)
                 )
-                # get ready to connect again
-                self._disconnect()
+                quitting = False
+            self._send_and_recv_loop_running = False
 
-    def send(
-        self, message: str, *, done_event: SentPrivmsg | None = None
-    ) -> None:
-        self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
+            sock.settimeout(1)
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except (OSError, ssl.SSLError):
+                pass
+            sock.close()
+            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=True))
+
+            if quitting:
+                self.event_queue.put(Quit())
+                self._loop_notify_send.close()
+                self._loop_notify_recv.close()
+                return
+
+    def _connect(self) -> socket.socket | ssl.SSLSocket:
+        sock: socket.socket | ssl.SSLSocket
+
+        if self.ssl:
+            context = ssl.create_default_context()
+            sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+        else:
+            sock = socket.socket()
+
+        try:
+            # Unfortunately there's no such thing as non-blocking connect().
+            # Unless you don't invoke getaddrinfo(), which will always block.
+            # But then you can't specify a host name to connect to, only an IP.
+            #
+            # (asyncio manually calls getaddrinfo() in a separate thread, and
+            # manages to do it in a way that makes connecting slow on my system)
+            sock.settimeout(15)
+            sock.connect((self.host, self.port))
+            sock.setblocking(False)
+        except Exception as e:
+            sock.close()
+            raise e
+
+        return sock
+
+    # I used to have separate send and receive threads, but I decided to use select() instead.
+    # It's more code, but avoiding race conditions is easier with select().
+    def _send_and_recv_loop(self, sock: socket.socket | ssl.SSLSocket) -> bool:
+        recv_buffer = bytearray()
+
+        while True:
+            if self._send_queue:
+                send_list = [sock]
+            else:
+                send_list = []
+
+            can_read, can_write, error = select.select(
+                [sock, self._loop_notify_recv], send_list, []
+            )
+
+            if error:
+                # manual pages are quite vague about when this happens
+                raise OSError(
+                    "the socket is in an exceptional state according to select()"
+                )
+
+            if self._loop_notify_recv in can_read:
+                # We should call select() again asap
+                byte = self._loop_notify_recv.recv(1)
+                if byte == _QUIT_THE_SERVER:
+                    return True
+                if byte == _RECONNECT:
+                    return False
+
+            if sock in can_read:
+                received = sock.recv(4096)
+                if not received:
+                    raise OSError("Server closed the connection!")
+                recv_buffer += received
+
+                # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+                split_result = recv_buffer.split(b"\n")
+                recv_buffer = split_result.pop()
+                lines = [bytes(line) + b"\n" for line in split_result]
+
+                for line in lines:
+                    if self._verbose:
+                        print("Recv:", line)
+                    # Allow \r\n line endings, or \r in middle of message
+                    line = line.replace(b"\r\n", b"").rstrip(b"\n")
+
+                    if not line:
+                        # "Empty messages are silently ignored"
+                        # https://tools.ietf.org/html/rfc2812#section-2.3.1
+                        continue
+                    line_string = line.decode("utf-8", errors="replace")
+                    # TODO: should be handled in received.py like everything else
+                    if line_string.startswith("PING"):
+                        self.send(line_string.replace("PING", "PONG", 1))
+                        continue
+                    self.event_queue.put(self._parse_received_message(line_string))
+
+            if sock in can_write:
+                data, done_event = self._send_queue.popleft()
+                n = sock.send(data)
+                if self._verbose:
+                    print("Send:", data[:n])
+
+                if n == len(data):
+                    if done_event is not None:
+                        self.event_queue.put(done_event)
+                        if isinstance(done_event, Quit):
+                            return True
+                else:
+                    self._send_queue.appendleft((data[n:], done_event))
+
+    def send(self, message: str, *, done_event: SentPrivmsg | None = None) -> None:
+        self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
+        self._loop_notify_send.sendall(_BYTES_ADDED_TO_SEND_QUEUE)
 
     @staticmethod
     def _parse_received_message(line: str) -> ReceivedLine:
@@ -229,122 +331,13 @@ class IrcCore:
                 break
         return ReceivedLine(sender, sender_is_server, command, args)
 
-    def _recv_loop(self) -> None:
-        assert self._connected
-        sock = self._sock
-        assert sock is not None
-
-        while True:
-            try:
-                line_bytes = _recv_line(sock, self._recv_buffer)
-                error = None
-            except (OSError, ssl.SSLError) as e:
-                # socket can be closed while receiving
-                line_bytes = None
-                error = e
-
-            # Receiving fails if we disconnected, silence those errors
-            if self._sock is not sock or not self._connected:
-                break
-
-            if error is not None:
-                raise error
-            assert line_bytes is not None
-
-            if self._verbose:
-                print("Recv:", line_bytes + b"\n")
-
-            # Allow \r\n line endings, or \r in middle of message
-            if line_bytes.endswith(b"\r"):
-                line_bytes = line_bytes[:-1]
-
-            line = line_bytes.decode("utf-8", errors="replace")
-            if not line:
-                # "Empty messages are silently ignored"
-                # https://tools.ietf.org/html/rfc2812#section-2.3.1
-                continue
-            # TODO: should be handled in received.py like everything else
-            if line.startswith("PING"):
-                self.send(line.replace("PING", "PONG", 1))
-                continue
-
-            self.event_queue.put(self._parse_received_message(line))
-
-    def _send_loop(self) -> None:
-        while True:
-            try:
-                bytez, done_event = self._send_queue.get(timeout=0.1)
-            except queue.Empty:
-                if self._quit_event.is_set():
-                    self._disconnect()  # stop recv loop, flush socket
-                    self.event_queue.put(Quit())
-                    break
-                continue
-
-            sock = self._sock
-            if sock is None or not self._connected:
-                # ignore events silently when not connected
-                continue
-
-            if self._verbose:
-                print("Send:", bytez)
-
-            try:
-                sock.sendall(bytez)
-            except (OSError, ssl.SSLError):
-                if self._connected:
-                    traceback.print_exc()
-                continue
-
-            if done_event is not None:
-                self.event_queue.put(done_event)
-    def _connect(self) -> None:
-        assert self._sock is None and not self._connected
-
-        try:
-            if self.ssl:
-                context = ssl.create_default_context()
-                self._sock = context.wrap_socket(
-                    socket.socket(), server_hostname=self.host
-                )
-            else:
-                self._sock = socket.socket()
-            self._sock.connect((self.host, self.port))
-            self._connected = True
-        except (OSError, ssl.SSLError) as e:
-            if self._sock is not None:
-                self._sock.close()
-            self._sock = None
-            raise e
-
-        if self.password is not None:
-            self.send("CAP REQ sasl")
-
-        # TODO: what if nick or user are in use? use alternatives?
-        self.send(f"NICK {self.nick}")
-        self.send(f"USER {self.username} 0 * :{self.realname}")
-
-    def _disconnect(self) -> None:
-        sock = self._sock
-        self._sock = None
-        self._connected = False
-
-        if sock is not None:
-            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=False))
-            try:
-                sock.shutdown(socket.SHUT_RDWR)  # stops sending/receiving immediately
-            except OSError:
-                # sometimes happens on macos, but .close() seems to stop sending/receiving on macos
-                pass
-            sock.close()
-
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
         assert self.nick == server_config["nick"]
         assert self.autojoin == server_config["joined_channels"]
 
         old_host = self.host
         self._apply_config(server_config)
-        self._disconnect()  # will cause the main loop to reconnect
+        self._loop_notify_send.sendall(_RECONNECT)
 
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
@@ -355,14 +348,29 @@ class IrcCore:
             done_event=SentPrivmsg(nick_or_channel, text),
         )
 
-    def quit(self) -> None:
-        # Do not freeze forever if sending is slow
-        sock = self._sock
-        if sock is not None:
-            sock.settimeout(1)
+    def quit(self, *, wait: bool = False) -> None:
+        def force_quit() -> None:
+            try:
+                self._loop_notify_send.sendall(_QUIT_THE_SERVER)
+            except OSError:
+                # already quit
+                pass
 
-        # Tell send loop to quit after adding QUIT to send queue.
-        # This way it will finish sending.
-        # It checks whether it should quit only when the queue is empty.
-        self.send("QUIT")
-        self._quit_event.set()
+        if self._send_and_recv_loop_running:
+            # Attempt a clean quit
+            self.send("QUIT", done_event=Quit())
+            timer = threading.Timer(1, force_quit)
+            timer.daemon = True
+            timer.start()
+        else:
+            force_quit()
+
+        if self._thread is not None and wait:
+            self._thread.join(timeout=3)
+            if self._thread.is_alive():
+                # TODO: hopefully this disgusting debug prints can remove some day
+                assert self._thread.ident is not None
+                stack_trace = traceback.format_stack(
+                    sys._current_frames()[self._thread.ident]
+                )
+                raise RuntimeError("thread doesn't stop\n" + "".join(stack_trace))
