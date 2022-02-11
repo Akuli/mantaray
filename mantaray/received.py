@@ -70,7 +70,7 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     # When this user joins a channel, wait for RPL_ENDOFNAMES
     if nick == server_view.core.nick:
         if "away-notify" in server_view.core.cap_list:
-            server_view.core.send_who(channel)
+            server_view.core.send(f"WHO {channel}")
         return
 
     channel_view = server_view.find_channel(channel)
@@ -271,11 +271,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
 
     # Need to wait for login success/fail from server if sasl is enabled before sending "CAP END"
     if len(server_view.core.cap_req) == 0 and "sasl" not in server_view.core.cap_list:
-        _send_cap_end(server_view)
-
-
-def _send_cap_end(server_view: views.ServerView) -> None:
-    server_view.core.send("CAP END")
+        server_view.core.send("CAP END")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -439,7 +435,7 @@ def _handle_received_message(
         _handle_authenticate(server_view)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
-        _send_cap_end(server_view)
+        server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
         _handle_namreply(server_view, msg.args)
