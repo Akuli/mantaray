@@ -142,7 +142,6 @@ class IrcCore:
         self.realname = server_config["realname"]
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
-        self.away_notify = server_config["away_notify"]
 
     def start_threads(self) -> None:
         assert not self._threads
@@ -316,8 +315,7 @@ class IrcCore:
         if self.password is not None:
             self.cap_req.append("sasl")
 
-        if self.away_notify:
-            self.cap_req.append("away-notify")
+        self.cap_req.append("away-notify")
 
         for capability in self.cap_req:
             self.send(f"CAP REQ {capability}")
@@ -356,9 +354,6 @@ class IrcCore:
             f"PRIVMSG {nick_or_channel} :{text}",
             done_event=SentPrivmsg(nick_or_channel, text),
         )
-
-    def send_who(self, nick_or_channel: str) -> None:
-        self.send(f"WHO {nick_or_channel}")
 
     def quit(self) -> None:
         sock = self._sock

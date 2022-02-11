@@ -348,7 +348,6 @@ class ServerView(View):
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
             "audio_notification": self.audio_notification,
-            "away_notify": self.core.away_notify,
         }
 
     def show_config_dialog(self) -> None:
@@ -360,7 +359,6 @@ class ServerView(View):
             self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             self.audio_notification = new_config["audio_notification"]
-            self.away_notify = new_config["away_notify"]
             # TODO: autojoin setting would be better in right-click
             for subview in self.get_subviews():
                 if (

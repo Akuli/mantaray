@@ -35,7 +35,6 @@ class ServerConfig(TypedDict):
     extra_notifications: list[str]  # channels to notify for all messages
     join_leave_hiding: JoinLeaveHidingConfig
     audio_notification: bool
-    away_notify: bool
 
 
 class Config(TypedDict):
@@ -60,7 +59,6 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("password", None)
                 server.setdefault("extra_notifications", [])
                 server.setdefault("audio_notification", False)
-                server.setdefault("away_notify", True)
                 server.setdefault(
                     "join_leave_hiding",
                     {"show_by_default": True, "exception_nicks": []},
@@ -219,20 +217,6 @@ class _DialogContent(ttk.Frame):
             )
             self._rownumber += 1
 
-        self._away_notify_var = tkinter.BooleanVar(value=initial_config["away_notify"])
-        if connecting_to_new_server:
-            self.away_notify_checkbox = None
-        else:
-            self.away_notify_checkbox = ttk.Checkbutton(
-                self,
-                text="Notify me about other users' Away status",
-                variable=self._away_notify_var,
-            )
-            self.away_notify_checkbox.grid(
-                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
-            )
-            self._rownumber += 1
-
         if self._realname_entry is not None:
             infolabel = ttk.Label(
                 self,
@@ -382,7 +366,6 @@ class _DialogContent(ttk.Frame):
             ),
             "extra_notifications": self._initial_config["extra_notifications"],
             "audio_notification": self._audio_var.get(),
-            "away_notify": self._away_notify_var.get(),
             "join_leave_hiding": (
                 self._initial_config["join_leave_hiding"]
                 if self._join_part_quit is None
@@ -415,7 +398,6 @@ def show_connection_settings_dialog(
                 "extra_notifications": [],
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
                 "audio_notification": False,
-                "away_notify": True,
             },
             connecting_to_new_server=True,
         )
