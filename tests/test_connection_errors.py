@@ -29,6 +29,11 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     start = time.monotonic()
     alice.get_server_views()[0].core.quit(wait=True)
     end = time.monotonic()
+
+    # The delays can vary:
+    #   - My computer: 0.00015sec
+    #   - Github actions windows: 0.937sec
+    print("\n*** DELAY ***", end-start)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
