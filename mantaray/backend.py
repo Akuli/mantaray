@@ -132,6 +132,14 @@ class IrcCore:
         )
         self._thread.start()
 
+    def _notify_the_select_loop(self, message: bytes) -> None:
+        try:
+            self._loop_notify_send.send(message)
+        except OSError as e:
+            # Expected to fail if we already quit, and socket is closed
+            if self._loop_notify_send.fileno() != -1:
+                raise e
+
     def _connect_loop(self) -> None:
         while True:
             # send queue contents were for previous connection
@@ -157,7 +165,9 @@ class IrcCore:
                     if timeout < 0:
                         break
 
-                    can_read = select.select([self._loop_notify_recv], [], [], timeout)[0]
+                    can_read = select.select([self._loop_notify_recv], [], [], timeout)[
+                        0
+                    ]
                     if self._loop_notify_recv in can_read:
                         byte = self._loop_notify_recv.recv(1)
                         if byte == _QUIT_THE_SERVER:
@@ -299,12 +309,7 @@ class IrcCore:
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
     ) -> None:
         self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
-        try:
-            self._loop_notify_send.sendall(_BYTES_ADDED_TO_SEND_QUEUE)
-        except OSError as e:
-            # Expected to fail if we already quit, and socket is closed
-            if self._loop_notify_send.fileno() != -1:
-                raise e
+        self._notify_the_select_loop(_BYTES_ADDED_TO_SEND_QUEUE)
 
     @staticmethod
     def _parse_received_message(line: str) -> ReceivedLine:
@@ -338,13 +343,7 @@ class IrcCore:
 
         old_host = self.host
         self._apply_config(server_config)
-
-        try:
-            self._loop_notify_send.sendall(_RECONNECT)
-        except OSError as e:
-            # Expected to fail if we already quit, and socket is closed
-            if self._loop_notify_send.fileno() != -1:
-                raise e
+        self._notify_the_select_loop(_RECONNECT)
 
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
@@ -356,22 +355,16 @@ class IrcCore:
         )
 
     def quit(self, *, wait: bool = False) -> None:
-        def force_quit() -> None:
-            try:
-                self._loop_notify_send.sendall(_QUIT_THE_SERVER)
-            except OSError as e:
-                # Expected to fail if we already quit, and socket is closed
-                if self._loop_notify_send.fileno() != -1:
-                    raise e
-
         if self._send_and_recv_loop_running:
             # Attempt a clean quit
             self.send("QUIT", done_event=Quit())
-            timer = threading.Timer(1, force_quit)
+            timer = threading.Timer(
+                1, (lambda: self._notify_the_select_loop(_QUIT_THE_SERVER))
+            )
             timer.daemon = True
             timer.start()
         else:
-            force_quit()
+            self._notify_the_select_loop(_QUIT_THE_SERVER)
 
         if self._thread is not None and wait:
             self._thread.join(timeout=3)
