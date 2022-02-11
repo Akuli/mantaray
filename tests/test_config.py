@@ -42,6 +42,7 @@ def test_old_config_format(tmp_path, root_window):
                 "joined_channels": ["##learnpython"],
                 "extra_notifications": [],
                 "audio_notification": False,
+                "away_notify": True,
                 "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
             }
         ],
@@ -126,6 +127,7 @@ def test_default_settings(root_window, monkeypatch):
         "ssl": True,
         "extra_notifications": [],
         "audio_notification": False,
+        "away-notify": True,
         "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
     }
 
