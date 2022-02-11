@@ -31,7 +31,9 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
-def find_nicks(text: str, self_nick: str, all_nicks: Sequence[str]) -> Iterator[tuple[str, str | None]]:
+def find_nicks(
+    text: str, self_nick: str, all_nicks: Sequence[str]
+) -> Iterator[tuple[str, str | None]]:
     lowercase_nicks = {n.lower() for n in all_nicks}
     assert self_nick.lower() in lowercase_nicks
 
@@ -84,7 +86,9 @@ class Quit:
 IrcEvent = Union[ReceivedLine, ConnectivityMessage, HostChanged, SentPrivmsg, Quit]
 
 
-def _recv_line(sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]) -> bytes:
+def _recv_line(
+    sock: socket.socket | ssl.SSLSocket, buffer: collections.deque[bytes]
+) -> bytes:
     if not buffer:
         data = bytearray()
 
@@ -109,7 +113,9 @@ class IrcCore:
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
-        self._send_queue: queue.Queue[tuple[bytes, SentPrivmsg | Quit | None]] = queue.Queue()
+        self._send_queue: queue.Queue[
+            tuple[bytes, SentPrivmsg | Quit | None]
+        ] = queue.Queue()
         self._recv_buffer: collections.deque[bytes] = collections.deque()
 
         # During connecting, sock is None and connected is False.
@@ -140,9 +146,16 @@ class IrcCore:
 
     def start_threads(self) -> None:
         assert not self._threads
-        self._threads.append(threading.Thread(target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"))
         self._threads.append(
-            threading.Thread(target=self._connect_and_recv_loop, name=f"connect-and-recv-{hex(id(self))}-{self.nick}")
+            threading.Thread(
+                target=self._send_loop, name=f"send-loop-{hex(id(self))}-{self.nick}"
+            )
+        )
+        self._threads.append(
+            threading.Thread(
+                target=self._connect_and_recv_loop,
+                name=f"connect-and-recv-{hex(id(self))}-{self.nick}",
+            )
         )
         for thread in self._threads:
             thread.start()
@@ -159,12 +172,17 @@ class IrcCore:
         while not self._quit_event.is_set():
             try:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Connecting to {self.host} port {self.port}...", is_error=False)
+                    ConnectivityMessage(
+                        f"Connecting to {self.host} port {self.port}...", is_error=False
+                    )
                 )
                 self._connect()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}", is_error=True)
+                    ConnectivityMessage(
+                        f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}",
+                        is_error=True,
+                    )
                 )
                 self._quit_event.wait(timeout=RECONNECT_SECONDS)
                 continue
@@ -173,11 +191,15 @@ class IrcCore:
                 # If this succeeds, it stops when connection is closed
                 self._recv_loop()
             except (OSError, ssl.SSLError) as e:
-                self.event_queue.put(ConnectivityMessage(f"Error while receiving: {e}", is_error=True))
+                self.event_queue.put(
+                    ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
+                )
                 # get ready to connect again
                 self._disconnect()
 
-    def send(self, message: str, *, done_event: SentPrivmsg | Quit | None = None) -> None:
+    def send(
+        self, message: str, *, done_event: SentPrivmsg | Quit | None = None
+    ) -> None:
         self._send_queue.put((message.encode("utf-8") + b"\r\n", done_event))
 
     @staticmethod
@@ -278,7 +300,9 @@ class IrcCore:
         try:
             if self.ssl:
                 context = ssl.create_default_context()
-                self._sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+                self._sock = context.wrap_socket(
+                    socket.socket(), server_hostname=self.host
+                )
             else:
                 self._sock = socket.socket()
             self._sock.connect((self.host, self.port))
@@ -328,7 +352,10 @@ class IrcCore:
             self.event_queue.put(HostChanged(old_host, self.host))
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
-        self.send(f"PRIVMSG {nick_or_channel} :{text}", done_event=SentPrivmsg(nick_or_channel, text))
+        self.send(
+            f"PRIVMSG {nick_or_channel} :{text}",
+            done_event=SentPrivmsg(nick_or_channel, text),
+        )
 
     def send_who(self, nick_or_channel: str) -> None:
         self.send(f"WHO {nick_or_channel}")

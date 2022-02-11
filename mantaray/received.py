@@ -18,7 +18,9 @@ RPL_TOPIC = "332"
 ERR_SASLFAIL = "904"
 
 
-def _get_views_relevant_for_nick(server_view: views.ServerView, nick: str) -> list[views.ChannelView | views.PMView]:
+def _get_views_relevant_for_nick(
+    server_view: views.ServerView, nick: str
+) -> list[views.ChannelView | views.PMView]:
     result: list[views.ChannelView | views.PMView] = []
     for view in server_view.get_subviews():
         if isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks():
@@ -31,7 +33,9 @@ def _get_views_relevant_for_nick(server_view: views.ServerView, nick: str) -> li
     return result
 
 
-def _handle_privmsg(server_view: views.ServerView, sender: str, args: list[str]) -> None:
+def _handle_privmsg(
+    server_view: views.ServerView, sender: str, args: list[str]
+) -> None:
     # recipient is server or nick
     recipient, text = args
 
@@ -51,7 +55,9 @@ def _handle_privmsg(server_view: views.ServerView, sender: str, args: list[str])
 
         pinged = any(
             tag == "self-nick"
-            for substring, tag in backend.find_nicks(text, server_view.core.nick, [server_view.core.nick])
+            for substring, tag in backend.find_nicks(
+                text, server_view.core.nick, [server_view.core.nick]
+            )
         )
         channel_view.on_privmsg(sender, text, pinged=pinged)
         channel_view.add_tag("pinged" if pinged else "new_message")
@@ -80,7 +86,9 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     )
 
 
-def _handle_part(server_view: views.ServerView, parting_nick: str, args: list[str]) -> None:
+def _handle_part(
+    server_view: views.ServerView, parting_nick: str, args: list[str]
+) -> None:
     channel = args[0]
     reason = args[1] if len(args) >= 2 else None
 
@@ -104,7 +112,9 @@ def _handle_part(server_view: views.ServerView, parting_nick: str, args: list[st
             "*",
             (parting_nick, ["other-nick"]),
             (f" left {channel_view.channel_name}." + extra, []),
-            show_in_gui=channel_view.server_view.should_show_join_leave_message(parting_nick),
+            show_in_gui=channel_view.server_view.should_show_join_leave_message(
+                parting_nick
+            ),
         )
 
 
@@ -116,14 +126,20 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             server_view.irc_widget.nickbutton.config(text=new_nick)
 
         for view in server_view.get_subviews(include_server=True):
-            view.add_message("*", ("You are now known as ", []), (new_nick, ["self-nick"]), (".", []))
+            view.add_message(
+                "*", ("You are now known as ", []), (new_nick, ["self-nick"]), (".", [])
+            )
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
-                "*", (old_nick, ["other-nick"]), (" is now known as ", []), (new_nick, ["other-nick"]), (".", [])
+                "*",
+                (old_nick, ["other-nick"]),
+                (" is now known as ", []),
+                (new_nick, ["other-nick"]),
+                (".", []),
             )
 
             if isinstance(view, views.ChannelView):
@@ -161,14 +177,20 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
         if not args:
-            view.add_message("*", (nick, ["other-nick"]), (" is no longer away.", ["info"]))
+            view.add_message(
+                "*", (nick, ["other-nick"]), (" is no longer away.", ["info"])
+            )
             view.userlist.treeview.item(nick, tag=[])
         else:
-            view.add_message("*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', ["info"]))
+            view.add_message(
+                "*", (nick, ["other-nick"]), (f' is away. ({" ".join(args)})', ["info"])
+            )
             view.userlist.treeview.item(nick, tag=["away"])
 
 
-def _handle_mode(server_view: views.ServerView, setter_nick: str, args: list[str]) -> None:
+def _handle_mode(
+    server_view: views.ServerView, setter_nick: str, args: list[str]
+) -> None:
     channel, mode_flags, target_nick = args
 
     channel_view = server_view.find_channel(channel)
@@ -192,7 +214,11 @@ def _handle_mode(server_view: views.ServerView, setter_nick: str, args: list[str
         setter_tag = "other-nick"
 
     channel_view.add_message(
-        "*", (setter_nick, [setter_tag]), (f" {message} ", []), (target_nick, [target_tag]), (".", [])
+        "*",
+        (setter_nick, [setter_tag]),
+        (f" {message} ", []),
+        (target_nick, [target_tag]),
+        (".", []),
     )
 
 
@@ -307,7 +333,9 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         channel_view.userlist.set_nicks(join.nicks)
 
     topic = join.topic or "(no topic)"
-    channel_view.add_message("*", (f"The topic of {channel_view.channel_name} is: {topic}", []))
+    channel_view.add_message(
+        "*", (f"The topic of {channel_view.channel_name} is: {topic}", [])
+    )
 
     if channel not in server_view.core.autojoin:
         server_view.core.autojoin.append(channel)
@@ -319,7 +347,9 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
         server_view.core.send(f"JOIN {channel}")
 
 
-def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
+def _handle_whoreply(
+    server_view: views.ServerView, sender: str, command: str, args: list[str]
+) -> None:
     assert len(args) == 8
     nick = args[5]
     away_status = args[6][0]
@@ -329,7 +359,9 @@ def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, a
         view.userlist.treeview.item(nick, tag=["away"])
 
 
-def _handle_literally_topic(server_view: views.ServerView, who_changed: str, args: list[str]) -> None:
+def _handle_literally_topic(
+    server_view: views.ServerView, who_changed: str, args: list[str]
+) -> None:
     channel, topic = args
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
@@ -340,12 +372,18 @@ def _handle_literally_topic(server_view: views.ServerView, who_changed: str, arg
         nick_tag = "other-nick"
 
     channel_view.add_message(
-        "*", (who_changed, [nick_tag]), (f" changed the topic of {channel_view.channel_name}: {topic}", [])
+        "*",
+        (who_changed, [nick_tag]),
+        (f" changed the topic of {channel_view.channel_name}: {topic}", []),
     )
 
 
 def _handle_unknown_message(
-    server_view: views.ServerView, sender: str | None, sender_is_server: bool, command: str, args: list[str]
+    server_view: views.ServerView,
+    sender: str | None,
+    sender_is_server: bool,
+    command: str,
+    args: list[str],
 ) -> None:
     if sender_is_server:
         # Errors seem to always be 4xx, 5xx or 7xx.
@@ -356,13 +394,17 @@ def _handle_unknown_message(
             view = server_view.irc_widget.get_current_view()
         else:
             view = server_view
-        view.add_message(sender or "???", (" ".join([command] + args), ["error"] if is_error else []))
+        view.add_message(
+            sender or "???", (" ".join([command] + args), ["error"] if is_error else [])
+        )
 
     else:
         server_view.add_message(sender or "???", (" ".join([command] + args), []))
 
 
-def _handle_received_message(server_view: views.ServerView, msg: backend.ReceivedLine) -> None:
+def _handle_received_message(
+    server_view: views.ServerView, msg: backend.ReceivedLine
+) -> None:
     if msg.command == "PRIVMSG":
         assert msg.sender is not None
         _handle_privmsg(server_view, msg.sender, msg.args)
@@ -426,7 +468,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
         _handle_literally_topic(server_view, msg.sender, msg.args)
 
     else:
-        _handle_unknown_message(server_view, msg.sender, msg.sender_is_server, msg.command, msg.args)
+        _handle_unknown_message(
+            server_view, msg.sender, msg.sender_is_server, msg.command, msg.args
+        )
 
 
 # Returns True this function should be called again, False if quitting
@@ -440,7 +484,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
 
     if isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
-            view.add_message("", (event.message, ["error" if event.is_error else "info"]))
+            view.add_message(
+                "", (event.message, ["error" if event.is_error else "info"])
+            )
         return True
 
     if isinstance(event, backend.HostChanged):
@@ -452,7 +498,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
     if isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)
         if channel_view is None:
-            assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), event.nick_or_channel
+            assert not re.fullmatch(
+                backend.CHANNEL_REGEX, event.nick_or_channel
+            ), event.nick_or_channel
             pm_view = server_view.find_pm(event.nick_or_channel)
             if pm_view is None:
                 # start of a new PM conversation

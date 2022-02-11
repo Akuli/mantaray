@@ -16,7 +16,14 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         core.send_privmsg(view.nick_of_other_user, message)
     else:
         view.add_message(
-            "*", (("You can't send messages here. " "Join a channel instead and send messages there."), [])
+            "*",
+            (
+                (
+                    "You can't send messages here. "
+                    "Join a channel instead and send messages there."
+                ),
+                [],
+            ),
         )
 
 
@@ -34,7 +41,9 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         try:
             func = _commands[entry_content.split()[0].lower()]
         except KeyError:
-            view.add_message("*", (f"No command named '{entry_content.split()[0]}'", []))
+            view.add_message(
+                "*", (f"No command named '{entry_content.split()[0]}'", [])
+            )
             return False
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
@@ -96,7 +105,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             core.send(f"PART {view.channel_name}")
         else:
             view.add_message("*", ("Usage: /part [<channel>]", []))
-            view.add_message("*", ("Channel is needed unless you are currently on a channel.", []))
+            view.add_message(
+                "*", ("Channel is needed unless you are currently on a channel.", [])
+            )
 
     # Doesn't support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
@@ -153,7 +164,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if away_message is None:
             core.send("AWAY")
             for view in view.server_view.get_subviews():
-                view.add_message("*", ("You are no longer marked as being away", ["info"]))
+                view.add_message(
+                    "*", ("You are no longer marked as being away", ["info"])
+                )
                 if isinstance(view, ChannelView):
                     view.userlist.treeview.item(core.nick, tag=[])
         else:
@@ -162,8 +175,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
                 view.add_message("*", ("You have been marked as being away", ["info"]))
                 if isinstance(view, ChannelView):
                     view.userlist.treeview.item(core.nick, tag=["away"])
-                
-            
+
         # TODO: Make own nick gray (306) and back to white (305)
 
     return {

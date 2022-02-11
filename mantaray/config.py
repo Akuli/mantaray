@@ -61,7 +61,10 @@ def load_from_file(config_dir: Path) -> Config | None:
                 server.setdefault("extra_notifications", [])
                 server.setdefault("audio_notification", False)
                 server.setdefault("away_notify", True)
-                server.setdefault("join_leave_hiding", {"show_by_default": True, "exception_nicks": []})
+                server.setdefault(
+                    "join_leave_hiding",
+                    {"show_by_default": True, "exception_nicks": []},
+                )
             if "font_family" not in result or "font_size" not in result:
                 result["font_family"], result["font_size"] = get_default_fixed_font()
             return result
@@ -132,11 +135,19 @@ class _JoinLeaveWidget(ttk.Frame):
             exceptions = self._hide_these_users_entry.get().split()
         else:
             exceptions = self._show_these_users_entry.get().split()
-        return {"show_by_default": self._show_by_default_var.get(), "exception_nicks": exceptions}
+        return {
+            "show_by_default": self._show_by_default_var.get(),
+            "exception_nicks": exceptions,
+        }
 
 
 class _DialogContent(ttk.Frame):
-    def __init__(self, master: tkinter.Misc, initial_config: ServerConfig, connecting_to_new_server: bool):
+    def __init__(
+        self,
+        master: tkinter.Misc,
+        initial_config: ServerConfig,
+        connecting_to_new_server: bool,
+    ):
         super().__init__(master)
         self._initial_config = initial_config
         self.result: ServerConfig | None = None
@@ -154,7 +165,9 @@ class _DialogContent(ttk.Frame):
         self._setup_entry_bindings(self._port_entry)
         self._ssl_var = tkinter.BooleanVar(value=True)
         self._ssl_var.trace("w", self._guess_port_based_on_ssl)
-        self._ssl_checkbox = ttk.Checkbutton(self, text="Use SSL", variable=self._ssl_var)
+        self._ssl_checkbox = ttk.Checkbutton(
+            self, text="Use SSL", variable=self._ssl_var
+        )
         self._ssl_checkbox.grid(row=self._rownumber, column=2)
         self._rownumber += 1
 
@@ -189,7 +202,9 @@ class _DialogContent(ttk.Frame):
             self._join_part_quit = None
         else:
             self._join_part_quit = _JoinLeaveWidget(self)
-            self._join_part_quit.grid(row=self._rownumber, column=0, columnspan=3, sticky="we")
+            self._join_part_quit.grid(
+                row=self._rownumber, column=0, columnspan=3, sticky="we"
+            )
             self._rownumber += 1
 
         self._audio_var = tkinter.BooleanVar(value=initial_config["audio_notification"])
@@ -199,7 +214,9 @@ class _DialogContent(ttk.Frame):
             self.audio_notification_checkbox = ttk.Checkbutton(
                 self, text="Enable audio notification on ping", variable=self._audio_var
             )
-            self.audio_notification_checkbox.grid(row=self._rownumber, column=0, sticky="w", padx=5, pady=10)
+            self.audio_notification_checkbox.grid(
+                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
+            )
             self._rownumber += 1
 
         self._away_notify_var = tkinter.BooleanVar(value=initial_config["away_notify"])
@@ -207,27 +224,46 @@ class _DialogContent(ttk.Frame):
             self.away_notify_checkbox = None
         else:
             self.away_notify_checkbox = ttk.Checkbutton(
-                self, text="Notify me about other users' Away status", variable=self._away_notify_var
+                self,
+                text="Notify me about other users' Away status",
+                variable=self._away_notify_var,
             )
-            self.away_notify_checkbox.grid(row=self._rownumber, column=0, sticky="w", padx=5, pady=10)
+            self.away_notify_checkbox.grid(
+                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
+            )
             self._rownumber += 1
 
         if self._realname_entry is not None:
             infolabel = ttk.Label(
-                self, text=("* This doesn't need to be your real name.\n" "   You can set this to anything you want.")
+                self,
+                text=(
+                    "* This doesn't need to be your real name.\n"
+                    "   You can set this to anything you want."
+                ),
             )
-            infolabel.grid(row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+            infolabel.grid(
+                row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
+            )
             self._rownumber += 1
 
         self._statuslabel = ttk.Label(self)
-        self._statuslabel.grid(row=self._rownumber, column=0, columnspan=3, pady=5, sticky="swe")
-        self._statuslabel.bind("<Configure>", lambda event: self._statuslabel.config(wraplength=event.width))
+        self._statuslabel.grid(
+            row=self._rownumber, column=0, columnspan=3, pady=5, sticky="swe"
+        )
+        self._statuslabel.bind(
+            "<Configure>",
+            lambda event: self._statuslabel.config(wraplength=event.width),
+        )
         self.grid_rowconfigure(self._rownumber, weight=1)
         self._rownumber += 1
 
         self._buttonframe = ttk.Frame(self)
-        self._buttonframe.grid(row=self._rownumber, column=0, columnspan=3, padx=5, pady=5, sticky="we")
-        ttk.Button(self._buttonframe, text="Cancel", command=self.cancel).pack(side="right")
+        self._buttonframe.grid(
+            row=self._rownumber, column=0, columnspan=3, padx=5, pady=5, sticky="we"
+        )
+        ttk.Button(self._buttonframe, text="Cancel", command=self.cancel).pack(
+            side="right"
+        )
         self._connectbutton = ttk.Button(
             self._buttonframe,
             text=("Connect!" if connecting_to_new_server else "Reconnect"),
@@ -286,8 +322,12 @@ class _DialogContent(ttk.Frame):
 
         from .backend import NICK_REGEX, CHANNEL_REGEX
 
-        if self._nick_entry is not None and not re.fullmatch(NICK_REGEX, self._nick_entry.get()):
-            self._statuslabel.config(text=f"'{self._nick_entry.get()}' is not a valid nickname.")
+        if self._nick_entry is not None and not re.fullmatch(
+            NICK_REGEX, self._nick_entry.get()
+        ):
+            self._statuslabel.config(
+                text=f"'{self._nick_entry.get()}' is not a valid nickname."
+            )
             return False
 
         if self._channel_entry is not None:
@@ -328,8 +368,12 @@ class _DialogContent(ttk.Frame):
             "port": int(self._port_entry.get()),
             "ssl": self._ssl_var.get(),
             "nick": nick,
-            "username": (nick if self._username_entry is None else self._username_entry.get()),
-            "realname": (nick if self._realname_entry is None else self._realname_entry.get()),
+            "username": (
+                nick if self._username_entry is None else self._username_entry.get()
+            ),
+            "realname": (
+                nick if self._realname_entry is None else self._realname_entry.get()
+            ),
             "password": self._password_entry.get() or None,
             "joined_channels": (
                 self._initial_config["joined_channels"]
@@ -350,7 +394,8 @@ class _DialogContent(ttk.Frame):
 
 # returns None if user cancel
 def show_connection_settings_dialog(
-    transient_to: tkinter.Tk | tkinter.Toplevel | None, initial_config: ServerConfig | None
+    transient_to: tkinter.Tk | tkinter.Toplevel | None,
+    initial_config: ServerConfig | None,
 ) -> ServerConfig | None:
 
     dialog = tkinter.Toplevel()
