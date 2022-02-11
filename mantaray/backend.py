@@ -255,6 +255,7 @@ class IrcCore:
                     elif byte == _RECONNECT:
                         return False
                     elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
+                        # The purpose of this byte is to wake up the select() below.
                         pass
                     else:
                         raise ValueError(byte)
