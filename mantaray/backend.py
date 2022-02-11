@@ -281,7 +281,7 @@ class IrcCore:
                         self._handle_received_line(bytes(line) + b"\n")
 
             while self._send_queue:
-                data, done_event = self._send_queue.popleft()
+                data, done_event = self._send_queue[0]
                 try:
                     n = sock.send(data)
                 except ssl.SSLWantReadError:
@@ -294,12 +294,13 @@ class IrcCore:
                     if self._verbose:
                         print("Send:", data[:n])
                     if n == len(data):
+                        self._send_queue.popleft()
                         if done_event is not None:
                             self.event_queue.put(done_event)
                             if isinstance(done_event, Quit):
                                 return True
                     else:
-                        self._send_queue.appendleft((data[n:], done_event))
+                        self._send_queue[0] = (data[n:], done_event)
 
             select.select(wanna_recv, wanna_send, [])
 
