@@ -139,7 +139,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path(name)),
-                Path(tempfile.mkdtemp(prefix="mantaray-tests-")),
+                Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
             # Fails sometimes on macos github actions, don't know yet why
@@ -160,8 +160,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
         # If this cleanup doesn't run, we might leave threads running that will disturb other tests
         for irc_widget in irc_widgets_dict.values():
             for server_view in irc_widget.get_server_views():
-                server_view.core.quit()
-                server_view.core.wait_for_threads_to_stop(verbose=True)
+                server_view.core.quit(wait=True)
+
             # On windows, we need to wait until log files are closed before removing them
             wait_until(lambda: not irc_widget.winfo_exists())
             shutil.rmtree(irc_widget.log_manager.log_dir)

@@ -5,9 +5,10 @@ import time
 import sys
 import tkinter
 import subprocess
+import webbrowser
 from playsound import playsound  # type: ignore
 from tkinter import ttk
-from typing import Any, Sequence, TYPE_CHECKING, IO
+from typing import Any, TYPE_CHECKING, IO
 
 from mantaray import backend, textwidget_tags, config, received
 
@@ -58,39 +59,10 @@ def _show_popup(title: str, text: str) -> None:
         traceback.print_exc()
 
 
-def _parse_privmsg(
-    sender: str,
-    message: str,
-    self_nick: str,
-    all_nicks: Sequence[str],
-    *,
-    pinged: bool = False,
-) -> tuple[str, list[tuple[str, list[str]]]]:
-    sent = sender.lower() == self_nick.lower()
-    chunks = []
-
-    # /me asdf --> "\x01ACTION asdf\x01"
-    if message.startswith("\x01ACTION ") and message.endswith("\x01"):
-        if sent:
-            chunks.append((sender, ["self-nick"]))
-        else:
-            chunks.append((sender, ["other-nick"]))
-        message = message[7:-1]  # keep the space
-        sender = "*"
-
-    for substring, base_tags in textwidget_tags.parse_text(message):
-        for subsubstring, nick_tag in backend.find_nicks(
-            substring, self_nick, all_nicks
-        ):
-            tags = base_tags.copy()
-            if nick_tag is not None:
-                tags.append(nick_tag)
-            tags.append("sent-privmsg" if sent else "received-privmsg")
-            chunks.append((subsubstring, tags))
-
-    if pinged:
-        chunks = [(text, tags + ["pinged"]) for text, tags in chunks]
-    return (sender, chunks)
+class MessagePart:
+    def __init__(self, text: str, *, tags: list[str] = []):
+        self.text = text
+        self.tags = tags.copy()
 
 
 class View:
@@ -112,10 +84,21 @@ class View:
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
-        textwidget_tags.config_tags(self.textwidget)
+        textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
+
+    def _on_link_clicked(self, tag: textwidget_tags.ClickableTag, text: str) -> None:
+        if tag == "url":
+            webbrowser.open(text)
+        if tag == "other-nick":
+            # text is a nickname being clicked
+            existing_view = self.server_view.find_pm(text)
+            if existing_view is None:
+                self.irc_widget.add_view(PMView(self.server_view, text))
+            else:
+                self.irc_widget.view_selector.selection_set(existing_view.view_id)
 
     def get_log_name(self) -> str:
         raise NotImplementedError
@@ -174,7 +157,7 @@ class View:
             self.view_id, tags=list(old_tags - {"new_message", "pinged"})
         )
 
-    def add_tag(self, tag: Literal["new_message", "pinged"]) -> None:
+    def add_view_selector_tag(self, tag: Literal["new_message", "pinged"]) -> None:
         if self.irc_widget.get_current_view() == self:
             return
 
@@ -198,34 +181,35 @@ class View:
 
     def add_message(
         self,
-        sender: str,
-        *chunks: tuple[str, list[str]],
-        pinged: bool = False,
+        message: str | list[MessagePart],
+        *,
+        sender: str = "*",
+        sender_tag: str | None = None,
+        tag: Literal["info", "error", "sent-privmsg", "received-privmsg"] = "info",
         show_in_gui: bool = True,
+        pinged: bool = False,
     ) -> None:
+        if isinstance(message, str):
+            message = [MessagePart(message)]
+
         if show_in_gui:
             # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
-
-            if sender == "*":
-                sender_tags = []
-            elif sender == self.server_view.core.nick:
-                sender_tags = ["self-nick"]
-            else:
-                sender_tags = ["other-nick"]
 
             self.textwidget.config(state="normal")
             start = self.textwidget.index("end - 1 char")
             self.textwidget.insert("end", time.strftime("[%H:%M]"))
             self.textwidget.insert("end", "\t")
-            self.textwidget.insert("end", sender, sender_tags)
+            self.textwidget.insert(
+                "end", sender, [] if sender_tag is None else [sender_tag]
+            )
             self.textwidget.insert("end", "\t")
 
-            if chunks:
+            if message:
                 insert_args: list[Any] = []
-                for text, tags in chunks:
-                    insert_args.append(text)
-                    insert_args.append(tags + ["text"])
+                for part in message:
+                    insert_args.append(part.text)
+                    insert_args.append(part.tags + ["text", tag])
                 self.textwidget.insert("end", *insert_args)
 
             self.textwidget.insert("end", "\n")
@@ -242,7 +226,7 @@ class View:
             print(
                 time.asctime(),
                 sender,
-                "".join(text for text, tags in chunks),
+                "".join(part.text for part in message),
                 sep="\t",
                 file=self.log_file,
                 flush=True,
@@ -261,7 +245,7 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        self.core.start_threads()
+        self.core.start_thread()
 
     def get_log_name(self) -> str:
         # Log to file named logs/foobar/server.log.
@@ -396,12 +380,6 @@ class ChannelView(View):
         super().destroy_widgets()
         self.userlist.treeview.destroy()
 
-    def on_privmsg(self, sender: str, message: str, pinged: bool = False) -> None:
-        sender, chunks = _parse_privmsg(
-            sender, message, self.server_view.core.nick, self.userlist.get_nicks()
-        )
-        self.add_message(sender, *chunks, pinged=pinged)
-
 
 # PM = private messages, also known as DM = direct messages
 class PMView(View):
@@ -421,12 +399,3 @@ class PMView(View):
 
     def get_log_name(self) -> str:
         return self.nick_of_other_user
-
-    def on_privmsg(self, sender: str, message: str) -> None:
-        sender, chunks = _parse_privmsg(
-            sender,
-            message,
-            self.server_view.core.nick,
-            [self.server_view.core.nick, self.nick_of_other_user],
-        )
-        self.add_message(sender, *chunks)
