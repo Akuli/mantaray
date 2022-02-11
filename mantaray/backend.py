@@ -111,7 +111,7 @@ class IrcCore:
         self._apply_config(server_config)
 
         self._send_queue: collections.deque[
-            tuple[bytes, SentPrivmsg | None]
+            tuple[bytes, SentPrivmsg | Quit | None]
         ] = collections.deque()
 
         # Sending to _loop_notify_send tells the select() loop to do something special
@@ -301,9 +301,16 @@ class IrcCore:
                 else:
                     self._send_queue.appendleft((data[n:], done_event))
 
-    def send(self, message: str, *, done_event: SentPrivmsg | None = None) -> None:
+    def send(
+        self, message: str, *, done_event: SentPrivmsg | Quit | None = None
+    ) -> None:
         self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
-        self._loop_notify_send.sendall(_BYTES_ADDED_TO_SEND_QUEUE)
+        try:
+            self._loop_notify_send.sendall(_BYTES_ADDED_TO_SEND_QUEUE)
+        except OSError as e:
+            if self._loop_notify_send.fileno() != -1:
+                # not closed
+                raise e
 
     @staticmethod
     def _parse_received_message(line: str) -> ReceivedLine:
@@ -337,7 +344,13 @@ class IrcCore:
 
         old_host = self.host
         self._apply_config(server_config)
-        self._loop_notify_send.sendall(_RECONNECT)
+
+        try:
+            self._loop_notify_send.sendall(_RECONNECT)
+        except OSError as e:
+            if self._loop_notify_send.fileno() != -1:
+                # not closed
+                raise e
 
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))

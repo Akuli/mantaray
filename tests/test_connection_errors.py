@@ -20,9 +20,7 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
         wait_until(lambda: "Connection error: [WinError 10054] " in alice.text())
     else:
         wait_until(
-            lambda: (
-                "Connection error: Server closed the connection!" in alice.text()
-            )
+            lambda: "Connection error: Server closed the connection!" in alice.text()
         )
     assert alice.get_current_view().channel_name == "#autojoin"
 
@@ -33,7 +31,7 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     # The delays can vary:
     #   - My computer: 0.00015sec
     #   - Github actions windows: 0.937sec
-    print("\n*** DELAY ***", end-start)
+    print("\n*** DELAY ***", end - start)
     assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
@@ -49,9 +47,7 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
         # error message depends on language
         assert "Connection error: [WinError 10054] " in lines[-4]
     else:
-        assert lines[-4].endswith(
-            "Connection error: Server closed the connection!"
-        )
+        assert lines[-4].endswith("Connection error: Server closed the connection!")
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
