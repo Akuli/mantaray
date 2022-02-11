@@ -17,27 +17,20 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
     irc_server.process.kill()
     if sys.platform == "win32":
         # error message depends on language
-        wait_until(lambda: "Connection error: [WinError 10054] " in alice.text())
+        wait_until(lambda: "Error while receiving: [WinError 10054] " in alice.text())
     else:
         wait_until(
-            lambda: "Connection error: Server closed the connection!" in alice.text()
+            lambda: (
+                "Error while receiving: Server closed the connection!" in alice.text()
+            )
         )
     assert alice.get_current_view().channel_name == "#autojoin"
 
     start = time.monotonic()
-    alice.get_server_views()[0].core.quit(wait=True)
+    alice.get_server_views()[0].core.quit()
+    alice.get_server_views()[0].core.wait_for_threads_to_stop()
     end = time.monotonic()
-
-    # Typical delays delays can vary:
-    #   - Linux: 0.00015sec
-    #   - MacOS: 0.0003sec
-    #   - Windows: 0.93sec
-    #
-    # I don't know why windows is so bad, but it really is.
-    if sys.platform == "win32":
-        assert end - start < 2
-    else:
-        assert end - start < 0.1
+    assert end - start < 0.5  # on my computer, typically 0.08 or so
 
 
 def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
@@ -50,9 +43,11 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
     lines = alice.text().splitlines()
     if sys.platform == "win32":
         # error message depends on language
-        assert "Connection error: [WinError 10054] " in lines[-4]
+        assert "Error while receiving: [WinError 10054] " in lines[-4]
     else:
-        assert lines[-4].endswith("Connection error: Server closed the connection!")
+        assert lines[-4].endswith(
+            "Error while receiving: Server closed the connection!"
+        )
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]

@@ -16,8 +16,14 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         core.send_privmsg(view.nick_of_other_user, message)
     else:
         view.add_message(
-            "You can't send messages here. Join a channel instead and send messages there.",
-            tag="error",
+            "*",
+            (
+                (
+                    "You can't send messages here. "
+                    "Join a channel instead and send messages there."
+                ),
+                [],
+            ),
         )
 
 
@@ -36,7 +42,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             func = _commands[entry_content.split()[0].lower()]
         except KeyError:
             view.add_message(
-                f"No command named '{entry_content.split()[0]}'", tag="error"
+                "*", (f"No command named '{entry_content.split()[0]}'", [])
             )
             return False
 
@@ -54,7 +60,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage)
+            view.add_message("*", ("Usage: " + usage, []))
             return False
 
         func(view, core, *args)
@@ -98,9 +104,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         elif isinstance(view, ChannelView):
             core.send(f"PART {view.channel_name}")
         else:
-            view.add_message("Usage: /part [<channel>]")
+            view.add_message("*", ("Usage: /part [<channel>]", []))
             view.add_message(
-                "Channel is needed unless you are currently on a channel.", tag="error"
+                "*", ("Channel is needed unless you are currently on a channel.", [])
             )
 
     # Doesn't support specifying a reason, because when talking about these commands, I
@@ -115,9 +121,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if isinstance(view, ChannelView):
             core.send(f"TOPIC {view.channel_name} :{new_topic}")
         else:
-            view.add_message(
-                "You must be on a channel to change its topic.", tag="error"
-            )
+            view.add_message("*", ("You must be on a channel to change its topic.", []))
 
     def me(view: View, core: IrcCore, message: str) -> None:
         _send_privmsg(view, core, "\x01ACTION " + message + "\x01")
@@ -139,13 +143,13 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} +o :{nick}")
         else:
-            view.add_message("You can use /op only on a channel.", tag="error")
+            view.add_message("*", ("You can use /op only on a channel.", ["error"]))
 
     def deop(view: View, core: IrcCore, nick: str) -> None:
         if isinstance(view, ChannelView):
             core.send(f"MODE {view.channel_name} -o :{nick}")
         else:
-            view.add_message("You can use /deop only on a channel.", tag="error")
+            view.add_message("*", ("You can use /deop only on a channel.", ["error"]))
 
     def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
         if isinstance(view, ChannelView):
@@ -154,7 +158,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
             else:
                 core.send(f"KICK {view.channel_name} {nick} :{reason}")
         else:
-            view.add_message("You can use /kick only on a channel.", tag="error")
+            view.add_message("*", ("You can use /kick only on a channel.", ["error"]))
 
     def away(view: View, core: IrcCore, away_message: str | None = None) -> None:
         if away_message is None:
