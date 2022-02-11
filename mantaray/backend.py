@@ -193,8 +193,134 @@ class IrcCore:
                 self.event_queue.put(
                     ConnectivityMessage(f"Error while receiving: {e}", is_error=True)
                 )
-                # get ready to connect again
-                self._disconnect()
+                quitting = False
+            self._send_and_recv_loop_running = False
+
+            sock.settimeout(1)
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except (OSError, ssl.SSLError):
+                pass
+            sock.close()
+            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=True))
+
+            if quitting:
+                self.event_queue.put(Quit())
+                self._loop_notify_send.close()
+                self._loop_notify_recv.close()
+                return
+
+    def _connect(self) -> socket.socket | ssl.SSLSocket:
+        sock: socket.socket | ssl.SSLSocket
+
+        if self.ssl:
+            context = ssl.create_default_context()
+            sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
+        else:
+            sock = socket.socket()
+
+        try:
+            # Unfortunately there's no such thing as non-blocking connect().
+            # Unless you don't invoke getaddrinfo(), which will always block.
+            # But then you can't specify a host name to connect to, only an IP.
+            #
+            # (asyncio manually calls getaddrinfo() in a separate thread, and
+            # manages to do it in a way that makes connecting slow on my system)
+            sock.settimeout(15)
+            sock.connect((self.host, self.port))
+        except Exception as e:
+            sock.close()
+            raise e
+
+        return sock
+
+    # I used to have separate send and receive threads, but I decided to use select() instead.
+    # It's more code, but avoiding race conditions is easier with less threads.
+    def _send_and_recv_loop(self, sock: socket.socket | ssl.SSLSocket) -> bool:
+        sock.setblocking(False)
+        recv_buffer = bytearray()
+
+        while True:
+            wanna_recv = set()
+            wanna_send = set()
+
+            while True:
+                try:
+                    byte = self._loop_notify_recv.recv(1)
+                except BlockingIOError:
+                    wanna_recv.add(self._loop_notify_recv)
+                    break
+                else:
+                    if byte == _QUIT_THE_SERVER:
+                        return True
+                    elif byte == _RECONNECT:
+                        return False
+                    elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
+                        # The purpose of this byte is to wake up the select() below.
+                        pass
+                    else:
+                        raise ValueError(byte)
+
+            while True:
+                try:
+                    received = sock.recv(4096)
+                except (ssl.SSLWantReadError, BlockingIOError):
+                    wanna_recv.add(sock)
+                    break
+                except ssl.SSLWantWriteError:
+                    wanna_send.add(sock)
+                    break
+                else:
+                    if not received:
+                        raise OSError("Server closed the connection!")
+                    recv_buffer += received
+
+                    # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+                    split_result = recv_buffer.split(b"\n")
+                    recv_buffer = split_result.pop()
+                    for line in split_result:
+                        self._handle_received_line(bytes(line) + b"\n")
+
+            while self._send_queue:
+                data, done_event = self._send_queue[0]
+                try:
+                    n = sock.send(data)
+                except ssl.SSLWantReadError:
+                    wanna_send.add(sock)
+                    break
+                except (ssl.SSLWantWriteError, BlockingIOError):
+                    wanna_send.add(sock)
+                    break
+                else:
+                    if self._verbose:
+                        print("Send:", data[:n])
+                    if n == len(data):
+                        self._send_queue.popleft()
+                        if done_event is not None:
+                            self.event_queue.put(done_event)
+                            if isinstance(done_event, Quit):
+                                return True
+                    else:
+                        self._send_queue[0] = (data[n:], done_event)
+
+            select.select(wanna_recv, wanna_send, [])
+
+    def _handle_received_line(self, line: bytes) -> None:
+        if self._verbose:
+            print("Recv:", line)
+        # Allow \r\n line endings, or \r in middle of message
+        line = line.replace(b"\r\n", b"\n").rstrip(b"\n")
+
+        if not line:
+            # "Empty messages are silently ignored"
+            # https://tools.ietf.org/html/rfc2812#section-2.3.1
+            return
+        line_string = line.decode("utf-8", errors="replace")
+        # TODO: should be handled in received.py like everything else
+        if line_string.startswith("PING"):
+            self.send(line_string.replace("PING", "PONG", 1))
+            return
+        self.event_queue.put(self._parse_received_message(line_string))
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
