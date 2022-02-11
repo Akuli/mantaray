@@ -251,7 +251,6 @@ class IrcCore:
                 )
 
             if self._loop_notify_recv in can_read:
-                # We should call select() again asap
                 byte = self._loop_notify_recv.recv(1)
                 if byte == _QUIT_THE_SERVER:
                     return True
