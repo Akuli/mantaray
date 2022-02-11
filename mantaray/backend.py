@@ -268,7 +268,7 @@ class IrcCore:
                     if self._verbose:
                         print("Recv:", line)
                     # Allow \r\n line endings, or \r in middle of message
-                    line = line.replace(b"\r\n", b"").rstrip(b"\n")
+                    line = line.replace(b"\r\n", b"\n").rstrip(b"\n")
 
                     if not line:
                         # "Empty messages are silently ignored"
@@ -302,8 +302,8 @@ class IrcCore:
         try:
             self._loop_notify_send.sendall(_BYTES_ADDED_TO_SEND_QUEUE)
         except OSError as e:
+            # Expected to fail if we already quit, and socket is closed
             if self._loop_notify_send.fileno() != -1:
-                # not closed
                 raise e
 
     @staticmethod
@@ -342,8 +342,8 @@ class IrcCore:
         try:
             self._loop_notify_send.sendall(_RECONNECT)
         except OSError as e:
+            # Expected to fail if we already quit, and socket is closed
             if self._loop_notify_send.fileno() != -1:
-                # not closed
                 raise e
 
         if old_host != self.host:
@@ -359,9 +359,10 @@ class IrcCore:
         def force_quit() -> None:
             try:
                 self._loop_notify_send.sendall(_QUIT_THE_SERVER)
-            except OSError:
-                # already quit
-                pass
+            except OSError as e:
+                # Expected to fail if we already quit, and socket is closed
+                if self._loop_notify_send.fileno() != -1:
+                    raise e
 
         if self._send_and_recv_loop_running:
             # Attempt a clean quit
