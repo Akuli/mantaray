@@ -165,10 +165,10 @@ class IrcCore:
                     if timeout < 0:
                         break
 
-                    can_read = select.select([self._loop_notify_recv], [], [], timeout)[
-                        0
-                    ]
-                    if self._loop_notify_recv in can_read:
+                    can_receive = select.select(
+                        [self._loop_notify_recv], [], [], timeout
+                    )[0]
+                    if self._loop_notify_recv in can_receive:
                         byte = self._loop_notify_recv.recv(1)
                         if byte == _QUIT_THE_SERVER:
                             self.event_queue.put(Quit())
@@ -240,13 +240,8 @@ class IrcCore:
         recv_buffer = bytearray()
 
         while True:
-            if self._send_queue:
-                send_list = [sock]
-            else:
-                send_list = []
-
             can_read, can_write, error = select.select(
-                [sock, self._loop_notify_recv], send_list, []
+                [sock, self._loop_notify_recv], [sock] if self._send_queue else [], []
             )
 
             if error:
@@ -260,8 +255,12 @@ class IrcCore:
                 byte = self._loop_notify_recv.recv(1)
                 if byte == _QUIT_THE_SERVER:
                     return True
-                if byte == _RECONNECT:
+                elif byte == _RECONNECT:
                     return False
+                elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
+                    continue
+                else:
+                    raise ValueError(byte)
 
             if sock in can_read:
                 received = sock.recv(4096)
