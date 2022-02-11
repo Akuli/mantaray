@@ -16,16 +16,10 @@ def test_join_and_part(alice, bob, wait_until, part_command):
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in bob.text())
     wait_until(lambda: "Bob joined #lol.\n" in alice.text())
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
-        "#autojoin",
-        "#lol",
-    ]
+    assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin", "#lol"]
 
     bob.move_view_up()
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
-        "#lol",
-        "#autojoin",
-    ]
+    assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#lol", "#autojoin"]
 
     bob.entry.insert("end", part_command)
     bob.on_enter_pressed()
@@ -52,18 +46,12 @@ def test_nick_change(alice, bob, wait_until):
     wait_until(lambda: "lolwat is now known as LolWat.\n" in bob.text())
 
 
-@pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd is buggy", strict=True
-)
+@pytest.mark.xfail(os.environ["IRC_SERVER"] == "hircd", reason="hircd is buggy", strict=True)
 def test_topic_change(alice, bob, wait_until):
     alice.entry.insert("end", "/topic blah blah")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text()
-    )
-    wait_until(
-        lambda: "Alice changed the topic of #autojoin: blah blah\n" in bob.text()
-    )
+    wait_until(lambda: "Alice changed the topic of #autojoin: blah blah\n" in alice.text())
+    wait_until(lambda: "Alice changed the topic of #autojoin: blah blah\n" in bob.text())
 
     bob.entry.insert("end", "/part #autojoin")
     bob.on_enter_pressed()
@@ -74,15 +62,11 @@ def test_topic_change(alice, bob, wait_until):
     wait_until(lambda: "The topic of #autojoin is: blah blah\n" in bob.text())
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support KICK"
-)
+@pytest.mark.skipif(os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support KICK")
 def test_kick(alice, bob, wait_until):
     alice.entry.insert("end", "/kick bob")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: "Alice has kicked Bob from #autojoin. (Reason: Bob)" in alice.text()
-    )
+    wait_until(lambda: "Alice has kicked Bob from #autojoin. (Reason: Bob)" in alice.text())
     wait_until(
         lambda: (
             "Alice has kicked you from #autojoin. (Reason: Bob) You can still join by typing /join #autojoin."
@@ -96,12 +80,7 @@ def test_kick(alice, bob, wait_until):
 
     alice.entry.insert("end", "/kick bob insane trolling")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: (
-            "Alice has kicked Bob from #autojoin. (Reason: insane trolling)"
-            in alice.text()
-        )
-    )
+    wait_until(lambda: ("Alice has kicked Bob from #autojoin. (Reason: insane trolling)" in alice.text()))
     wait_until(
         lambda: (
             "Alice has kicked you from #autojoin. (Reason: insane trolling) You can still join by typing /join #autojoin."
@@ -122,25 +101,17 @@ def test_me(alice, bob, wait_until):
     wait_until(lambda: "\t*\tAlice does something" in bob.text())
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support modes"
-)
+@pytest.mark.skipif(os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support modes")
 def test_op_deop(alice, bob, wait_until):
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: "Alice gives channel operator permissions to Bob" in alice.text()
-    )
+    wait_until(lambda: "Alice gives channel operator permissions to Bob" in alice.text())
     wait_until(lambda: "Alice gives channel operator permissions to Bob" in bob.text())
 
     alice.entry.insert("end", "/deop bob")
     alice.on_enter_pressed()
-    wait_until(
-        lambda: "Alice removes channel operator permissions from Bob" in alice.text()
-    )
-    wait_until(
-        lambda: "Alice removes channel operator permissions from Bob" in bob.text()
-    )
+    wait_until(lambda: "Alice removes channel operator permissions from Bob" in alice.text())
+    wait_until(lambda: "Alice removes channel operator permissions from Bob" in bob.text())
 
     alice.entry.insert("end", "/op nonexistent")
     alice.on_enter_pressed()
@@ -234,6 +205,22 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     wait_until(lambda: "send Bob hello there\n" in bob.text())
 
 
+def test_marked_away(alice, wait_until):
+    alice.entry.insert("end", "/away I am away")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You have been marked as being away" in alice.text())
+
+    alice.entry.insert("end", "/away")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are no longer marked as being away" in alice.text())
+
+
+def test_away_notify(alice, bob, wait_until):
+    alice.entry.insert("end", "/away I am away")
+    alice.on_enter_pressed()
+    wait_until(lambda: "Alice is away. (I am away)\n" in bob.text())
+
+
 @pytest.mark.parametrize(
     "command, error",
     [
@@ -254,8 +241,7 @@ def test_incorrect_usage(alice, wait_until, command, error):
 
 
 @pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd",
-    reason="hircd doesn't support KICK and unknown commands fail tests",
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support KICK and unknown commands fail tests"
 )
 def test_error_response(alice, wait_until):
     alice.entry.insert("end", "/kick xyz")
