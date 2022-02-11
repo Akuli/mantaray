@@ -89,14 +89,6 @@ class Quit:
 IrcEvent = Union[ReceivedLine, ConnectivityMessage, HostChanged, SentPrivmsg, Quit]
 
 
-# Simple version of select() to be used when disconnected
-def _wait_until_can_read(
-    sock: socket.socket | ssl.SSLSocket, *, timeout: float = 0
-) -> bool:
-    can_read, can_write, error = select.select([sock], [], [], timeout)
-    return sock in can_read
-
-
 # Special bytes to be put to loop notify socketpair
 _QUIT_THE_SERVER = b"q"
 _RECONNECT = b"r"
@@ -164,7 +156,9 @@ class IrcCore:
                     timeout = end - time.monotonic()
                     if timeout < 0:
                         break
-                    if _wait_until_can_read(self._loop_notify_recv, timeout=timeout):
+
+                    can_read = select.select([self._loop_notify_recv], [], [], timeout)[0]
+                    if self._loop_notify_recv in can_read:
                         byte = self._loop_notify_recv.recv(1)
                         if byte == _QUIT_THE_SERVER:
                             self.event_queue.put(Quit())
