@@ -12,8 +12,10 @@ RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
 RPL_WHOREPLY = "352"
-RPL_LOGGEDIN = "900"
+RPL_SASLSUCCESS = "903"
 RPL_TOPIC = "332"
+
+ERR_SASLFAIL = "904"
 
 
 def _get_views_relevant_for_nick(server_view: views.ServerView, nick: str) -> list[views.ChannelView | views.PMView]:
@@ -65,7 +67,6 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
             server_view.core.send_who(channel)
         return
 
-    
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
@@ -248,8 +249,13 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
 
     server_view.core.cap_req.pop()  # To evaluate how many more ACK/NAKs will be received from server
 
-    if len(server_view.core.cap_req) == 0:
-        server_view.core.send("CAP END")
+    # Need to wait for login success/fail from server if sasl is enabled before sending "CAP END"
+    if len(server_view.core.cap_req) == 0 and "sasl" not in server_view.core.cap_list:
+        _send_cap_end(server_view)
+
+
+def _send_cap_end(server_view: views.ServerView) -> None:
+    server_view.core.send("CAP END")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -311,7 +317,6 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
-    
 
 
 def _handle_whoreply(server_view: views.ServerView, sender: str, command: str, args: list[str]) -> None:
@@ -396,6 +401,9 @@ def _handle_received_message(server_view: views.ServerView, msg: backend.Receive
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
+
+    elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
+        _send_cap_end(server_view)
 
     elif msg.command == RPL_NAMREPLY:
         _handle_namreply(server_view, msg.args)
