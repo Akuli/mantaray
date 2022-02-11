@@ -8,6 +8,7 @@ from base64 import b64encode
 
 from mantaray import backend, views
 
+RPL_WELCOME = "001"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -264,13 +265,16 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
         if "sasl" in rejected:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
-        if "away-notify" in rejected:
-            raise ValueError("The server does not support away-notify.")
 
-    server_view.core.cap_req.pop()  # To evaluate how many more ACK/NAKs will be received from server
+    server_view.core.number_of_cap_req -= (
+        1  # To evaluate how many more ACK/NAKs will be received from server
+    )
 
     # Need to wait for login success/fail from server if sasl is enabled before sending "CAP END"
-    if len(server_view.core.cap_req) == 0 and "sasl" not in server_view.core.cap_list:
+    if (
+        server_view.core.number_of_cap_req == 0
+        and "sasl" not in server_view.core.cap_list
+    ):
         server_view.core.send("CAP END")
 
 
@@ -433,6 +437,10 @@ def _handle_received_message(
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
+
+    elif msg.command == RPL_WELCOME:
+        server_view.core.cap_req = []
+        server_view.core.cap_list = set()
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         server_view.core.send("CAP END")

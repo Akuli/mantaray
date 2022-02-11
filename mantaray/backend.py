@@ -317,6 +317,7 @@ class IrcCore:
 
         self.cap_req.append("away-notify")
 
+        self.number_of_cap_req = len(self.cap_req)
         for capability in self.cap_req:
             self.send(f"CAP REQ {capability}")
 
