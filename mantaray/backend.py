@@ -1,3 +1,9 @@
+"""Handles socket connections, sending and receiving.
+
+This file does not depend on the GUI in any way. For example, you could make an
+IRC bot using this file, without having to modify it at all.
+"""
+
 # Originally based on code written by https://github.com/PurpleMyst/
 # Most up to date irc docs I am aware of: https://modern.ircdocs.horse/
 # TODO: modernize rest of the file to be as the docs say instead of ancient RFCs
