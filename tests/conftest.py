@@ -140,6 +140,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 root_window,
                 config.load_from_file(Path(name)),
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
+                verbose=True,
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
             # Fails sometimes on macos github actions, don't know yet why
