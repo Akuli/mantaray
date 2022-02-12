@@ -31,15 +31,13 @@ def irc_widgets_dict():
 @pytest.fixture
 def wait_until(root_window, irc_widgets_dict):
     def actually_wait_until(condition, *, timeout=5):
-        from datetime import datetime, timedelta
-        start = datetime.now()
-        end = start + timedelta(seconds=timeout)
-        while datetime.now() < end:
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
             root_window.update()
             if condition():
                 return
         raise RuntimeError(
-            f"timed out waiting start={start} end={end} cur={datetime.now()}"
+            "timed out waiting"
             + "".join(
                 f"\n{name}'s text = {widget.text()!r}"
                 for name, widget in irc_widgets_dict.items()
@@ -108,13 +106,10 @@ class _IrcServer:
 
 @pytest.fixture
 def irc_server():
-    print("irc_server START")
     server = _IrcServer()
     try:
         server.start()
-        print("irc_server READY")
         yield server
-        print("irc_server STOPPING")
     finally:
         if server.process is not None:
             server.process.kill()
@@ -133,8 +128,6 @@ def irc_server():
         print(output.decode("utf-8", errors="replace"))
         raise RuntimeError
 
-    print("irc_server STOPPED")
-
 
 @pytest.fixture
 def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict):
@@ -143,12 +136,10 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
     try:
         for name in ["alice", "bob"]:
             users_who_join_before = list(irc_widgets_dict.values())
-            print("Instantiating IRCWidget:", name)
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path(name)),
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
-                verbose=True,
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
             # Fails sometimes on macos github actions, don't know yet why
@@ -166,7 +157,6 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
         yield irc_widgets_dict
 
     finally:
-        print("Alice and Bob quitting BEGINS")
         # If this cleanup doesn't run, we might leave threads running that will disturb other tests
         for irc_widget in irc_widgets_dict.values():
             for server_view in irc_widget.get_server_views():
@@ -175,7 +165,6 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             # On windows, we need to wait until log files are closed before removing them
             wait_until(lambda: not irc_widget.winfo_exists())
             shutil.rmtree(irc_widget.log_manager.log_dir)
-        print("Alice and Bob quitting DONE")
 
 
 @pytest.fixture

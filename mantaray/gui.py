@@ -326,7 +326,6 @@ class IrcWidget(ttk.PanedWindow):
 
     def _current_view_changed(self, event: object) -> None:
         new_view = self.get_current_view()
-        print("Current view changed", self._previous_view, "-->", new_view)
         if self._previous_view == new_view:
             return
 
@@ -354,9 +353,7 @@ class IrcWidget(ttk.PanedWindow):
         assert view.view_id not in self.views_by_id
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
-        self.update()  # Make sure <<TreeviewSelect>> works
         self.view_selector.selection_set(view.view_id)
-        print("Added and selected", view, "with view_name", view.view_name)
 
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)

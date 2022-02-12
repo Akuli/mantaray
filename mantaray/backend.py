@@ -161,7 +161,6 @@ class IrcCore:
                 raise e
 
     def _connect_loop(self) -> None:
-        print(self.nick, "_connect_loop starts")
         while True:
             # send queue contents were for previous connection
             self._send_queue.clear()
@@ -323,9 +322,7 @@ class IrcCore:
                     else:
                         self._send_queue[0] = (data[n:], done_event)
 
-            print(self.nick, "select BEGIN")
-            r = select.select(wanna_recv, wanna_send, [])
-            print(self.nick, "select ret -->", r)
+            select.select(wanna_recv, wanna_send, [])
 
     def _handle_received_line(self, line: bytes) -> None:
         if self._verbose:
