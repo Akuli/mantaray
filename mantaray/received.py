@@ -427,7 +427,7 @@ def _handle_whoreply(
     view = server_view.find_channel(args[1])
 
     if away_status.lower() == "g":
-        view.userlist.treeview.item(nick, tag=["away"])
+        view.userlist.set_away(nick, True)
 
 
 def _handle_literally_topic(
@@ -518,6 +518,7 @@ def _handle_received_message(
         _handle_authenticate(server_view)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
+        server_view.add_message(f'{msg.command} {" ".join(msg.args)}', msg.server)
         server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
