@@ -237,10 +237,11 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
-        if not args:
-            view.userlist.set_away(nick, False)
-        else:
-            view.userlist.set_away(nick, True)
+        if isinstance(view, views.ChannelView):
+            if not args:
+                view.userlist.set_away(nick, False)
+            else:
+                view.userlist.set_away(nick, True)
 
 
 def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
@@ -426,6 +427,7 @@ def _handle_whoreply(
     away_status = args[6][0]
     view = server_view.find_channel(args[1])
 
+    assert view is not None
     if away_status.lower() == "g":
         view.userlist.set_away(nick, True)
 
@@ -508,8 +510,8 @@ def _handle_received_message(
         _handle_kick(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "AWAY":
-        assert msg.sender is not None
-        _handle_away(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_away(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "CAP":
         _handle_cap(server_view, msg.args)
@@ -518,6 +520,7 @@ def _handle_received_message(
         _handle_authenticate(server_view)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
+        assert isinstance(msg, backend.MessageFromServer)
         server_view.add_message(f'{msg.command} {" ".join(msg.args)}', msg.server)
         server_view.core.send("CAP END")
 

@@ -90,7 +90,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         # TODO: plain '/join' for joining the current channel after kick?
         core.send(f"JOIN {channel}")
         if "away-notify" in core.cap_list:
-            view.send(f"WHO {channel}")
+            core.send(f"WHO {channel}")
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
@@ -161,14 +161,14 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         for view in view.server_view.get_subviews(include_server=True):
             view.add_message("You have been marked as being away")
             if isinstance(view, ChannelView):
-                view.userlist.treeview.item(core.nick, tag=["away"])
+                view.userlist.set_away(core.nick, True)
 
     def back(view: View, core: IrcCore) -> None:
         core.send("AWAY")
         for view in view.server_view.get_subviews(include_server=True):
             view.add_message("You are no longer marked as being away")
             if isinstance(view, ChannelView):
-                view.userlist.treeview.item(core.nick, tag=[])
+                view.userlist.set_away(core.nick, False)
 
     return {
         "/join": join,

@@ -44,9 +44,9 @@ class _UserList:
 
     def set_away(self, nick: str, away: bool) -> None:
         if away:
-            self.treeview.item(nick, tag=["away"])
+            self.treeview.item(nick, tags=["away"])
         else:
-            self.treeview.item(nick, tag=[])
+            self.treeview.item(nick, tags=[])
 
 
 def _show_popup(title: str, text: str) -> None:
