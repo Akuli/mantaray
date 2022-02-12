@@ -305,7 +305,7 @@ class IrcCore:
                 try:
                     n = sock.send(data)
                 except ssl.SSLWantReadError:
-                    wanna_send.add(sock)
+                    wanna_recv.add(sock)
                     break
                 except (ssl.SSLWantWriteError, BlockingIOError):
                     wanna_send.add(sock)
