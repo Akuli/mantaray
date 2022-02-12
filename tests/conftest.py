@@ -106,10 +106,13 @@ class _IrcServer:
 
 @pytest.fixture
 def irc_server():
+    print("irc_server START")
     server = _IrcServer()
     try:
         server.start()
+        print("irc_server READY")
         yield server
+        print("irc_server STOPPING")
     finally:
         if server.process is not None:
             server.process.kill()
@@ -127,6 +130,8 @@ def irc_server():
     if b"error" in output.lower():
         print(output.decode("utf-8", errors="replace"))
         raise RuntimeError
+
+    print("irc_server STOPPED")
 
 
 @pytest.fixture

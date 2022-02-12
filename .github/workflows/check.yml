@@ -71,4 +71,4 @@ jobs:
     - run: python3 -m pip install -r requirements-dev.txt
     - uses: GabrielBB/xvfb-action@v1.4
       with:
-        run: python3 -m pytest -vv
+        run: python3 -m pytest -vv -x
