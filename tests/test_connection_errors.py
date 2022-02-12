@@ -70,8 +70,9 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
                 in re.sub(r".*\t", "", user.text())
             )
         )
-    for user in [alice, bob]:
-        assert user.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
+
+    assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
+    assert bob.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
 
 
 def test_order_bug(alice, mocker, monkeypatch, wait_until):
