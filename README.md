@@ -66,7 +66,7 @@ you can update them by running `git pull` inside the submodule. For example:
 To experiment with new features locally, you can start [Mantatail](https://github.com/ThePhilgrim/MantaTail) manually:
 
     $ cd tests/MantaTail
-    $ python3 mantatail.py
+    $ python3 server.py
 
 Then in another terminal, run Mantaray.
 It comes with the correct configuration for connecting to Mantatail.
