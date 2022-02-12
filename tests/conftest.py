@@ -57,7 +57,7 @@ class _IrcServer:
         env["PYTHONUNBUFFERED"] = "1"
 
         if os.environ["IRC_SERVER"] == "mantatail":
-            command = [sys.executable, "mantatail.py"]
+            command = [sys.executable, "server.py"]
             working_dir = "tests/MantaTail"
         elif os.environ["IRC_SERVER"] == "hircd":
             command = [
