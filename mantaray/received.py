@@ -12,7 +12,6 @@ from mantaray import backend, views, textwidget_tags
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
-RPL_WELCOME = "001"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -517,10 +516,6 @@ def _handle_received_message(
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
-
-    elif msg.command == RPL_WELCOME:
-        server_view.core.cap_req = []
-        server_view.core.cap_list = set()
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         server_view.core.send("CAP END")

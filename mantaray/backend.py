@@ -133,7 +133,8 @@ class IrcCore:
         # Will contain the capabilities to negotiate with the server
         self.cap_req: list[str] = []
         # "CAP LIST" shows capabilities enabled on the client's connection
-        self.cap_list: Set[str] = set()
+        self.cap_list: set[str] = set()
+        self.pending_cap_count = 0
 
         self._send_and_recv_loop_running = False
 
@@ -167,8 +168,10 @@ class IrcCore:
 
     def _connect_loop(self) -> None:
         while True:
-            # send queue contents were for previous connection
+            # Clearing eventual content from previous connections
             self._send_queue.clear()
+            self.cap_req = []
+            self.cap_list = set()
 
             try:
                 self.event_queue.put(
