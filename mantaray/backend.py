@@ -323,7 +323,9 @@ class IrcCore:
                     else:
                         self._send_queue[0] = (data[n:], done_event)
 
-            select.select(wanna_recv, wanna_send, [])
+            print(self.name, "select BEGIN")
+            r = select.select(wanna_recv, wanna_send, [])
+            print(self.name, "select ret -->", r)
 
     def _handle_received_line(self, line: bytes) -> None:
         if self._verbose:
