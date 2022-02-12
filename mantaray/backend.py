@@ -223,6 +223,7 @@ class IrcCore:
             self.send(f"USER {self.username} 0 * :{self.realname}")
 
             self._send_and_recv_loop_running = True
+
             try:
                 quitting = self._send_and_recv_loop(sock)
             except (OSError, ssl.SSLError) as e:

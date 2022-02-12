@@ -12,6 +12,9 @@ from mantaray import backend, views, textwidget_tags
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
+
+RPL_UNAWAY = "305"
+RPL_NOWAWAY = "306"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -406,11 +409,16 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         # Can exist already, when has been disconnected from server
         channel_view.userlist.set_nicks(join.nicks)
 
+    if "away-notify" in server_view.core.cap_list:
+        server_view.core.send(f"WHO {channel}")
+
     topic = join.topic or "(no topic)"
     channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
 
     if channel not in server_view.core.autojoin:
         server_view.core.autojoin.append(channel)
+        # TODO: Make this into a setting. You don't always want to add every channel you join to autojoin.
+        # Would be nice if you could rightclick a channel in the channel list to add/remove it from autojoin.
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
@@ -538,6 +546,20 @@ def _handle_received_message(
 
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.command, msg.args)
+
+    elif msg.command == RPL_UNAWAY:
+        back_notification = msg.args[1]
+        for user_view in server_view.get_subviews(include_server=True):
+            user_view.add_message(back_notification)
+            if isinstance(user_view, views.ChannelView):
+                user_view.userlist.set_away(server_view.core.nick, False)
+
+    elif msg.command == RPL_NOWAWAY:
+        away_notification = msg.args[1]
+        for user_view in server_view.get_subviews(include_server=True):
+            user_view.add_message(away_notification)
+            if isinstance(user_view, views.ChannelView):
+                user_view.userlist.set_away(server_view.core.nick, True)
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
