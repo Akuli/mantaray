@@ -52,6 +52,16 @@ def test_nick_change(alice, bob, wait_until):
     wait_until(lambda: "lolwat is now known as LolWat.\n" in bob.text())
 
 
+def test_extra_spaces_ignored(alice, wait_until):
+    alice.entry.insert(0, "/nick lolwat     ")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as lolwat.\n" in alice.text())
+
+    alice.entry.insert(0, "/nick    lolwat2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as lolwat2.\n" in alice.text())
+
+
 @pytest.mark.xfail(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd is buggy", strict=True
 )
