@@ -353,6 +353,7 @@ class IrcWidget(ttk.PanedWindow):
         assert view.view_id not in self.views_by_id
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
+        self.update()  # Make sure <<TreeviewSelect>> works
         self.view_selector.selection_set(view.view_id)
 
     def remove_view(self, view: ChannelView | PMView) -> None:
