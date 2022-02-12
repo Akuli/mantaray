@@ -182,8 +182,8 @@ class View:
     def add_message(
         self,
         message: str | list[MessagePart],
-        *,
         sender: str = "*",
+        *,
         sender_tag: str | None = None,
         tag: Literal["info", "error", "sent-privmsg", "received-privmsg"] = "info",
         show_in_gui: bool = True,
