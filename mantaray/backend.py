@@ -1,3 +1,9 @@
+"""Handles socket connections, sending and receiving.
+
+This file does not depend on the GUI in any way. For example, you could make an
+IRC bot using this file, without having to modify it at all.
+"""
+
 # Originally based on code written by https://github.com/PurpleMyst/
 # Most up to date irc docs I am aware of: https://modern.ircdocs.horse/
 # TODO: modernize rest of the file to be as the docs say instead of ancient RFCs
@@ -56,9 +62,16 @@ RECONNECT_SECONDS = 5
 
 
 @dataclasses.dataclass
-class ReceivedLine:
-    sender: str | None
-    sender_is_server: bool
+class MessageFromServer:
+    server: str
+    command: str
+    args: list[str]
+
+
+@dataclasses.dataclass
+class MessageFromUser:
+    sender_nick: str
+    sender_user_mask: str  # nick!user@host
     command: str
     args: list[str]
 
@@ -86,7 +99,14 @@ class Quit:
     pass
 
 
-IrcEvent = Union[ReceivedLine, ConnectivityMessage, HostChanged, SentPrivmsg, Quit]
+IrcEvent = Union[
+    MessageFromServer,
+    MessageFromUser,
+    ConnectivityMessage,
+    HostChanged,
+    SentPrivmsg,
+    Quit,
+]
 
 
 # Special bytes to be put to loop notify socketpair
@@ -314,12 +334,10 @@ class IrcCore:
             # "Empty messages are silently ignored"
             # https://tools.ietf.org/html/rfc2812#section-2.3.1
             return
-        line_string = line.decode("utf-8", errors="replace")
-        # TODO: should be handled in received.py like everything else
-        if line_string.startswith("PING"):
-            self.send(line_string.replace("PING", "PONG", 1))
-            return
-        self.event_queue.put(self._parse_received_message(line_string))
+
+        self.event_queue.put(
+            self._parse_received_message(line.decode("utf-8", errors="replace"))
+        )
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
@@ -328,22 +346,15 @@ class IrcCore:
         self._notify_the_select_loop(_BYTES_ADDED_TO_SEND_QUEUE)
 
     @staticmethod
-    def _parse_received_message(line: str) -> ReceivedLine:
+    def _parse_received_message(line: str) -> MessageFromServer | MessageFromUser:
         if not line.startswith(":"):
-            sender_is_server = True  # TODO: when does this code run?
-            sender = None
+            # Server sends PING this way, for example
+            sender = "???"
             command, *args = line.split(" ")
         else:
+            # Most messages are like this.
             sender, command, *args = line.split(" ")
             sender = sender[1:]
-            if "!" in sender:
-                # use user_and_host.split('@', 1) to separate user and host
-                # TODO: include more stuff about the user than the nick?
-                sender, user_and_host = sender.split("!", 1)
-                sender_is_server = False
-            else:
-                # leave sender as is
-                sender_is_server = True
 
         for n, arg in enumerate(args):
             if arg.startswith(":"):
@@ -351,7 +362,16 @@ class IrcCore:
                 temp.append(" ".join(args[n:])[1:])
                 args = temp
                 break
-        return ReceivedLine(sender, sender_is_server, command, args)
+
+        if sender is not None and "!" in sender:
+            return MessageFromUser(
+                sender_nick=sender.split("!")[0],
+                sender_user_mask=sender,
+                command=command,
+                args=args,
+            )
+        else:
+            return MessageFromServer(server=sender, command=command, args=args)
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
         assert self.nick == server_config["nick"]
