@@ -143,6 +143,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
     try:
         for name in ["alice", "bob"]:
             users_who_join_before = list(irc_widgets_dict.values())
+            print("Instantiating IRCWidget:", name)
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 config.load_from_file(Path(name)),

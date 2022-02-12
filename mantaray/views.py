@@ -301,6 +301,7 @@ class ServerView(View):
         while True:
             try:
                 event = self.core.event_queue.get(block=False)
+                print(self.core.nick, "got event:", event)
             except queue.Empty:
                 break
 
