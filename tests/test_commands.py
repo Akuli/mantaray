@@ -249,7 +249,8 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
 def test_incorrect_usage(alice, wait_until, command, error):
     alice.entry.insert("end", command)
     alice.on_enter_pressed()
-    wait_until(lambda: (error + "\n") in alice.text())
+    wait_until(lambda: alice.text().endswith(error + "\n"))
+    assert "error" in alice.get_current_view().textwidget.tag_names("end - 5 chars")
     assert alice.entry.get() == command  # give user chance to correct easily
 
 

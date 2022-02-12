@@ -54,7 +54,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage)
+            view.add_message("Usage: " + usage, tag="error")
             return False
 
         func(view, core, *args)
