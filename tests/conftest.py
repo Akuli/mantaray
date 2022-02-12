@@ -31,13 +31,15 @@ def irc_widgets_dict():
 @pytest.fixture
 def wait_until(root_window, irc_widgets_dict):
     def actually_wait_until(condition, *, timeout=5):
-        end = time.monotonic() + timeout
-        while time.monotonic() < end:
+        from datetime import datetime, timedelta
+        start = datetime.now()
+        end = start + timedelta(seconds=timeout)
+        while datetime.now() < end:
             root_window.update()
             if condition():
                 return
         raise RuntimeError(
-            "timed out waiting"
+            f"timed out waiting start={start} end={end} cur={datetime.now()}"
             + "".join(
                 f"\n{name}'s text = {widget.text()!r}"
                 for name, widget in irc_widgets_dict.items()
