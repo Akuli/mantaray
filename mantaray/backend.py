@@ -334,13 +334,10 @@ class IrcCore:
             # "Empty messages are silently ignored"
             # https://tools.ietf.org/html/rfc2812#section-2.3.1
             return
-        line_string = line.decode("utf-8", errors="replace")
-        # TODO: should be handled in received.py like everything else
-        if line_string.startswith("PING"):
-            self.send(line_string.replace("PING", "PONG", 1))
-            return
 
-        self.event_queue.put(self._parse_received_message(line_string))
+        self.event_queue.put(
+            self._parse_received_message(line.decode("utf-8", errors="replace"))
+        )
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None

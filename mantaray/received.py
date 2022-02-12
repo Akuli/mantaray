@@ -228,6 +228,11 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.remove_user(nick)
 
 
+def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
+    [send_this_unchanged] = args
+    server_view.core.send(f"PONG :{send_this_unchanged}")
+
+
 def _handle_mode(
     server_view: views.ServerView, setter_nick: str, args: list[str]
 ) -> None:
@@ -445,6 +450,9 @@ def _handle_received_message(
     elif msg.command == "QUIT":
         assert isinstance(msg, backend.MessageFromUser)
         _handle_quit(server_view, msg.sender_nick, msg.args)
+
+    elif msg.command == "PING":
+        _handle_ping(server_view, msg.args)
 
     # TODO: figure out what MODE with 2 args is
     elif msg.command == "MODE" and len(msg.args) != 2:
