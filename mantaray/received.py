@@ -528,6 +528,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
         return True
 
     if isinstance(event, backend.Quit):
+        print("Got Quit event from backend")
         return False
 
     # If mypy says 'error: unused "type: ignore" comment', you
