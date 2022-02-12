@@ -326,24 +326,27 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     subcommand = args[1]
     if subcommand == "ACK":
         acknowledged = set(args[-1].split())
+
         if "sasl" in acknowledged:
-            server_view.core.cap_list.add("sasl")
             server_view.core.send("AUTHENTICATE PLAIN")
-        if "away-notify" in acknowledged:
-            server_view.core.cap_list.add("away-notify")
+
+        for capability in acknowledged:
+            server_view.core.cap_list.add(capability)
+
     elif subcommand == "NAK":
         rejected = set(args[-1].split())
         if "sasl" in rejected:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
 
-    server_view.core.number_of_cap_req -= (
-        1  # To evaluate how many more ACK/NAKs will be received from server
-    )
+    server_view.core.pending_cap_count -= 1
 
-    # Need to wait for login success/fail from server if sasl is enabled before sending "CAP END"
+    # If CAP END is sent before the SASL authentication message (_handle_authenticate()),
+    # the server will respond with 904 SASL authentication aborted.
+    # If SASL has been negotiated with the server, Mantaray sends CAP END after the server
+    # has replied with an authentication success/fail message
     if (
-        server_view.core.number_of_cap_req == 0
+        server_view.core.pending_cap_count == 0
         and "sasl" not in server_view.core.cap_list
     ):
         server_view.core.send("CAP END")

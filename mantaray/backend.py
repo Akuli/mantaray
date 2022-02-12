@@ -189,7 +189,9 @@ class IrcCore:
 
             self.cap_req.append("away-notify")
 
-            self.number_of_cap_req = len(self.cap_req)
+            self.pending_cap_count = len(
+                self.cap_req
+            )  # To evaluate how many more ACK/NAKs will be received from server
             for capability in self.cap_req:
                 self.send(f"CAP REQ {capability}")
 
