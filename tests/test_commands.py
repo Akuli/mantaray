@@ -52,6 +52,13 @@ def test_nick_change(alice, bob, wait_until):
     wait_until(lambda: "lolwat is now known as LolWat.\n" in bob.text())
 
 
+def test_trailing_spaces_striping(alice, bob, wait_until):
+    alice.entry.insert("end", "/nick lolwat     ")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as lolwat.\n" in alice.text())
+    wait_until(lambda: "Alice is now known as lolwat.\n" in bob.text())
+
+
 @pytest.mark.xfail(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd is buggy", strict=True
 )

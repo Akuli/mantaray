@@ -46,7 +46,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        command_name, *args = entry_content.split(maxsplit=max(len(params), 1))
+        command_name, *args = entry_content.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
             usage = command_name
             for p in params:
