@@ -42,6 +42,12 @@ class _UserList:
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
 
+    def set_away(self, nick: str, away: bool) -> None:
+        if away:
+            self.treeview.item(nick, tag=["away"])
+        else:
+            self.treeview.item(nick, tag=[])
+
 
 def _show_popup(title: str, text: str) -> None:
     try:

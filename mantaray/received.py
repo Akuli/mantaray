@@ -239,9 +239,9 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
         if not args:
-            view.userlist.treeview.item(nick, tag=[])
+            view.userlist.set_away(nick, False)
         else:
-            view.userlist.treeview.item(nick, tag=["away"])
+            view.userlist.set_away(nick, True)
 
 
 def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
