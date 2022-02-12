@@ -132,11 +132,6 @@ def test_private_messages(alice, bob, wait_until):
     wait_until(lambda: "Hey Alice" in bob.text())
 
 
-@pytest.mark.xfail(
-    os.environ["IRC_SERVER"] == "mantatail",
-    reason="https://github.com/ThePhilgrim/MantaTail/issues/125",
-    strict=True,
-)
 def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     bob.entry.insert(0, "/msg Alice hello")
     bob.on_enter_pressed()

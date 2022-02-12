@@ -83,7 +83,7 @@ def _add_privmsg_to_view(
         )
     else:
         view.add_message(
-            parts, sender=sender, sender_tag=sender_tag, tag=privmsg_tag, pinged=pinged
+            parts, sender, sender_tag=sender_tag, tag=privmsg_tag, pinged=pinged
         )
 
 
@@ -241,6 +241,11 @@ def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.treeview.item(nick, tag=[])
         else:
             view.userlist.treeview.item(nick, tag=["away"])
+
+
+def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
+    [send_this_unchanged] = args
+    server_view.core.send(f"PONG :{send_this_unchanged}")
 
 
 def _handle_mode(
@@ -414,7 +419,7 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
 
 
 def _handle_whoreply(
-    server_view: views.ServerView, sender: str, command: str, args: list[str]
+    server_view: views.ServerView, command: str, args: list[str]
 ) -> None:
     assert len(args) == 8
     nick = args[5]
@@ -449,53 +454,58 @@ def _handle_literally_topic(
 
 def _handle_unknown_message(
     server_view: views.ServerView,
-    sender: str | None,
-    sender_is_server: bool,
-    command: str,
-    args: list[str],
+    msg: backend.MessageFromServer | backend.MessageFromUser,
 ) -> None:
+    sender = (
+        msg.server if isinstance(msg, backend.MessageFromServer) else msg.sender_nick
+    )
+    text = " ".join([msg.command] + msg.args)
+
     # Errors seem to always be 4xx, 5xx or 7xx.
     # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-    if sender_is_server and command.startswith(("4", "5", "7")):
-        # If server view selected, don't add twice
-        server_view.irc_widget.get_current_view().add_message(
-            " ".join([command] + args), sender=(sender or "???"), tag="error"
-        )
+    if isinstance(msg, backend.MessageFromServer) and msg.command.startswith(
+        ("4", "5", "7")
+    ):
+        server_view.irc_widget.get_current_view().add_message(text, sender, tag="error")
     else:
-        server_view.add_message(" ".join([command] + args), sender=(sender or "???"))
+        server_view.add_message(text, sender)
 
 
 def _handle_received_message(
-    server_view: views.ServerView, msg: backend.ReceivedLine
+    server_view: views.ServerView,
+    msg: backend.MessageFromServer | backend.MessageFromUser,
 ) -> None:
     if msg.command == "PRIVMSG":
-        assert msg.sender is not None
-        _handle_privmsg(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_privmsg(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "JOIN":
-        assert msg.sender is not None
-        _handle_join(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_join(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "PART":
-        assert msg.sender is not None
-        _handle_part(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_part(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "NICK":
-        assert msg.sender is not None
-        _handle_nick(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_nick(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "QUIT":
-        assert msg.sender is not None
-        _handle_quit(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_quit(server_view, msg.sender_nick, msg.args)
+
+    elif msg.command == "PING":
+        _handle_ping(server_view, msg.args)
 
     # TODO: figure out what MODE with 2 args is
     elif msg.command == "MODE" and len(msg.args) != 2:
-        assert msg.sender is not None
-        _handle_mode(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_mode(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "KICK":
-        assert msg.sender is not None
-        _handle_kick(server_view, msg.sender, msg.args)
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_kick(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "AWAY":
         assert msg.sender is not None
@@ -527,22 +537,18 @@ def _handle_received_message(
         _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command == RPL_WHOREPLY:
-        assert msg.sender is not None
-        _handle_whoreply(server_view, msg.sender, msg.command, msg.args)
+        _handle_whoreply(server_view, msg.command, msg.args)
 
-    elif msg.command == "TOPIC" and not msg.sender_is_server:
-        assert msg.sender is not None
-        _handle_literally_topic(server_view, msg.sender, msg.args)
+    elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
+        _handle_literally_topic(server_view, msg.sender_nick, msg.args)
 
     else:
-        _handle_unknown_message(
-            server_view, msg.sender, msg.sender_is_server, msg.command, msg.args
-        )
+        _handle_unknown_message(server_view, msg)
 
 
 # Returns True this function should be called again, False if quitting
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool:
-    if isinstance(event, backend.ReceivedLine):
+    if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
         try:
             _handle_received_message(server_view, event)
         except Exception:
