@@ -163,6 +163,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
         yield irc_widgets_dict
 
     finally:
+        print("Alice and Bob quitting BEGINS")
         # If this cleanup doesn't run, we might leave threads running that will disturb other tests
         for irc_widget in irc_widgets_dict.values():
             for server_view in irc_widget.get_server_views():
@@ -171,6 +172,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             # On windows, we need to wait until log files are closed before removing them
             wait_until(lambda: not irc_widget.winfo_exists())
             shutil.rmtree(irc_widget.log_manager.log_dir)
+        print("Alice and Bob quitting DONE")
 
 
 @pytest.fixture
