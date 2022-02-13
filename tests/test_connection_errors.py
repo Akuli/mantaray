@@ -20,7 +20,14 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
         wait_until(lambda: "Connection error: [WinError 10054] " in alice.text())
     else:
         wait_until(
-            lambda: "Connection error: Server closed the connection!" in alice.text()
+            lambda: (
+                "Connection error: Server closed the connection!" in alice.text()
+                or (
+                    # This error happens rarely, but it's possible too
+                    "Connection error: [Errno 104] Connection reset by peer"
+                    in alice.text()
+                )
+            )
         )
     assert alice.get_current_view().channel_name == "#autojoin"
 
@@ -48,11 +55,7 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
 
     lines = alice.text().splitlines()
-    if sys.platform == "win32":
-        # error message depends on language
-        assert "Connection error: [WinError 10054] " in lines[-4]
-    else:
-        assert lines[-4].endswith("Connection error: Server closed the connection!")
+    assert "Connection error: " in lines[-4]
     assert lines[-3].endswith("Disconnected.")
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
