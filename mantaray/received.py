@@ -356,8 +356,8 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
 
     # If CAP END is sent before the SASL authentication message (_handle_authenticate()),
     # the server will respond with 904 SASL authentication aborted.
-    # If SASL has been negotiated with the server, Mantaray sends CAP END after the server
-    # has replied with an authentication success/fail message
+    # If "sasl" is in cap_list, Mantaray sends CAP END after the server
+    # has replied with RPL_SASLSUCCESS or ERR_SASLFAIL
     if (
         server_view.core.pending_cap_count == 0
         and "sasl" not in server_view.core.cap_list
