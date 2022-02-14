@@ -241,7 +241,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
         if isinstance(view, views.ChannelView):
-            if not args:
+            if not args or not args[0]:
                 view.userlist.set_away(nick, False)
             else:
                 view.userlist.set_away(nick, True)
@@ -439,6 +439,8 @@ def _handle_whoreply(
     view = server_view.find_channel(args[1])
 
     assert view is not None
+    assert away_status.lower() == "g" or away_status.lower() == "h"
+
     if away_status.lower() == "g":
         view.userlist.set_away(nick, True)
 
