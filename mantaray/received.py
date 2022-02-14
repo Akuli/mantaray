@@ -352,6 +352,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
         server_view.core.send("CAP END")
         raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
 
+    # Currently we get only one capability at a time in ACK or NAK
     server_view.core.pending_cap_count -= 1
 
     # If we use SASL, we can't send CAP END until all SASL stuff is done.

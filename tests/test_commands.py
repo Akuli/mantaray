@@ -1,6 +1,5 @@
 import os
 import pytest
-import pdb
 
 from mantaray.views import ServerView
 
@@ -256,15 +255,13 @@ def test_away_status(alice, bob, wait_until):
     wait_until(
         lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
     )
-    # pdb.set_trace()
+
     alice.entry.insert("end", "/back")
     alice.on_enter_pressed()
     wait_until(lambda: "You are no longer marked as being away\n" in alice.text())
-    # pdb.set_trace()
     assert (
         "away" not in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
     )
-    # pdb.set_trace()
     wait_until(
         lambda: "away"
         not in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
@@ -277,9 +274,7 @@ def test_away_status(alice, bob, wait_until):
 @pytest.mark.parametrize("sharing_channels", [True, False])
 def test_who_on_join(alice, bob, wait_until, sharing_channels):
     if not sharing_channels:
-        alice.entry.insert(
-            "end", "/part #autojoin"
-        )  # Ensures Alice and Bob are not sharing any channels
+        alice.entry.insert("end", "/part #autojoin")
         alice.on_enter_pressed()
         wait_until(lambda: "topic" not in alice.text())
 
