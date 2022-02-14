@@ -127,7 +127,8 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     if nick == server_view.core.nick:
         if "away-notify" in server_view.core.cap_list:
             # TODO: sends WHOs too frequenty, should wait for WHOREPLY
-            server_view.core.send(f"WHO {channel}")
+            # server_view.core.send(f"WHO {channel}")
+            pass
         return
 
     channel_view = server_view.find_channel(channel)
