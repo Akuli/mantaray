@@ -180,6 +180,7 @@ class View:
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
+    # for tests
     def get_text(self) -> str:
         return self.textwidget.get("1.0", "end")
 
