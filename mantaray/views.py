@@ -257,7 +257,12 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        self.core.start_thread()
+        self._run_core()
+
+    def _run_core(self) -> None:
+        if not self.core.quitting_finished():
+            self.irc_widget.after(50, self._run_core)
+            self.core.run_one_step()
 
     def get_log_name(self) -> str:
         # Log to file named logs/foobar/server.log.

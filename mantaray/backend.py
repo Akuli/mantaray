@@ -13,13 +13,10 @@ import dataclasses
 import queue
 import ssl
 import re
-import select
 import socket
-import sys
-import threading
 import time
-import traceback
 from typing import Union, Sequence, Iterator
+from concurrent.futures import ThreadPoolExecutor, Future
 
 from . import config
 
@@ -107,12 +104,44 @@ IrcEvent = Union[
     SentPrivmsg,
     Quit,
 ]
+_Socket = Union[socket.socket, ssl.SSLSocket]
 
 
-# Special bytes to be put to loop notify socketpair
-_QUIT_THE_SERVER = b"q"
-_RECONNECT = b"r"
-_BYTES_ADDED_TO_SEND_QUEUE = b"s"
+def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
+    sock: _Socket
+
+    if use_ssl:
+        context = ssl.create_default_context()
+        sock = context.wrap_socket(socket.socket(), server_hostname=host)
+    else:
+        sock = socket.socket()
+
+    try:
+        sock.settimeout(15)
+        sock.connect((host, port))
+    except Exception as e:
+        sock.close()
+        raise e
+
+    return sock
+
+
+def _close_socket_when_future_done(future: Future[_Socket]) -> None:
+    try:
+        sock = future.result()
+    except Exception:
+        pass
+    else:
+        sock.close()
+
+
+def _flush_and_close_socket(sock: _Socket) -> None:
+    sock.settimeout(1)
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    sock.close()
 
 
 class IrcCore:
@@ -125,10 +154,7 @@ class IrcCore:
         self._send_queue: collections.deque[
             tuple[bytes, SentPrivmsg | Quit | None]
         ] = collections.deque()
-
-        # Sending to _loop_notify_send tells the select() loop to do something special
-        self._loop_notify_send, self._loop_notify_recv = socket.socketpair()
-        self._loop_notify_recv.setblocking(False)
+        self._receive_buffer = bytearray()
 
         # Will contain the capabilities to negotiate with the server
         self.cap_req: list[str] = []
@@ -136,10 +162,28 @@ class IrcCore:
         self.cap_list: set[str] = set()
         self.pending_cap_count = 0
 
-        self._send_and_recv_loop_running = False
-
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
-        self._thread: threading.Thread | None = None
+
+        # Unfortunately there's no such thing as non-blocking connect().
+        # Unless you don't invoke getaddrinfo(), which will always block.
+        # But then you can't specify a host name to connect to, only an IP.
+        #
+        # (asyncio manually calls getaddrinfo() in a separate thread, and
+        # manages to do it in a way that makes connecting slow on my system)
+        self._connect_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=f"connect-{self.nick}-{hex(id(self))}"
+        )
+
+        # Possible states:
+        #   Future: currently connecting
+        #   socket: connected
+        #   float: time.monotonic() disconnected, value indicates when to reconnect
+        #   None: quitting
+        self._connection_state: Future[
+            _Socket
+        ] | _Socket | float | None = time.monotonic()
+
+        self._force_quit_time: float | None = None
 
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
@@ -151,35 +195,39 @@ class IrcCore:
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
 
-    def start_thread(self) -> None:
-        assert self._thread is None
-        self._thread = threading.Thread(
-            name=f"core-thread-{hex(id(self))}-{self.nick}", target=self._connect_loop
-        )
-        self._thread.start()
+    # Call this repeatedly from the GUI's event loop.
+    #
+    # This is the best we can do in tkinter without threading. I
+    # tried using threads, and they were difficult to get right.
+    def run_one_step(self) -> None:
+        if self._connection_state is None:
+            # quitting
+            return
 
-    def _notify_the_select_loop(self, message: bytes) -> None:
-        try:
-            self._loop_notify_send.send(message)
-        except OSError as e:
-            # Expected to fail if we already quit, and socket is closed
-            if self._loop_notify_send.fileno() != -1:
-                raise e
+        elif isinstance(self._connection_state, float):
+            if time.monotonic() < self._connection_state:
+                return
 
-    def _connect_loop(self) -> None:
-        while True:
-            # Clearing eventual content from previous connections
+            # Time to reconnect. Clearing data from previous connections.
             self._send_queue.clear()
-            self.cap_req = []
-            self.cap_list = set()
+            self._receive_buffer.clear()
+            self.cap_req.clear()
+            self.cap_list.clear()
+            self.event_queue.put(
+                ConnectivityMessage(
+                    f"Connecting to {self.host} port {self.port}...", is_error=False
+                )
+            )
+            self._connection_state = self._connect_pool.submit(
+                _create_connection, self.host, self.port, self.ssl
+            )
+
+        elif isinstance(self._connection_state, Future):
+            if self._connection_state.running():
+                return
 
             try:
-                self.event_queue.put(
-                    ConnectivityMessage(
-                        f"Connecting to {self.host} port {self.port}...", is_error=False
-                    )
-                )
-                sock = self._connect()
+                self._connection_state = self._connection_state.result()
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
                     ConnectivityMessage(
@@ -187,25 +235,10 @@ class IrcCore:
                         is_error=True,
                     )
                 )
-                end = time.monotonic() + RECONNECT_SECONDS
-                while True:
-                    timeout = end - time.monotonic()
-                    if timeout < 0:
-                        break
+                self._connection_state = time.monotonic() + RECONNECT_SECONDS
+                return
 
-                    can_receive = select.select(
-                        [self._loop_notify_recv], [], [], timeout
-                    )[0]
-                    if self._loop_notify_recv in can_receive:
-                        byte = self._loop_notify_recv.recv(1)
-                        if byte == _QUIT_THE_SERVER:
-                            self.event_queue.put(Quit())
-                            self._loop_notify_send.close()
-                            self._loop_notify_recv.close()
-                            return
-                        if byte == _RECONNECT:
-                            break
-                continue
+            self._connection_state.setblocking(False)
 
             if self.password is not None:
                 self.cap_req.append("sasl")
@@ -222,125 +255,70 @@ class IrcCore:
             self.send(f"NICK {self.nick}")
             self.send(f"USER {self.username} 0 * :{self.realname}")
 
-            self._send_and_recv_loop_running = True
-
+        else:
+            # Connected
             try:
-                quitting = self._send_and_recv_loop(sock)
+                quitting = self._send_and_receive_as_much_as_possible_without_blocking(
+                    self._connection_state
+                )
             except (OSError, ssl.SSLError) as e:
                 self.event_queue.put(
-                    ConnectivityMessage(f"Connection error: {e}", is_error=True)
+                    ConnectivityMessage(
+                        f"Connection error (reconnecting in {RECONNECT_SECONDS}sec): {e}",
+                        is_error=True,
+                    )
                 )
-                quitting = False
-            self._send_and_recv_loop_running = False
-
-            sock.settimeout(1)
-            try:
-                sock.shutdown(socket.SHUT_RDWR)
-            except (OSError, ssl.SSLError):
-                pass
-            sock.close()
-            self.event_queue.put(ConnectivityMessage("Disconnected.", is_error=True))
-
-            if quitting:
-                self.event_queue.put(Quit())
-                self._loop_notify_send.close()
-                self._loop_notify_recv.close()
+                self._connection_state.close()
+                self._connection_state = time.monotonic() + RECONNECT_SECONDS
                 return
 
-    def _connect(self) -> socket.socket | ssl.SSLSocket:
-        sock: socket.socket | ssl.SSLSocket
+            if quitting:
+                sock = self._connection_state
+                self._connection_state = None
 
-        if self.ssl:
-            context = ssl.create_default_context()
-            sock = context.wrap_socket(socket.socket(), server_hostname=self.host)
-        else:
-            sock = socket.socket()
+                sock.setblocking(True)
+                self._connect_pool.submit(_flush_and_close_socket, sock)
+                return
 
-        try:
-            # Unfortunately there's no such thing as non-blocking connect().
-            # Unless you don't invoke getaddrinfo(), which will always block.
-            # But then you can't specify a host name to connect to, only an IP.
-            #
-            # (asyncio manually calls getaddrinfo() in a separate thread, and
-            # manages to do it in a way that makes connecting slow on my system)
-            sock.settimeout(15)
-            sock.connect((self.host, self.port))
-        except Exception as e:
-            sock.close()
-            raise e
-
-        return sock
-
-    # I used to have separate send and receive threads, but I decided to use select() instead.
-    # It's more code, but avoiding race conditions is easier with less threads.
-    def _send_and_recv_loop(self, sock: socket.socket | ssl.SSLSocket) -> bool:
-        sock.setblocking(False)
-        recv_buffer = bytearray()
-
+    def _send_and_receive_as_much_as_possible_without_blocking(
+        self, sock: _Socket
+    ) -> bool:
         while True:
-            wanna_recv = set()
-            wanna_send = set()
+            try:
+                received = sock.recv(4096)
+            except (ssl.SSLWantReadError, ssl.SSLWantWriteError, BlockingIOError):
+                break
 
-            while True:
-                try:
-                    byte = self._loop_notify_recv.recv(1)
-                except BlockingIOError:
-                    wanna_recv.add(self._loop_notify_recv)
-                    break
-                else:
-                    if byte == _QUIT_THE_SERVER:
+            if not received:
+                raise OSError("Server closed the connection!")
+
+            self._receive_buffer += received
+
+            # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
+            split_result = self._receive_buffer.split(b"\n")
+            self._receive_buffer = split_result.pop()
+            for line in split_result:
+                self._handle_received_line(bytes(line) + b"\n")
+
+        while self._send_queue:
+            data, done_event = self._send_queue[0]
+            try:
+                n = sock.send(data)
+            except (ssl.SSLWantReadError, ssl.SSLWantWriteError, BlockingIOError):
+                break
+
+            if self._verbose:
+                print("Send:", data[:n])
+            if n == len(data):
+                self._send_queue.popleft()
+                if done_event is not None:
+                    self.event_queue.put(done_event)
+                    if isinstance(done_event, Quit):
                         return True
-                    elif byte == _RECONNECT:
-                        return False
-                    elif byte == _BYTES_ADDED_TO_SEND_QUEUE:
-                        # The purpose of this byte is to wake up the select() below.
-                        pass
-                    else:
-                        raise ValueError(byte)
+            else:
+                self._send_queue[0] = (data[n:], done_event)
 
-            while True:
-                try:
-                    received = sock.recv(4096)
-                except (ssl.SSLWantReadError, BlockingIOError):
-                    wanna_recv.add(sock)
-                    break
-                except ssl.SSLWantWriteError:
-                    wanna_send.add(sock)
-                    break
-                else:
-                    if not received:
-                        raise OSError("Server closed the connection!")
-                    recv_buffer += received
-
-                    # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
-                    split_result = recv_buffer.split(b"\n")
-                    recv_buffer = split_result.pop()
-                    for line in split_result:
-                        self._handle_received_line(bytes(line) + b"\n")
-
-            while self._send_queue:
-                data, done_event = self._send_queue[0]
-                try:
-                    n = sock.send(data)
-                except ssl.SSLWantReadError:
-                    wanna_recv.add(sock)
-                    break
-                except (ssl.SSLWantWriteError, BlockingIOError):
-                    wanna_send.add(sock)
-                    break
-                else:
-                    if self._verbose:
-                        print("Send:", data[:n])
-                    if n == len(data):
-                        self._send_queue.popleft()
-                        if done_event is not None:
-                            self.event_queue.put(done_event)
-                            if isinstance(done_event, Quit):
-                                return True
-                    else:
-                        self._send_queue[0] = (data[n:], done_event)
-
-            select.select(wanna_recv, wanna_send, [])
+        return False
 
     def _handle_received_line(self, line: bytes) -> None:
         if self._verbose:
@@ -361,7 +339,7 @@ class IrcCore:
         self, message: str, *, done_event: SentPrivmsg | Quit | None = None
     ) -> None:
         self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
-        self._notify_the_select_loop(_BYTES_ADDED_TO_SEND_QUEUE)
+        self.run_one_step()
 
     @staticmethod
     def _parse_received_message(line: str) -> MessageFromServer | MessageFromUser:
@@ -392,12 +370,21 @@ class IrcCore:
             return MessageFromServer(server=sender, command=command, args=args)
 
     def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
+        if self._connection_state is None:
+            # we are trying to reconnect but already quitting???
+            return
+
         assert self.nick == server_config["nick"]
         assert self.autojoin == server_config["joined_channels"]
 
         old_host = self.host
         self._apply_config(server_config)
-        self._notify_the_select_loop(_RECONNECT)
+        if isinstance(self._connection_state, (socket.socket, ssl.SSLSocket)):
+            self._connection_state.close()
+        if isinstance(self._connection_state, Future):
+            # It's already connecting. We won't use the resulting connection.
+            self._connection_state.add_done_callback(_close_socket_when_future_done)
+        self._connection_state = time.monotonic()  # reconnect asap
 
         if old_host != self.host:
             self.event_queue.put(HostChanged(old_host, self.host))
@@ -409,23 +396,30 @@ class IrcCore:
         )
 
     def quit(self, *, wait: bool = False) -> None:
-        if self._send_and_recv_loop_running:
+        if (
+            isinstance(self._connection_state, (socket.socket, ssl.SSLSocket))
+            and self._force_quit_time is None
+        ):
             # Attempt a clean quit
             self.send("QUIT", done_event=Quit())
-            timer = threading.Timer(
-                1, (lambda: self._notify_the_select_loop(_QUIT_THE_SERVER))
-            )
-            timer.daemon = True
-            timer.start()
+            self._force_quit_time = time.monotonic() + 1
         else:
-            self._notify_the_select_loop(_QUIT_THE_SERVER)
+            self._force_quit_now()
 
-        if self._thread is not None and wait:
-            self._thread.join(timeout=3)
-            if self._thread.is_alive():
-                # TODO: hopefully this disgusting debug prints can remove some day
-                assert self._thread.ident is not None
-                stack_trace = traceback.format_stack(
-                    sys._current_frames()[self._thread.ident]
-                )
-                raise RuntimeError("thread doesn't stop\n" + "".join(stack_trace))
+        if wait:
+            start = time.monotonic()
+            while self._connection_state is not None:
+                assert time.monotonic() < start + 10
+                time.sleep(0.01)
+
+    def quitting_finished(self) -> bool:
+        return self._connection_state is None
+
+    def _force_quit_now(self) -> None:
+        if isinstance(self._connection_state, (socket.socket, ssl.SSLSocket)):
+            self._connection_state.close()
+        if isinstance(self._connection_state, Future):
+            # It's already connecting. We won't use the resulting connection.
+            self._connection_state.add_done_callback(_close_socket_when_future_done)
+        self._connection_state = None
+        self.event_queue.put(Quit())
