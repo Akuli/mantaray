@@ -254,7 +254,7 @@ def test_away_status(alice, bob, wait_until):
     assert "away" in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
 
     # TODO: Get this to work
-    # assert "away" in bob.get_current_view().userlist.treeview.item("Alice"))
+    wait_until(lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"])
 
     alice.entry.insert("end", "/back")
     alice.on_enter_pressed()
