@@ -489,7 +489,8 @@ def _handle_received_message(
         _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command == RPL_WHOISUSER:
-        server_view.core.nickmask = f"{msg.args[1]}!{msg.args[2]}@{msg.args[3]}"
+        if msg.args[0] == server_view.core.nick:
+            server_view.core.nickmask = f"{msg.args[1]}!{msg.args[2]}@{msg.args[3]}"
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
