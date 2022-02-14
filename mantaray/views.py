@@ -180,6 +180,9 @@ class View:
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
 
+    def get_text(self) -> str:
+        return self.textwidget.get("1.0", "end")
+
     @property
     def server_view(self) -> ServerView:
         parent_id = self.irc_widget.view_selector.parent(self.view_id)

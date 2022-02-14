@@ -238,13 +238,14 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     reason="hircd doesn't support away notifications",
 )
 def test_away_status(alice, bob, wait_until):
-    switch_to_channel_view(bob, "#autojoin")
-
     alice.entry.insert("end", "/away foo bar baz")
     alice.on_enter_pressed()
 
     # Server view
-    wait_until(lambda: "You have been marked as being away\n" in alice.text())
+    wait_until(
+        lambda: "You have been marked as being away\n"
+        in alice.get_server_views()[0].get_text()
+    )
 
     switch_to_channel_view(alice, "#autojoin")
 
@@ -253,8 +254,9 @@ def test_away_status(alice, bob, wait_until):
 
     assert "away" in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
 
-    # TODO: Get this to work
-    wait_until(lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"])
+    wait_until(
+        lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
+    )
 
     alice.entry.insert("end", "/back")
     alice.on_enter_pressed()
@@ -283,10 +285,11 @@ def test_who_on_join(alice, bob, wait_until):
     alice.entry.insert("end", "/join #foo")
     alice.on_enter_pressed()
 
-    # switch_to_channel_view(alice, "#foo")  # AttributeError: 'NoneType' object has no attribute 'view_id'
+    wait_until(lambda: "topic" in alice.text())
 
-    # TODO: Get this to work
-    # assert "away" in alice.get_current_view().userlist.treeview.item("Bob")["tags"]
+    wait_until(
+        lambda: "away" in alice.get_current_view().userlist.treeview.item("Bob")["tags"]
+    )
 
 
 @pytest.mark.parametrize(
