@@ -177,6 +177,9 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
 # Neither Mantatail nor Hircd currently supports the WHOIS command.
 # IrcCore.nickmask will therefore always be "" in the test.
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
+)
 @pytest.mark.xfail
 def test_generate_nickmask(alice, mocker, wait_until):
     server_view = alice.get_server_views()[0]
