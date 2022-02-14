@@ -122,6 +122,7 @@ def irc_server():
             output.replace(b"BrokenPipeError:", b"")
             .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
             .replace(b"ConnectionResetError: [Errno 54]", b"")
+            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
         )
 
     if b"error" in output.lower():

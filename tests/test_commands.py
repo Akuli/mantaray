@@ -1,5 +1,4 @@
 import os
-
 import pytest
 
 from mantaray.views import ServerView
@@ -244,6 +243,66 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     wait_until(lambda: "send Bob hello there\n" in bob.text())
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd doesn't support away notifications",
+)
+def test_away_status(alice, bob, wait_until):
+    alice.entry.insert("end", "/away foo bar baz")
+    alice.on_enter_pressed()
+
+    # Server view
+    wait_until(
+        lambda: "You have been marked as being away\n"
+        in alice.get_server_views()[0].get_text()
+    )
+
+    # Channel view
+    wait_until(lambda: "You have been marked as being away\n" in alice.text())
+
+    assert "away" in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
+
+    wait_until(
+        lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
+    )
+
+    alice.entry.insert("end", "/back")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are no longer marked as being away\n" in alice.text())
+    assert (
+        "away" not in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
+    )
+    wait_until(
+        lambda: "away"
+        not in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
+    )
+
+
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support away-notify"
+)
+@pytest.mark.parametrize("sharing_channels", [True, False])
+def test_who_on_join(alice, bob, wait_until, sharing_channels):
+    if not sharing_channels:
+        alice.entry.insert("end", "/part #autojoin")
+        alice.on_enter_pressed()
+        wait_until(lambda: "topic" not in alice.text())
+
+    bob.entry.insert("end", "/join #foo")
+    bob.on_enter_pressed()
+    bob.entry.insert("end", "/away foo bar baz")
+    bob.on_enter_pressed()
+
+    alice.entry.insert("end", "/join #foo")
+    alice.on_enter_pressed()
+
+    wait_until(lambda: "topic" in alice.text())
+
+    wait_until(
+        lambda: "away" in alice.get_current_view().userlist.treeview.item("Bob")["tags"]
+    )
+
+
 @pytest.mark.parametrize(
     "command, error",
     [
@@ -252,8 +311,8 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
         ("/msg", "Usage: /msg <nick> <message>"),
         ("/msg Bob", "Usage: /msg <nick> <message>"),
         ("/quit asdf", "Usage: /quit"),  # no arguments expected is special-cased
-        # TODO: tests for kick, once find irc server that support kick
         ("/kick", "Usage: /kick <nick> [<reason>]"),
+        ("/away", "Usage: /away <away_message>"),
     ],
 )
 def test_incorrect_usage(alice, wait_until, command, error):

@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 class _UserList:
     def __init__(self, irc_widget: IrcWidget):
         self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
+        self.treeview.tag_configure(
+            "away", foreground="#95968c"
+        )  # TODO: Apply tag if user with away tag changes nick
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -38,6 +41,12 @@ class _UserList:
         self.treeview.delete(*self.treeview.get_children(""))
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
+
+    def set_away(self, nick: str, away: bool) -> None:
+        if away:
+            self.treeview.item(nick, tags=["away"])
+        else:
+            self.treeview.item(nick, tags=[])
 
 
 def _show_popup(title: str, text: str) -> None:
@@ -170,6 +179,10 @@ class View:
 
     def destroy_widgets(self) -> None:
         self.textwidget.destroy()
+
+    # for tests
+    def get_text(self) -> str:
+        return self.textwidget.get("1.0", "end")
 
     @property
     def server_view(self) -> ServerView:

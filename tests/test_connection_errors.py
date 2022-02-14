@@ -2,7 +2,14 @@ import re
 import sys
 import time
 
+import os
+import pytest
 
+
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd responds to CAP commands with error",
+)
 def test_clean_connect(alice):
     [server_view] = alice.get_server_views()
 
@@ -47,6 +54,10 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
         assert end - start < 0.1
 
 
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd responds to CAP commands with error",
+)
 def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
     assert "Connecting to localhost" not in alice.text()

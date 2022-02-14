@@ -12,11 +12,18 @@ from mantaray import backend, views, textwidget_tags
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
+
+RPL_UNAWAY = "305"
+RPL_NOWAWAY = "306"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
+RPL_WHOREPLY = "352"
+RPL_SASLSUCCESS = "903"
 RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
+
+ERR_SASLFAIL = "904"
 
 
 def _get_views_relevant_for_nick(
@@ -115,11 +122,14 @@ def _handle_privmsg(
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
+    [channel] = args
     # When this user joins a channel, wait for RPL_ENDOFNAMES
     if nick == server_view.core.nick:
+        if "away-notify" in server_view.core.cap_list:
+            # TODO: sends WHOs too frequenty, should wait for WHOREPLY
+            server_view.core.send(f"WHO {channel}")
         return
 
-    [channel] = args
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
@@ -228,6 +238,15 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.remove_user(nick)
 
 
+def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
+    for view in _get_views_relevant_for_nick(server_view, nick):
+        if isinstance(view, views.ChannelView):
+            if not args or not args[0]:
+                view.userlist.set_away(nick, False)
+            else:
+                view.userlist.set_away(nick, True)
+
+
 def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
     [send_this_unchanged] = args
     server_view.core.send(f"PONG :{send_this_unchanged}")
@@ -316,13 +335,34 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     subcommand = args[1]
     if subcommand == "ACK":
         acknowledged = set(args[-1].split())
+
         if "sasl" in acknowledged:
             server_view.core.send("AUTHENTICATE PLAIN")
+
+        for capability in acknowledged:
+            server_view.core.cap_list.add(capability)
+
     elif subcommand == "NAK":
         rejected = set(args[-1].split())
         if "sasl" in rejected:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
+
+    else:
+        server_view.core.send("CAP END")
+        raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
+
+    # Currently we get only one capability at a time in ACK or NAK
+    server_view.core.pending_cap_count -= 1
+
+    # If we use SASL, we can't send CAP END until all SASL stuff is done.
+    # If "sasl" is in cap_list, Mantaray sends CAP END after the server
+    # has replied with RPL_SASLSUCCESS or ERR_SASLFAIL
+    if (
+        server_view.core.pending_cap_count == 0
+        and "sasl" not in server_view.core.cap_list
+    ):
+        server_view.core.send("CAP END")
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
@@ -373,17 +413,37 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         # Can exist already, when has been disconnected from server
         channel_view.userlist.set_nicks(join.nicks)
 
+    if "away-notify" in server_view.core.cap_list:
+        server_view.core.send(f"WHO {channel}")
+
     topic = join.topic or "(no topic)"
     channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
 
     if channel not in server_view.core.autojoin:
         server_view.core.autojoin.append(channel)
+        # TODO: Make this into a setting. You don't always want to add every channel you join to autojoin.
+        # Would be nice if you could rightclick a channel in the channel list to add/remove it from autojoin.
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
+
+
+def _handle_whoreply(
+    server_view: views.ServerView, command: str, args: list[str]
+) -> None:
+    assert len(args) == 8
+    nick = args[5]
+    away_status = args[6][0]
+    view = server_view.find_channel(args[1])
+
+    assert view is not None
+    assert away_status.lower() == "g" or away_status.lower() == "h"
+
+    if away_status.lower() == "g":
+        view.userlist.set_away(nick, True)
 
 
 def _handle_literally_topic(
@@ -463,13 +523,19 @@ def _handle_received_message(
         assert isinstance(msg, backend.MessageFromUser)
         _handle_kick(server_view, msg.sender_nick, msg.args)
 
+    elif msg.command == "AWAY":
+        assert isinstance(msg, backend.MessageFromUser)
+        _handle_away(server_view, msg.sender_nick, msg.args)
+
     elif msg.command == "CAP":
         _handle_cap(server_view, msg.args)
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
-    elif msg.command == RPL_LOGGEDIN:
+    elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
+        assert isinstance(msg, backend.MessageFromServer)
+        server_view.add_message(f'{msg.command} {" ".join(msg.args)}', msg.server)
         server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
@@ -483,6 +549,23 @@ def _handle_received_message(
 
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
+
+    elif msg.command == RPL_WHOREPLY:
+        _handle_whoreply(server_view, msg.command, msg.args)
+
+    elif msg.command == RPL_UNAWAY:
+        back_notification = msg.args[1]
+        for user_view in server_view.get_subviews(include_server=True):
+            user_view.add_message(back_notification)
+            if isinstance(user_view, views.ChannelView):
+                user_view.userlist.set_away(server_view.core.nick, False)
+
+    elif msg.command == RPL_NOWAWAY:
+        away_notification = msg.args[1]
+        for user_view in server_view.get_subviews(include_server=True):
+            user_view.add_message(away_notification)
+            if isinstance(user_view, views.ChannelView):
+                user_view.userlist.set_away(server_view.core.nick, True)
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)

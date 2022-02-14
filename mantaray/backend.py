@@ -130,6 +130,12 @@ class IrcCore:
         self._loop_notify_send, self._loop_notify_recv = socket.socketpair()
         self._loop_notify_recv.setblocking(False)
 
+        # Will contain the capabilities to negotiate with the server
+        self.cap_req: list[str] = []
+        # "CAP LIST" shows capabilities enabled on the client's connection
+        self.cap_list: set[str] = set()
+        self.pending_cap_count = 0
+
         self._send_and_recv_loop_running = False
 
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
@@ -162,8 +168,10 @@ class IrcCore:
 
     def _connect_loop(self) -> None:
         while True:
-            # send queue contents were for previous connection
+            # Clearing eventual content from previous connections
             self._send_queue.clear()
+            self.cap_req = []
+            self.cap_list = set()
 
             try:
                 self.event_queue.put(
@@ -200,12 +208,22 @@ class IrcCore:
                 continue
 
             if self.password is not None:
-                self.send("CAP REQ sasl")
+                self.cap_req.append("sasl")
+
+            self.cap_req.append("away-notify")
+
+            self.pending_cap_count = len(
+                self.cap_req
+            )  # To evaluate how many more ACK/NAKs will be received from server
+            for capability in self.cap_req:
+                self.send(f"CAP REQ {capability}")
+
             # TODO: what if nick or user are in use? use alternatives?
             self.send(f"NICK {self.nick}")
             self.send(f"USER {self.username} 0 * :{self.realname}")
 
             self._send_and_recv_loop_running = True
+
             try:
                 quitting = self._send_and_recv_loop(sock)
             except (OSError, ssl.SSLError) as e:

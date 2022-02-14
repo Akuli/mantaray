@@ -154,6 +154,12 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         else:
             view.add_message("You can use /kick only on a channel.", tag="error")
 
+    def away(view: View, core: IrcCore, away_message: str) -> None:
+        core.send(f"AWAY :{away_message}")
+
+    def back(view: View, core: IrcCore) -> None:
+        core.send("AWAY")
+
     return {
         "/join": join,
         "/part": part,
@@ -171,6 +177,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/op": op,
         "/deop": deop,
         "/kick": kick,
+        "/away": away,
+        "/back": back,
     }
 
 

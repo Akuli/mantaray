@@ -5,12 +5,14 @@ This is an IRC client written in Python with tkinter and ttk.
 ![Screenshot](screenshot.png)
 
 Supported features:
+
 - SSL
 - SASL authentication
 - Notifications for new messages
 - Multiple channels
 - Multiple servers (if you add them manually in the config file, lol)
 - Private messages
+- `/away` & `/back`
 - `/me`
 - `/kick`
 
@@ -23,7 +25,7 @@ You can run Mantaray like this:
     $ source env/bin/activate
     $ pip install -r requirements.txt
     $ python3 -m mantaray
-    
+
 On Windows, run these commands in Command Prompt:
 
     $ git clone https://github.com/Akuli/mantaray
@@ -32,7 +34,6 @@ On Windows, run these commands in Command Prompt:
     $ env\Scripts\activate
     $ pip install -r requirements.txt
     $ py -m mantaray
-
 
 ## Developing
 
