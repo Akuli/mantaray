@@ -12,6 +12,7 @@ from mantaray import backend, views, textwidget_tags
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
+RPL_WHOISUSER = "311"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -184,6 +185,8 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             if isinstance(view, views.ChannelView):
                 view.userlist.remove_user(old_nick)
                 view.userlist.add_user(new_nick)
+
+        server_view.core.send(f"WHOIS {new_nick}")
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
@@ -381,6 +384,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
+    server_view.core.send(f"WHOIS {server_view.core.nick}")
     # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
@@ -483,6 +487,9 @@ def _handle_received_message(
 
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
+
+    elif msg.command == RPL_WHOISUSER:
+        server_view.core.nickmask = f"{msg.args[1]}!{msg.args[2]}@{msg.args[3]}"
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)

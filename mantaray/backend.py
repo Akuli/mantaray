@@ -135,6 +135,8 @@ class IrcCore:
         self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
         self._thread: threading.Thread | None = None
 
+        self.nickmask = ""
+
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
         self.port = server_config["port"]

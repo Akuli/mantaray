@@ -173,3 +173,26 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     assert "left" not in bob.text()
     assert "parted" not in bob.text()
     assert "quit" not in bob.text()
+
+
+# Neither Mantatail nor Hircd currently supports the WHOIS command.
+# IrcCore.nickmask will therefore always be "" in the test.
+@pytest.mark.xfail
+def test_generate_nickmask(alice, mocker, wait_until):
+    server_view = alice.get_server_views()[0]
+    assert alice.server_view.core.nickmask == "Alice!AliceUsr@localhost"
+
+    alice.entry.insert("end", "/nick Foo")
+    alice.on_enter_pressed()
+
+    assert alice.server_view.core.nickmask == "Foo!AliceUsr@localhost"
+
+    reconnect_with_change(server_view, mocker, "username", old="AliceUsr", new="FooUsr")
+    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
+
+    assert alice.server_view.core.nickmask == "Foo!FooUsr@localhost"
+
+    reconnect_with_change(server_view, mocker, "host", old="localhost", new="127.0.0.1")
+    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 3)
+
+    assert alice.server_view.core.nickmask == "Foo!FooUsr@127.0.0.1"
