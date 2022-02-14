@@ -348,6 +348,10 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
 
+    else:
+        server_view.core.send("CAP END")
+        raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
+
     server_view.core.pending_cap_count -= 1
 
     # If CAP END is sent before the SASL authentication message (_handle_authenticate()),
