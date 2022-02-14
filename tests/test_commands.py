@@ -247,8 +247,6 @@ def test_away_status(alice, bob, wait_until):
         in alice.get_server_views()[0].get_text()
     )
 
-    switch_to_channel_view(alice, "#autojoin")
-
     # Channel view
     wait_until(lambda: "You have been marked as being away\n" in alice.text())
 
