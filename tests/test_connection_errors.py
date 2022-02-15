@@ -36,7 +36,7 @@ def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
 import socket, threading
 
 server = socket.create_connection(("localhost", 6667))
-client = socket.create_server(("", 12345), reuse_port=True).accept()[0]
+client = socket.create_server(("localhost", 12345), reuse_port=True).accept()[0]
 
 def server_to_client():
     for line in server.makefile("rb"):
