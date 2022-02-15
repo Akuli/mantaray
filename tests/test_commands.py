@@ -120,13 +120,8 @@ def test_kick(alice, bob, wait_until):
 
     bob.entry.insert(0, "just trying to talk here...")
     bob.on_enter_pressed()
-    wait_until(lambda: "#autojoin You're not on that channel" in bob.text())
-    wait_until(
-        lambda: (
-            "#autojoin You're not on that channel"
-            in bob.get_server_views()[0].get_text()
-        )
-    )
+    for view in bob.views_by_id.values():
+        wait_until(lambda: "#autojoin You're not on that channel" in view.get_text())
 
     alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
     alice.entry.insert("end", "/kick bob")
