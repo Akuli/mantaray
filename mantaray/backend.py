@@ -55,6 +55,8 @@ def find_nicks(
 
 
 RECONNECT_SECONDS = 5
+
+IDLE_BEFORE_PING_SECONDS = 60
 PING_TIMEOUT_SECONDS = 30
 
 
@@ -308,11 +310,12 @@ class IrcCore:
                 self._handle_received_line(bytes(line) + b"\n")
 
         time_since_receive = time.monotonic() - self._last_receive_time
-        if time_since_receive > PING_TIMEOUT_SECONDS and not self._ping_sent:
+        if time_since_receive > IDLE_BEFORE_PING_SECONDS and not self._ping_sent:
             # ping_sent must be set before sending, because .send() ends up calling this method
             self._ping_sent = True
-            self.send("PING :lol")
-        if time_since_receive > 2 * PING_TIMEOUT_SECONDS:
+            # The PONG will show up for the user in server view
+            self.send("PING :mantaray")
+        if time_since_receive > IDLE_BEFORE_PING_SECONDS + PING_TIMEOUT_SECONDS:
             raise OSError(
                 f"Server did not respond to ping in {PING_TIMEOUT_SECONDS} seconds."
             )

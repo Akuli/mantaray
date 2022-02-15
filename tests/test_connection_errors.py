@@ -22,8 +22,11 @@ def test_clean_connect(alice):
 
 
 def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
-    monkeypatch.setattr("mantaray.backend.PING_TIMEOUT_SECONDS", 1.23)
-    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
+    # values don't matter much, just has to be small and distinct enough
+    monkeypatch.setattr("mantaray.backend.IDLE_BEFORE_PING_SECONDS", 2)
+    monkeypatch.setattr("mantaray.backend.PING_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 1.5)
+    expected_ping_duration = 2 + 1
 
     # Create a proxy server that discards PING messages.
     # Using a subprocess so it's easy to kill
@@ -60,11 +63,12 @@ for line in client.makefile("rb"):
         wait_until(
             lambda: alice.text().count("Connecting to localhost port 12345...") == 1
         )
+        wait_until(lambda: alice.text().count("The topic of #autojoin is") == 2)
 
         start_time = time.monotonic()
         wait_until(
             lambda: (
-                "Connection error (reconnecting in 2sec): Server did not respond to ping in 1.23 seconds."
+                "Connection error (reconnecting in 1.5sec): Server did not respond to ping in 1 seconds."
                 in alice.text()
             )
         )
@@ -73,9 +77,9 @@ for line in client.makefile("rb"):
         proxy_server.kill()
 
     duration = end_time - start_time
-    expected_duration = 2 * 1.23  # inactive long enough to need ping + wait for pong
-    how_much_longer = duration - expected_duration  # about 0.3 on my system
-    assert 0 < how_much_longer < 1
+    how_much_longer = duration - expected_ping_duration  # about 0.06 on my system
+    print(how_much_longer)
+    assert 0 < how_much_longer < 0.5
 
     wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 2)
 
