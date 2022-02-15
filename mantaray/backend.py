@@ -162,8 +162,8 @@ class IrcCore:
         # Unless you don't invoke getaddrinfo(), which will always block.
         # But then you can't specify a host name to connect to, only an IP.
         #
-        # (asyncio manually calls getaddrinfo() in a separate thread, and
-        # manages to do it in a way that makes connecting slow on my system)
+        # (asyncio calls getaddrinfo() in a separate thread, and manages
+        # to do it in a way that makes connecting slow on my system)
         self._connect_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix=f"connect-{self.nick}-{hex(id(self))}"
         )
@@ -171,7 +171,7 @@ class IrcCore:
         # Possible states:
         #   Future: currently connecting
         #   socket: connected
-        #   float: time.monotonic() disconnected, value indicates when to reconnect
+        #   float: disconnected, value indicates when to reconnect
         #   None: quitting
         self._connection_state: Future[
             _Socket
@@ -200,7 +200,7 @@ class IrcCore:
     # tried using threads, and they were difficult to get right.
     def run_one_step(self) -> None:
         if self._connection_state is None:
-            # quitting
+            # quitting finished
             return
 
         elif isinstance(self._connection_state, float):

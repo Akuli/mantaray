@@ -267,8 +267,7 @@ class ServerView(View):
             self.irc_widget.remove_server(self)
             return
 
-        events = self.core.get_events()
-        for event in events:
+        for event in self.core.get_events():
             try:
                 received.handle_event(event, self)
             except Exception:
