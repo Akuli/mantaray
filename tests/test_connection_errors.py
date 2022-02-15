@@ -29,9 +29,13 @@ def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
     # Create a proxy server that discards PING messages.
-    # This is soooo much easier in shell than in python...
+    # This is much easier in shell than in python...
     subprocess.Popen(
-        "nc -lv -p 12345 -c 'grep --line-buffered -v ^PING | nc -v localhost 6667'",
+        """
+        file=$(mktemp)
+        trap "rm $file" exit
+        tail -f $file | nc -lv -p 12345 | grep --line-buffered -v ^PING | nc -v localhost 6667 > $file
+        """,
         shell=True,
     )
     time.sleep(0.5)  # wait for it to start
