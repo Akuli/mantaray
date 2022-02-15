@@ -108,12 +108,13 @@ _Socket = Union[socket.socket, ssl.SSLSocket]
 def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
     sock: _Socket
 
+    if use_ssl:
+        context = ssl.create_default_context()
+        sock = context.wrap_socket(socket.socket(), server_hostname=host)
+    else:
+        sock = socket.socket()
+
     try:
-        if use_ssl:
-            context = ssl.create_default_context()
-            sock = context.wrap_socket(socket.socket(), server_hostname=host)
-        else:
-            sock = socket.socket()
         sock.settimeout(15)
         sock.connect((host, port))
     except (OSError, ssl.SSLError) as e:
