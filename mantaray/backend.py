@@ -300,8 +300,8 @@ class IrcCore:
                 raise OSError("Server closed the connection!")
 
             self._receive_buffer += received
-            self._last_receive_time = time.monotonic()
             self._ping_sent = False
+            self._last_receive_time = time.monotonic()
 
             # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
             split_result = self._receive_buffer.split(b"\n")
