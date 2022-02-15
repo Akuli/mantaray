@@ -22,13 +22,18 @@ def test_clean_connect(alice):
 
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
     irc_server.process.kill()
-    wait_until(lambda: any(error_message in alice.text() for error_message in [
-        # WinError text depends on windows language
-        # Connection reset by peer error happens rarely, but it's possible too
-        "Connection error (reconnecting in 5sec): [WinError 10054] ",
-        "Connection error (reconnecting in 5sec): Server closed the connection!",
-        "Connection error (reconnecting in 5sec): [Errno 104] Connection reset by peer",
-    ]))
+    wait_until(
+        lambda: any(
+            error_message in alice.text()
+            for error_message in [
+                # WinError text depends on windows language
+                # Connection reset by peer error happens rarely, but it's possible too
+                "Connection error (reconnecting in 5sec): [WinError 10054] ",
+                "Connection error (reconnecting in 5sec): Server closed the connection!",
+                "Connection error (reconnecting in 5sec): [Errno 104] Connection reset by peer",
+            ]
+        )
+    )
 
     assert alice.get_current_view().channel_name == "#autojoin"
 
