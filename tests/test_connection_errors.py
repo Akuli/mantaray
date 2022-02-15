@@ -34,6 +34,7 @@ def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
         "nc -lv -p 12345 -c 'grep --line-buffered -v ^PING | nc -v localhost 6667'",
         shell=True,
     )
+    time.sleep(0.5)  # wait for it to start
 
     # Modify config to connect to proxy server
     server_view = alice.get_server_views()[0]
