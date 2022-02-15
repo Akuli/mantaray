@@ -14,7 +14,7 @@ import ssl
 import re
 import socket
 import time
-from typing import Union, Sequence, Iterator
+from typing import Union, Iterator
 from concurrent.futures import ThreadPoolExecutor, Future
 
 from . import config

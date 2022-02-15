@@ -37,7 +37,9 @@ def check_no_errors_logged(request):
 def root_window():
     root = ThemedTk(theme="black")
     root.geometry("800x500")
-    root.report_callback_exception = (lambda *args: logging.error("error in tkinter callback", exc_info=args))
+    root.report_callback_exception = lambda *args: logging.error(
+        "error in tkinter callback", exc_info=args
+    )
     yield root
     root.destroy()
 
