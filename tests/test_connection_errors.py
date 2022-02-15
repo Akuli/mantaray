@@ -34,7 +34,7 @@ def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
         """
         file=$(mktemp)
         trap "rm $file" exit
-        tail -f $file | nc -lv -p 12345 | grep --line-buffered -v ^PING | nc -v localhost 6667 > $file
+        tail -f $file | nc -nlv -p 12345 | grep --line-buffered -v ^PING | nc -nv 127.0.0.1 6667 > $file
         """,
         shell=True,
     )
