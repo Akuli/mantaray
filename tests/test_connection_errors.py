@@ -22,40 +22,58 @@ def test_clean_connect(alice):
     assert not alice.get_server_views()[0].textwidget.tag_ranges("error")
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="uses shell commands")
-@pytest.mark.skipif(shutil.which("nc") is None, reason="netcat not found")
 def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
     monkeypatch.setattr("mantaray.backend.PING_TIMEOUT_SECONDS", 1.23)
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
 
     # Create a proxy server that discards PING messages.
-    # This is much easier in shell than in python...
-    subprocess.Popen(
-        """
-        file=$(mktemp)
-        trap "rm $file" exit
-        tail -f $file | nc -nlv -p 12345 | grep --line-buffered -v ^PING | nc -nv 127.0.0.1 6667 > $file
-        """,
-        shell=True,
+    # Using a subprocess so it's easy to kill
+    proxy_server = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            """
+import socket, threading
+
+server = socket.create_connection(("localhost", 6667))
+client = socket.create_server(("", 12345), reuse_port=True).accept()[0]
+
+def server_to_client():
+    for line in server.makefile("rb"):
+        client.sendall(line)
+threading.Thread(target=server_to_client).start()
+
+for line in client.makefile("rb"):
+    if not line.startswith(b"PING "):
+        server.sendall(line)
+            """,
+        ]
     )
-    time.sleep(0.5)  # wait for it to start
+    time.sleep(0.5)  # Wait for it to start
 
-    # Modify config to connect to proxy server
-    server_view = alice.get_server_views()[0]
-    config = server_view.get_current_config()
-    config["port"] = 12345
-    server_view.core.apply_config_and_reconnect(config)
+    try:
+        # Modify config to connect to proxy server
+        server_view = alice.get_server_views()[0]
+        config = server_view.get_current_config()
+        config["port"] = 12345
+        server_view.core.apply_config_and_reconnect(config)
 
-    wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 1)
+        wait_until(
+            lambda: alice.text().count("Connecting to localhost port 12345...") == 1
+        )
 
-    start_time = time.monotonic()
-    wait_until(
-        lambda: "Connection error (reconnecting in 2sec): Server did not respond to ping in 1.23 seconds."
-        in alice.text()
-    )
-    end_time = time.monotonic()
+        start_time = time.monotonic()
+        wait_until(
+            lambda: (
+                "Connection error (reconnecting in 2sec): Server did not respond to ping in 1.23 seconds."
+                in alice.text()
+            )
+        )
+        end_time = time.monotonic()
+    finally:
+        proxy_server.kill()
+
     duration = end_time - start_time
-
     expected_duration = 2 * 1.23  # inactive long enough to need ping + wait for pong
     how_much_longer = duration - expected_duration  # about 0.3 on my system
     assert 0 < how_much_longer < 1
