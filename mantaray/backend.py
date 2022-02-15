@@ -162,8 +162,8 @@ class IrcCore:
         # Unless you don't invoke getaddrinfo(), which will always block.
         # But then you can't specify a host name to connect to, only an IP.
         #
-        # (asyncio manually calls getaddrinfo() in a separate thread, and
-        # manages to do it in a way that makes connecting slow on my system)
+        # (asyncio calls getaddrinfo() in a separate thread, and manages
+        # to do it in a way that makes connecting slow on my system)
         self._connect_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix=f"connect-{self.nick}-{hex(id(self))}"
         )
