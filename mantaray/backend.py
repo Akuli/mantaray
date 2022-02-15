@@ -200,7 +200,7 @@ class IrcCore:
     # tried using threads, and they were difficult to get right.
     def run_one_step(self) -> None:
         if self._connection_state is None:
-            # quitting
+            # quitting finished
             return
 
         elif isinstance(self._connection_state, float):
