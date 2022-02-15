@@ -159,7 +159,7 @@ class IrcWidget(ttk.PanedWindow):
         for server_config in file_config["servers"]:
             view = ServerView(self, server_config, verbose=verbose)
             self.add_view(view)
-            view.handle_events()  # Must be after add_view()
+            view.start_running()  # Must be after add_view()
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()

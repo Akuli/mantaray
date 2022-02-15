@@ -91,14 +91,14 @@ def test_cancel(alice, mocker, monkeypatch, wait_until):
     alice.entry.insert("end", "lolwatwut")
     alice.on_enter_pressed()
     wait_until(lambda: "lolwatwut" in alice.text())
-    assert "Disconnected" not in alice.text()
 
 
 def test_reconnect(alice, mocker, monkeypatch, wait_until):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
     server_view = alice.get_server_views()[0]
     server_view.show_config_dialog()
-    wait_until(lambda: "Disconnected" in alice.text())
+    wait_until(lambda: "Connecting to localhost port 6667..." in alice.text())
+    wait_until(lambda: alice.text().count("The topic of #autojoin is") == 2)
 
 
 def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
@@ -149,6 +149,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
     monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)
     bob.get_server_views()[0].show_config_dialog()
+    wait_until(lambda: bob.text().count("The topic of #lol is:") == 2)
 
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()
