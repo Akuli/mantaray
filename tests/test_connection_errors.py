@@ -78,7 +78,6 @@ for line in client.makefile("rb"):
 
     duration = end_time - start_time
     how_much_longer = duration - expected_ping_duration  # about 0.06 on my system
-    print(how_much_longer)
     assert 0 < how_much_longer < 0.5
 
     wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 2)
