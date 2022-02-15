@@ -256,8 +256,6 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        self._run_core()
-
     def _run_core(self) -> None:
         if self.core.quitting_finished():
             self.irc_widget.remove_server(self)

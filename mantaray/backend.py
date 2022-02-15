@@ -212,6 +212,7 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
+
             self._events.append(
                 ConnectivityMessage(
                     f"Connecting to {self.host} port {self.port}...", is_error=False
