@@ -1,4 +1,6 @@
 import re
+import shutil
+import subprocess
 import sys
 import time
 
@@ -18,6 +20,42 @@ def test_clean_connect(alice):
         "error" in server_view.textwidget.tag_names()
     )  # Fails if tags are renamed in refactoring
     assert not alice.get_server_views()[0].textwidget.tag_ranges("error")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="uses shell commands")
+@pytest.mark.skipif(shutil.which("nc") is None, reason="netcat not found")
+def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
+    monkeypatch.setattr("mantaray.backend.PING_TIMEOUT_SECONDS", 1.23)
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
+
+    # Create a proxy server that discards PING messages.
+    # This is soooo much easier in shell than in python...
+    subprocess.Popen(
+        "nc -lv -p 12345 -c 'grep --line-buffered -v ^PING | nc -v localhost 6667'",
+        shell=True,
+    )
+
+    # Modify config to connect to proxy server
+    server_view = alice.get_server_views()[0]
+    config = server_view.get_current_config()
+    config["port"] = 12345
+    server_view.core.apply_config_and_reconnect(config)
+
+    wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 1)
+
+    start_time = time.monotonic()
+    wait_until(
+        lambda: "Connection error (reconnecting in 2sec): Server did not respond to ping in 1.23 seconds."
+        in alice.text()
+    )
+    end_time = time.monotonic()
+    duration = end_time - start_time
+
+    expected_duration = 2 * 1.23  # inactive long enough to need ping + wait for pong
+    how_much_longer = duration - expected_duration  # about 0.3 on my system
+    assert 0 < how_much_longer < 1
+
+    wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 2)
 
 
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):

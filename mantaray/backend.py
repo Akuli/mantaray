@@ -55,6 +55,7 @@ def find_nicks(
 
 
 RECONNECT_SECONDS = 5
+PING_TIMEOUT_SECONDS = 30
 
 
 @dataclasses.dataclass
@@ -154,6 +155,7 @@ class IrcCore:
         self.cap_req: list[str] = []
         # "CAP LIST" shows capabilities enabled on the client's connection
         self.cap_list: set[str] = set()
+        # To evaluate how many more ACK/NAKs will be received from server
         self.pending_cap_count = 0
 
         self._events: list[IrcEvent] = []
@@ -178,6 +180,9 @@ class IrcCore:
         ] | _Socket | float | None = time.monotonic()
 
         self._force_quit_time: float | None = None
+
+        self._ping_sent = False
+        self._last_receive_time = time.monotonic()
 
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
@@ -238,16 +243,16 @@ class IrcCore:
                 self._connection_state = time.monotonic() + RECONNECT_SECONDS
                 return
 
+            self._ping_sent = False
+            self._last_receive_time = time.monotonic()
+
             self._connection_state.setblocking(False)
 
             if self.password is not None:
                 self.cap_req.append("sasl")
-
             self.cap_req.append("away-notify")
 
-            self.pending_cap_count = len(
-                self.cap_req
-            )  # To evaluate how many more ACK/NAKs will be received from server
+            self.pending_cap_count = len(self.cap_req)
             for capability in self.cap_req:
                 self.send(f"CAP REQ {capability}")
 
@@ -293,12 +298,24 @@ class IrcCore:
                 raise OSError("Server closed the connection!")
 
             self._receive_buffer += received
+            self._last_receive_time = time.monotonic()
+            self._ping_sent = False
 
             # Do not use .splitlines(keepends=True), it splits on \r which is bad (#115)
             split_result = self._receive_buffer.split(b"\n")
             self._receive_buffer = split_result.pop()
             for line in split_result:
                 self._handle_received_line(bytes(line) + b"\n")
+
+        time_since_receive = time.monotonic() - self._last_receive_time
+        if time_since_receive > PING_TIMEOUT_SECONDS and not self._ping_sent:
+            # ping_sent must be set before sending, because .send() ends up calling this method
+            self._ping_sent = True
+            self.send("PING :lol")
+        if time_since_receive > 2 * PING_TIMEOUT_SECONDS:
+            raise OSError(
+                f"Server did not respond to ping in {PING_TIMEOUT_SECONDS} seconds."
+            )
 
         while self._send_queue:
             data, done_event = self._send_queue[0]
