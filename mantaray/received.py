@@ -486,6 +486,7 @@ def _handle_unknown_message(
         ("4", "5", "7")
     ):
         server_view.irc_widget.get_current_view().add_message(text, sender, tag="error")
+        server_view.add_message(text, sender, tag="error")
     else:
         server_view.add_message(text, sender)
 
