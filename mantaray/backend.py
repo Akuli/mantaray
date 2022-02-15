@@ -412,6 +412,7 @@ class IrcCore:
             start = time.monotonic()
             while self._connection_state is not None:
                 assert time.monotonic() < start + 10
+                self.run_one_step()
                 time.sleep(0.01)
 
     def quitting_finished(self) -> bool:

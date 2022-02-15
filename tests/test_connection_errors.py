@@ -22,20 +22,14 @@ def test_clean_connect(alice):
 
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
     irc_server.process.kill()
-    if sys.platform == "win32":
-        # error message depends on language
-        wait_until(lambda: "Connection error: [WinError 10054] " in alice.text())
-    else:
-        wait_until(
-            lambda: (
-                "Connection error: Server closed the connection!" in alice.text()
-                or (
-                    # This error happens rarely, but it's possible too
-                    "Connection error: [Errno 104] Connection reset by peer"
-                    in alice.text()
-                )
-            )
-        )
+    wait_until(lambda: any(error_message in alice.text() for error_message in [
+        # WinError text depends on windows language
+        # Connection reset by peer error happens rarely, but it's possible too
+        "Connection error (reconnecting in 5sec): [WinError 10054] ",
+        "Connection error (reconnecting in 5sec): Server closed the connection!",
+        "Connection error (reconnecting in 5sec): [Errno 104] Connection reset by peer",
+    ]))
+
     assert alice.get_current_view().channel_name == "#autojoin"
 
     start = time.monotonic()
@@ -66,8 +60,7 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
     wait_until(lambda: "Cannot connect (reconnecting in 2sec):" in alice.text())
 
     lines = alice.text().splitlines()
-    assert "Connection error: " in lines[-4]
-    assert lines[-3].endswith("Disconnected.")
+    assert "Connection error (reconnecting in 2sec): " in lines[-3]
     assert lines[-2].endswith("Connecting to localhost port 6667...")
     assert "Cannot connect (reconnecting in 2sec):" in lines[-1]
     if sys.platform == "win32":
@@ -87,12 +80,3 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
 
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
     assert bob.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
-
-
-def test_order_bug(alice, mocker, monkeypatch, wait_until):
-    server_view = alice.get_server_views()[0]
-    server_view.core.apply_config_and_reconnect(server_view.get_current_config())
-    wait_until(
-        lambda: "Disconnected." in alice.text() and "Connecting to" in alice.text()
-    )
-    assert alice.text().index("Disconnected.") < alice.text().index("Connecting to")
