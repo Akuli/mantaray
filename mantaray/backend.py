@@ -92,7 +92,7 @@ class SentPrivmsg:
 
 
 @dataclasses.dataclass
-class Quit:
+class _Quit:
     pass
 
 
@@ -102,7 +102,6 @@ IrcEvent = Union[
     ConnectivityMessage,
     HostChanged,
     SentPrivmsg,
-    Quit,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
 
@@ -151,7 +150,7 @@ class IrcCore:
         self._apply_config(server_config)
 
         self._send_queue: collections.deque[
-            tuple[bytes, SentPrivmsg | Quit | None]
+            tuple[bytes, SentPrivmsg | _Quit | None]
         ] = collections.deque()
         self._receive_buffer = bytearray()
 
@@ -310,10 +309,10 @@ class IrcCore:
                 print("Send:", data[:n])
             if n == len(data):
                 self._send_queue.popleft()
+                if isinstance(done_event, _Quit):
+                    return True
                 if done_event is not None:
                     self.event_queue.put(done_event)
-                    if isinstance(done_event, Quit):
-                        return True
             else:
                 self._send_queue[0] = (data[n:], done_event)
 
@@ -335,7 +334,7 @@ class IrcCore:
         )
 
     def send(
-        self, message: str, *, done_event: SentPrivmsg | Quit | None = None
+        self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
     ) -> None:
         self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
         self.run_one_step()
@@ -400,7 +399,7 @@ class IrcCore:
             and self._force_quit_time is None
         ):
             # Attempt a clean quit
-            self.send("QUIT", done_event=Quit())
+            self.send("QUIT", done_event=_Quit())
             self._force_quit_time = time.monotonic() + 1
         else:
             self._force_quit_now()
@@ -421,4 +420,3 @@ class IrcCore:
             # It's already connecting. We won't use the resulting connection.
             self._connection_state.add_done_callback(_close_socket_when_future_done)
         self._connection_state = None
-        self.event_queue.put(Quit())

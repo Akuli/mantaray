@@ -611,9 +611,6 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
             _add_privmsg_to_view(channel_view, server_view.core.nick, event.text)
         return True
 
-    if isinstance(event, backend.Quit):
-        return False
-
     # If mypy says 'error: unused "type: ignore" comment', you
     # forgot to check for some class
     print("can't happen")  # type: ignore
