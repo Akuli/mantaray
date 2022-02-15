@@ -485,8 +485,10 @@ def _handle_unknown_message(
     if isinstance(msg, backend.MessageFromServer) and msg.command.startswith(
         ("4", "5", "7")
     ):
-        server_view.irc_widget.get_current_view().add_message(text, sender, tag="error")
         server_view.add_message(text, sender, tag="error")
+        current_view = server_view.irc_widget.get_current_view()
+        if current_view != server_view:
+            current_view.add_message(text, sender, tag="error")
     else:
         server_view.add_message(text, sender)
 
