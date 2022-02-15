@@ -171,7 +171,7 @@ class IrcCore:
         # Possible states:
         #   Future: currently connecting
         #   socket: connected
-        #   float: time.monotonic() disconnected, value indicates when to reconnect
+        #   float: disconnected, value indicates when to reconnect
         #   None: quitting
         self._connection_state: Future[
             _Socket
