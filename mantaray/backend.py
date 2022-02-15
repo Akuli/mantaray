@@ -160,7 +160,7 @@ class IrcCore:
         self.cap_list: set[str] = set()
         self.pending_cap_count = 0
 
-        self.event_queue: queue.Queue[IrcEvent] = queue.Queue()
+        self._events: list[IrcEvent] = []
 
         # Unfortunately there's no such thing as non-blocking connect().
         # Unless you don't invoke getaddrinfo(), which will always block.
@@ -193,6 +193,11 @@ class IrcCore:
         self.password = server_config["password"]
         self.autojoin = server_config["joined_channels"].copy()
 
+    def get_events(self) -> list[IrcEvent]:
+        result = self._events.copy()
+        self._events.clear()
+        return result
+
     # Call this repeatedly from the GUI's event loop.
     #
     # This is the best we can do in tkinter without threading. I
@@ -211,7 +216,7 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
-            self.event_queue.put(
+            self._events.append(
                 ConnectivityMessage(
                     f"Connecting to {self.host} port {self.port}...", is_error=False
                 )
@@ -227,7 +232,7 @@ class IrcCore:
             try:
                 self._connection_state = self._connection_state.result()
             except (OSError, ssl.SSLError) as e:
-                self.event_queue.put(
+                self._events.append(
                     ConnectivityMessage(
                         f"Cannot connect (reconnecting in {RECONNECT_SECONDS}sec): {e}",
                         is_error=True,
@@ -260,7 +265,7 @@ class IrcCore:
                     self._connection_state
                 )
             except (OSError, ssl.SSLError) as e:
-                self.event_queue.put(
+                self._events.append(
                     ConnectivityMessage(
                         f"Connection error (reconnecting in {RECONNECT_SECONDS}sec): {e}",
                         is_error=True,
@@ -312,7 +317,7 @@ class IrcCore:
                 if isinstance(done_event, _Quit):
                     return True
                 if done_event is not None:
-                    self.event_queue.put(done_event)
+                    self._events.append(done_event)
             else:
                 self._send_queue[0] = (data[n:], done_event)
 
@@ -329,7 +334,7 @@ class IrcCore:
             # https://tools.ietf.org/html/rfc2812#section-2.3.1
             return
 
-        self.event_queue.put(
+        self._events.append(
             self._parse_received_message(line.decode("utf-8", errors="replace"))
         )
 
@@ -385,7 +390,7 @@ class IrcCore:
         self._connection_state = time.monotonic()  # reconnect asap
 
         if old_host != self.host:
-            self.event_queue.put(HostChanged(old_host, self.host))
+            self._events.append(HostChanged(old_host, self.host))
 
     def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self.send(

@@ -575,25 +575,24 @@ def _handle_received_message(
         _handle_unknown_message(server_view, msg)
 
 
-# Returns True this function should be called again, False if quitting
-def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool:
+def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
         try:
             _handle_received_message(server_view, event)
         except Exception:
             traceback.print_exc()
-        return True
+        return
 
     if isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
             view.add_message(event.message, tag=("error" if event.is_error else "info"))
-        return True
+        return
 
     if isinstance(event, backend.HostChanged):
         server_view.view_name = event.new
         for subview in server_view.get_subviews(include_server=True):
             subview.reopen_log_file()
-        return True
+        return
 
     if isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)
@@ -609,7 +608,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> bool
             _add_privmsg_to_view(pm_view, server_view.core.nick, event.text)
         else:
             _add_privmsg_to_view(channel_view, server_view.core.nick, event.text)
-        return True
+        return
 
     # If mypy says 'error: unused "type: ignore" comment', you
     # forgot to check for some class

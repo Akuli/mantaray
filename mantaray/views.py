@@ -260,9 +260,27 @@ class ServerView(View):
         self._run_core()
 
     def _run_core(self) -> None:
-        if not self.core.quitting_finished():
-            self.irc_widget.after(50, self._run_core)
-            self.core.run_one_step()
+        if self.core.quitting_finished():
+            self.irc_widget.remove_server(self)
+            return
+
+        self.core.run_one_step()
+
+        if self.core.quitting_finished():
+            self.irc_widget.remove_server(self)
+            return
+
+        events = self.core.get_events()
+        for event in events:
+            try:
+                received.handle_event(event, self)
+            except Exception:
+                traceback.print_exc()
+
+        self.irc_widget.after(50, self._run_core)
+
+    def start_running(self) -> None:
+        self._run_core()
 
     def get_log_name(self) -> str:
         # Log to file named logs/foobar/server.log.
@@ -306,27 +324,6 @@ class ServerView(View):
             ):
                 return view
         return None
-
-    def handle_events(self) -> None:
-        """Call this once to start processing events from the core.
-
-        Do NOT call it before the view has been added to the IRC widget.
-        """
-        # this is here so that this will be called again, even if
-        # something raises an error this time
-        next_call_id = self.irc_widget.after(100, self.handle_events)
-
-        while True:
-            try:
-                event = self.core.event_queue.get(block=False)
-            except queue.Empty:
-                break
-
-            should_keep_going = received.handle_event(event, self)
-            if not should_keep_going:
-                self.irc_widget.after_cancel(next_call_id)
-                self.irc_widget.remove_server(self)
-                break
 
     def get_current_config(self) -> config.ServerConfig:
         channels = [
