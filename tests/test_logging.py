@@ -59,7 +59,9 @@ def test_basic(alice, bob, wait_until, check_log):
 def test_pm_logs(alice, bob, wait_until, check_log):
     alice.entry.insert("end", "/msg Bob hey")
     alice.on_enter_pressed()
-    wait_until(lambda: "hey" in bob.text())
+    wait_until(lambda: alice.get_current_view().view_name == "Bob")
+    wait_until(lambda: bob.get_current_view().view_name == "Alice")
+    assert "hey" in bob.text()
 
     bob.entry.insert("end", "/nick blabla")
     bob.on_enter_pressed()
@@ -67,6 +69,7 @@ def test_pm_logs(alice, bob, wait_until, check_log):
 
     alice.entry.insert("end", "its ur new nick")
     alice.on_enter_pressed()
+    wait_until(lambda: "its ur new nick" in alice.text())
     wait_until(lambda: "its ur new nick" in bob.text())
 
     alice.entry.insert("end", "/quit")
