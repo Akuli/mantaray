@@ -14,7 +14,7 @@ import ssl
 import re
 import socket
 import time
-from typing import Union, Sequence, Iterator
+from typing import Union, Iterator
 from concurrent.futures import ThreadPoolExecutor, Future
 
 from . import config
@@ -37,7 +37,7 @@ CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
 def find_nicks(
-    text: str, self_nick: str, all_nicks: Sequence[str]
+    text: str, self_nick: str, all_nicks: list[str]
 ) -> Iterator[tuple[str, str | None]]:
     lowercase_nicks = {n.lower() for n in all_nicks}
     assert self_nick.lower() in lowercase_nicks

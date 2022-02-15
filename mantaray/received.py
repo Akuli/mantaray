@@ -62,9 +62,12 @@ def _add_privmsg_to_view(
         slash_me = False
 
     if isinstance(view, views.ChannelView):
-        all_nicks = view.userlist.get_nicks()
+        all_nicks = list(view.userlist.get_nicks())
+        if view.server_view.core.nick not in all_nicks:
+            # Possible, if user is kicked
+            all_nicks.append(view.server_view.core.nick)
     else:
-        all_nicks = (view.nick_of_other_user, view.server_view.core.nick)
+        all_nicks = [view.nick_of_other_user, view.server_view.core.nick]
 
     parts = []
     for substring, base_tags in textwidget_tags.parse_text(text):

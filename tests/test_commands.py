@@ -118,6 +118,10 @@ def test_kick(alice, bob, wait_until):
         )
     )
 
+    bob.entry.insert(0, "just trying to talk here...")
+    bob.on_enter_pressed()
+    wait_until(lambda: bob.text().endswith("#autojoin You're not on that channel\n"))
+
     alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
     alice.entry.insert("end", "/kick bob")
     alice.on_enter_pressed()

@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import sys
@@ -14,10 +15,31 @@ from ttkthemes import ThemedTk
 os.environ.setdefault("IRC_SERVER", "mantatail")
 
 
+# https://github.com/pytest-dev/pytest/issues/8887
+@pytest.fixture(scope="function", autouse=True)
+def check_no_errors_logged(request):
+    if "caplog" in request.fixturenames:
+        # Test uses caplog fixture, expects to get logging errors
+        yield
+    else:
+        # Fail test if it logs an error
+        errors = []
+        handler = logging.Handler()
+        handler.setLevel(logging.ERROR)
+        handler.emit = errors.append
+        logging.getLogger().addHandler(handler)
+        yield
+        logging.getLogger().removeHandler(handler)
+        assert not errors
+
+
 @pytest.fixture(scope="session")
 def root_window():
     root = ThemedTk(theme="black")
     root.geometry("800x500")
+    root.report_callback_exception = lambda *args: logging.error(
+        "error in tkinter callback", exc_info=args
+    )
     yield root
     root.destroy()
 
