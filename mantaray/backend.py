@@ -379,11 +379,15 @@ class IrcCore:
 
         old_host = self.host
         self._apply_config(server_config)
-        if isinstance(self._connection_state, (socket.socket, ssl.SSLSocket)):
-            self._connection_state.close()
-        if isinstance(self._connection_state, Future):
-            # It's already connecting. We won't use the resulting connection.
+
+        if isinstance(self._connection_state, float):
+            # A reconnect is already scheduled, that can be ignored
+            pass
+        elif isinstance(self._connection_state, Future):
+            # It's already connecting. We won't use that connection.
             self._connection_state.add_done_callback(_close_socket_when_future_done)
+        else:
+            self._connection_state.close()
         self._connection_state = time.monotonic()  # reconnect asap
 
         if old_host != self.host:
