@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import traceback
 import time
 import sys
@@ -63,7 +64,7 @@ def _show_popup(title: str, text: str) -> None:
         else:
             subprocess.call(["notify-send", f"[{title}] {text}"])
     except OSError:
-        traceback.print_exc()
+        logging.exception("error showing notification popup")
 
 
 class MessagePart:
@@ -150,7 +151,7 @@ class View:
             try:
                 playsound("mantaray/audio/notify.mp3", False)
             except Exception:
-                traceback.print_exc()
+                logging.exception("can't play notify sound")
 
         _show_popup(self.view_name, popup_text)
 
@@ -271,7 +272,7 @@ class ServerView(View):
             try:
                 received.handle_event(event, self)
             except Exception:
-                traceback.print_exc()
+                logging.exception(f"error while handling event: {event}")
 
         self.irc_widget.after(50, self._run_core)
 
