@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import traceback
 from base64 import b64encode
 from typing import TYPE_CHECKING
 
@@ -577,24 +576,18 @@ def _handle_received_message(
 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
-        try:
-            _handle_received_message(server_view, event)
-        except Exception:
-            traceback.print_exc()
-        return
+        _handle_received_message(server_view, event)
 
-    if isinstance(event, backend.ConnectivityMessage):
+    elif isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
             view.add_message(event.message, tag=("error" if event.is_error else "info"))
-        return
 
-    if isinstance(event, backend.HostChanged):
+    elif isinstance(event, backend.HostChanged):
         server_view.view_name = event.new
         for subview in server_view.get_subviews(include_server=True):
             subview.reopen_log_file()
-        return
 
-    if isinstance(event, backend.SentPrivmsg):
+    elif isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)
         if channel_view is None:
             assert not re.fullmatch(
@@ -608,8 +601,8 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             _add_privmsg_to_view(pm_view, server_view.core.nick, event.text)
         else:
             _add_privmsg_to_view(channel_view, server_view.core.nick, event.text)
-        return
 
-    # If mypy says 'error: unused "type: ignore" comment', you
-    # forgot to check for some class
-    print("can't happen")  # type: ignore
+    else:
+        # If mypy says 'error: unused "type: ignore" comment', you
+        # forgot to check for some class
+        print("can't happen")  # type: ignore

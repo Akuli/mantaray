@@ -10,7 +10,6 @@ IRC bot using this file, without having to modify it at all.
 from __future__ import annotations
 import collections
 import dataclasses
-import queue
 import ssl
 import re
 import socket
