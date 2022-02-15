@@ -149,6 +149,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
     monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)
     bob.get_server_views()[0].show_config_dialog()
+    wait_until(lambda: bob.text().count("The topic of #lol is:") == 2)
 
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()

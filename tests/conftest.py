@@ -36,13 +36,14 @@ def wait_until(root_window, irc_widgets_dict):
             root_window.update()
             if condition():
                 return
-        raise RuntimeError(
-            "timed out waiting"
-            + "".join(
-                f"\n{name}'s text = {widget.text()!r}"
-                for name, widget in irc_widgets_dict.items()
-            )
-        )
+
+        message = "timed out waiting"
+        for name, widget in irc_widgets_dict.items():
+            try:
+                message += f"\n{name}'s text = {widget.text()!r}"
+            except Exception:
+                message += f"\n{name}'s text = <error>"
+        raise RuntimeError(message)
 
     return actually_wait_until
 
