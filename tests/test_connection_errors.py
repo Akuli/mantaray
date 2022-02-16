@@ -1,4 +1,5 @@
 import re
+import subprocess
 import sys
 import time
 
@@ -18,6 +19,68 @@ def test_clean_connect(alice):
         "error" in server_view.textwidget.tag_names()
     )  # Fails if tags are renamed in refactoring
     assert not alice.get_server_views()[0].textwidget.tag_ranges("error")
+
+
+def test_server_doesnt_respond_to_ping(alice, wait_until, monkeypatch):
+    # values don't matter much, just has to be small and distinct enough
+    monkeypatch.setattr("mantaray.backend.IDLE_BEFORE_PING_SECONDS", 2)
+    monkeypatch.setattr("mantaray.backend.PING_TIMEOUT_SECONDS", 1)
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 1.5)
+    expected_ping_duration = 2 + 1
+
+    # Create a proxy server that discards PING messages.
+    # Using a subprocess so it's easy to kill
+    proxy_server = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            """
+import socket, threading
+
+server = socket.create_connection(("localhost", 6667))
+client = socket.create_server(("localhost", 12345)).accept()[0]
+
+def server_to_client():
+    for line in server.makefile("rb"):
+        client.sendall(line)
+threading.Thread(target=server_to_client).start()
+
+for line in client.makefile("rb"):
+    if not line.startswith(b"PING "):
+        server.sendall(line)
+            """,
+        ]
+    )
+    time.sleep(0.5)  # Wait for it to start
+
+    try:
+        # Modify config to connect to proxy server
+        server_view = alice.get_server_views()[0]
+        config = server_view.get_current_config()
+        config["port"] = 12345
+        server_view.core.apply_config_and_reconnect(config)
+
+        wait_until(
+            lambda: alice.text().count("Connecting to localhost port 12345...") == 1
+        )
+        wait_until(lambda: alice.text().count("The topic of #autojoin is") == 2)
+
+        start_time = time.monotonic()
+        wait_until(
+            lambda: (
+                "Connection error (reconnecting in 1.5sec): Server did not respond to ping in 1 seconds."
+                in alice.text()
+            )
+        )
+        end_time = time.monotonic()
+    finally:
+        proxy_server.kill()
+
+    duration = end_time - start_time
+    how_much_longer = duration - expected_ping_duration  # about 0.06 on my system
+    assert 0 < how_much_longer < 0.5
+
+    wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 2)
 
 
 def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until):
