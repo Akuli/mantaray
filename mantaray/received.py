@@ -455,9 +455,7 @@ def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
         view.userlist.set_away(nick, True)
 
 
-def _handle_endofwho(
-    server_view: views.ServerView
-) -> None:
+def _handle_endofwho(server_view: views.ServerView) -> None:
     if _pending_who_sends[server_view]:
         channel = _pending_who_sends[server_view].pop()
         server_view.core.send(f"WHO {channel}")
