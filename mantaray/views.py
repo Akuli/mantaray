@@ -19,9 +19,7 @@ if TYPE_CHECKING:
 class _UserList:
     def __init__(self, irc_widget: IrcWidget):
         self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
-        self.treeview.tag_configure(
-            "away", foreground="#95968c"
-        )
+        self.treeview.tag_configure("away", foreground="#95968c")
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
