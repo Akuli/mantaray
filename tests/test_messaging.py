@@ -110,8 +110,6 @@ def test_slash_r_character(alice, bob, wait_until):
     reason="hircd doesn't support case insensitive nicks",
 )
 def test_private_messages(alice, bob, wait_until):
-    # TODO: some button in gui to start private messaging?
-
     alice.entry.insert(0, "/msg Bob hello there")
     alice.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())

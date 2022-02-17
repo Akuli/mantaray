@@ -166,11 +166,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
-            # Fails sometimes on macos github actions, don't know yet why
-            # TODO: still failing with bigger timeout?
             wait_until(
-                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
-                timeout=15,
+                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text()
             )
 
             for user in users_who_join_before:
