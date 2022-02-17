@@ -7,7 +7,11 @@ from mantaray.views import ServerView
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
 if os.environ["IRC_SERVER"] == "hircd":
-    params.append(pytest.param("/part #LOL", marks=pytest.mark.xfail(reason="hircd is case-sensitive")))
+    params.append(
+        pytest.param(
+            "/part #LOL", marks=pytest.mark.xfail(reason="hircd is case-sensitive")
+        )
+    )
 else:
     params.append("/part #LOL")
 
