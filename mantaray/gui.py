@@ -394,6 +394,10 @@ class IrcWidget(ttk.PanedWindow):
                 label="Show notifications for all messages", variable=var
             )
 
+            self._contextmenu.add_command(
+                label="Part this channel", command=(lambda: self.remove_view(view))
+            )
+
         elif isinstance(view, ServerView):
             self._contextmenu.add_command(
                 label="Server settings...", command=view.show_config_dialog
@@ -401,7 +405,8 @@ class IrcWidget(ttk.PanedWindow):
 
         elif isinstance(view, PMView):
             self._contextmenu.add_command(
-                label="Close", command=(lambda: self.remove_view(view)))
+                label="Close", command=(lambda: self.remove_view(view))
+            )
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
