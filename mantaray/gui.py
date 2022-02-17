@@ -383,17 +383,14 @@ class IrcWidget(ttk.PanedWindow):
 
             def toggle_autojoin(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
-                if view.channel_name in view.server_view.core.autojoin:
-                    view.server_view.core.autojoin.remove(view.channel_name)
-                else:
-                    view.server_view.core.autojoin.append(view.channel_name)
+                view.join_on_startup = not view.join_on_startup
 
             def toggle_extra_notifications(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
                 view.server_view.extra_notifications ^= {view.channel_name}
 
             autojoin_var = tkinter.BooleanVar(
-                value=(view.channel_name in view.server_view.core.autojoin)
+                value=view.join_on_startup
             )
             extra_notif_var = tkinter.BooleanVar(
                 value=(view.channel_name in view.server_view.extra_notifications)
@@ -403,7 +400,7 @@ class IrcWidget(ttk.PanedWindow):
             extra_notif_var.trace_add("write", toggle_extra_notifications)
 
             self._contextmenu.add_checkbutton(
-                label="Join automatically when connecting", variable=autojoin_var
+                label="Join when Mantaray starts", variable=autojoin_var
             )
             self._contextmenu.add_checkbutton(
                 label="Show notifications for all messages", variable=extra_notif_var
