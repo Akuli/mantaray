@@ -21,7 +21,7 @@ class _UserList:
         self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
         self.treeview.tag_configure(
             "away", foreground="#95968c"
-        )  # TODO: Apply tag if user with away tag changes nick
+        )
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
