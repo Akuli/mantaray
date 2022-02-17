@@ -271,15 +271,22 @@ def test_away_status(alice, bob, wait_until):
         lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
     )
 
+    alice.entry.insert(0, "/nick Alice2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as Alice2" in alice.text())
+    wait_until(lambda: "Alice is now known as Alice2" in bob.text())
+    assert "away" in alice.get_current_view().userlist.treeview.item("Alice2")["tags"]
+    assert "away" in bob.get_current_view().userlist.treeview.item("Alice2")["tags"]
+
     alice.entry.insert("end", "/back")
     alice.on_enter_pressed()
     wait_until(lambda: "You are no longer marked as being away\n" in alice.text())
     assert (
-        "away" not in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
+        "away" not in alice.get_current_view().userlist.treeview.item("Alice2")["tags"]
     )
     wait_until(
         lambda: "away"
-        not in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
+        not in bob.get_current_view().userlist.treeview.item("Alice2")["tags"]
     )
 
 

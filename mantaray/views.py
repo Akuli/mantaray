@@ -33,6 +33,12 @@ class _UserList:
     def remove_user(self, nick: str) -> None:
         self.treeview.delete(nick)
 
+    def change_nick(self, old: str, new: str) -> None:
+        tags = self.treeview.item(old, "tags")
+        self.remove_user(old)
+        self.add_user(new)
+        self.treeview.item(new, tags=tags)
+
     def get_nicks(self) -> tuple[str, ...]:
         return self.treeview.get_children("")
 
