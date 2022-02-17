@@ -206,5 +206,5 @@ def test_autojoin(alice, wait_until, monkeypatch):
         == 2
     )
 
-    # But the autojoin setting for #lol shouldn't be saved
+    # But not when mantaray is later started from the settings
     assert server_view.get_current_config()["joined_channels"] == ["#autojoin"]
