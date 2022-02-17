@@ -263,6 +263,7 @@ class ServerView(View):
         # Used once and set to None after creating the view.
         # If you reconnect, we join all currently opened channels.
         self.join_initially: list[str] | None = server_config["joined_channels"]
+        assert self.join_initially is not None
 
     def _run_core(self) -> None:
         if self.core.quitting_finished():
