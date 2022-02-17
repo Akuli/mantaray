@@ -395,7 +395,10 @@ class IrcWidget(ttk.PanedWindow):
             )
 
             self._contextmenu.add_command(
-                label="Part this channel", command=(lambda: self.remove_view(view))
+                label="Part this channel",
+                command=(
+                    lambda: view.server_view.core.send(f"PART {view.channel_name}")
+                ),
             )
 
         elif isinstance(view, ServerView):
