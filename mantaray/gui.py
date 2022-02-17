@@ -386,7 +386,6 @@ class IrcWidget(ttk.PanedWindow):
             view.join_on_startup = not view.join_on_startup
 
         def toggle_extra_notifications(*junk: object) -> None:
-            assert isinstance(view, ChannelView)  # mypy awesomeness
             view.server_view.extra_notifications ^= {view.channel_name}
 
         autojoin_var = tkinter.BooleanVar(
