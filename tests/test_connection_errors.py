@@ -77,8 +77,7 @@ for line in client.makefile("rb"):
         proxy_server.kill()
 
     duration = end_time - start_time
-    how_much_longer = duration - expected_ping_duration  # about 0.06 on my system
-    assert 0 < how_much_longer < 0.5
+    abs(duration - expected_ping_duration) < 0.5  # difference is about 0.06 on my system
 
     wait_until(lambda: alice.text().count("Connecting to localhost port 12345...") == 2)
 
