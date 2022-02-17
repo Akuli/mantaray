@@ -427,7 +427,6 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
-    # TODO: relying on MOTD good?
     for channel in server_view.core.autojoin:
         server_view.core.send(f"JOIN {channel}")
 
