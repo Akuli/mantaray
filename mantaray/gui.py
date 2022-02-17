@@ -390,9 +390,7 @@ class IrcWidget(ttk.PanedWindow):
             assert isinstance(view, ChannelView)  # mypy awesomeness
             view.server_view.extra_notifications ^= {view.channel_name}
 
-        autojoin_var = tkinter.BooleanVar(
-            value=view.join_on_startup
-        )
+        autojoin_var = tkinter.BooleanVar(value=view.join_on_startup)
         extra_notif_var = tkinter.BooleanVar(
             value=(view.channel_name in view.server_view.extra_notifications)
         )

@@ -142,7 +142,6 @@ def _flush_and_close_socket(sock: _Socket) -> None:
 
 
 class IrcCore:
-
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)

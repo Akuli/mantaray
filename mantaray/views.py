@@ -341,8 +341,7 @@ class ServerView(View):
             "joined_channels": [
                 view.channel_name
                 for view in self.get_subviews()
-                if isinstance(view, ChannelView)
-                and view.join_on_startup
+                if isinstance(view, ChannelView) and view.join_on_startup
             ],
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
