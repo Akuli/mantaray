@@ -399,6 +399,10 @@ class IrcWidget(ttk.PanedWindow):
                 label="Server settings...", command=view.show_config_dialog
             )
 
+        elif isinstance(view, PMView):
+            self._contextmenu.add_command(
+                label="Close", command=(lambda: self.remove_view(view)))
+
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
