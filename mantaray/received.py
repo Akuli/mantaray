@@ -157,8 +157,11 @@ def _handle_part(
 
     if parting_nick == server_view.core.nick:
         server_view.irc_widget.remove_view(channel_view)
-        if channel in server_view.core.autojoin:
-            server_view.core.autojoin.remove(channel)
+
+        for index, autojoin_chan in enumerate(server_view.core.autojoin):
+            if autojoin_chan.lower() == channel.lower():
+                del server_view.core.autojoin[index]
+                break
 
     else:
         channel_view.userlist.remove_user(parting_nick)

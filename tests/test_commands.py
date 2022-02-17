@@ -4,8 +4,15 @@ import pytest
 from mantaray.views import ServerView
 
 
+# https://stackoverflow.com/a/30575822
+params = ["/part", "/part #lol"]
+if os.environ["IRC_SERVER"] == "hircd":
+    params.append(pytest.param("/part #LOL", marks=pytest.mark.xfail(reason="hircd is case-sensitive")))
+else:
+    params.append("/part #LOL")
+
 # TODO: should test entering channel name case insensitively, but hircd is case sensitive :(
-@pytest.mark.parametrize("part_command", ["/part", "/part #lol"])
+@pytest.mark.parametrize("part_command", params)
 def test_join_and_part(alice, bob, wait_until, part_command):
     alice.entry.insert("end", "/join #lol")
     alice.on_enter_pressed()
