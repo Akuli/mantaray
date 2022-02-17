@@ -195,8 +195,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 ]
             )
             if isinstance(view, views.ChannelView):
-                view.userlist.remove_user(old_nick)
-                view.userlist.add_user(new_nick)
+                view.userlist.change_nick(old_nick, new_nick)
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
@@ -209,8 +208,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             )
 
             if isinstance(view, views.ChannelView):
-                view.userlist.remove_user(old_nick)
-                view.userlist.add_user(new_nick)
+                view.userlist.change_nick(old_nick, new_nick)
 
             if isinstance(view, views.PMView):
                 # Someone else might have had this nick before
