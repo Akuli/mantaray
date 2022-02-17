@@ -376,40 +376,33 @@ class IrcWidget(ttk.PanedWindow):
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 
-    def _fill_menu(self) -> None:
-        view = self.get_current_view()
+    def _fill_menu_for_server(self, view: ServerView) -> None:
+        self._contextmenu.add_command(
+            label="Server settings...", command=view.show_config_dialog
+        )
 
-        if isinstance(view, ChannelView):
+    def _fill_menu_for_channel(self, view: ChannelView) -> None:
+        def on_change(*junk: object) -> None:
+            view.server_view.extra_notifications ^= {view.channel_name}
 
-            def on_change(*junk: object) -> None:
-                assert isinstance(view, ChannelView)  # mypy awesomeness
-                view.server_view.extra_notifications ^= {view.channel_name}
+        var = tkinter.BooleanVar(
+            value=(view.channel_name in view.server_view.extra_notifications)
+        )
+        var.trace_add("write", on_change)
+        self._garbage_collection_is_lol = var
+        self._contextmenu.add_checkbutton(
+            label="Show notifications for all messages", variable=var
+        )
 
-            var = tkinter.BooleanVar(
-                value=(view.channel_name in view.server_view.extra_notifications)
-            )
-            var.trace_add("write", on_change)
-            self._garbage_collection_is_lol = var
-            self._contextmenu.add_checkbutton(
-                label="Show notifications for all messages", variable=var
-            )
+        self._contextmenu.add_command(
+            label="Part this channel",
+            command=(lambda: view.server_view.core.send(f"PART {view.channel_name}")),
+        )
 
-            self._contextmenu.add_command(
-                label="Part this channel",
-                command=(
-                    lambda: view.server_view.core.send(f"PART {view.channel_name}")
-                ),
-            )
-
-        elif isinstance(view, ServerView):
-            self._contextmenu.add_command(
-                label="Server settings...", command=view.show_config_dialog
-            )
-
-        elif isinstance(view, PMView):
-            self._contextmenu.add_command(
-                label="Close", command=(lambda: self.remove_view(view))
-            )
+    def _fill_menu_for_pm(self, view: PMView) -> None:
+        self._contextmenu.add_command(
+            label="Close", command=(lambda: self.remove_view(view))
+        )
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
@@ -420,7 +413,15 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.selection_set(item_id)
 
         self._contextmenu.delete(0, "end")
-        self._fill_menu()
+
+        view = self.get_current_view()
+        if isinstance(view, ServerView):
+            self._fill_menu_for_server(view)
+        if isinstance(view, ChannelView):
+            self._fill_menu_for_channel(view)
+        if isinstance(view, PMView):
+            self._fill_menu_for_pm(view)
+
         self._contextmenu.tk_popup(event.x_root + 5, event.y_root)
 
     def get_current_config(self) -> config.Config:
