@@ -381,18 +381,35 @@ class IrcWidget(ttk.PanedWindow):
 
         if isinstance(view, ChannelView):
 
-            def on_change(*junk: object) -> None:
+            def toggle_autojoin(*junk: object) -> None:
+                assert isinstance(view, ChannelView)  # mypy awesomeness
+                if view.channel_name in view.server_view.core.autojoin:
+                    view.server_view.core.autojoin.remove(view.channel_name)
+                else:
+                    view.server_view.core.autojoin.append(view.channel_name)
+
+            def toggle_extra_notifications(*junk: object) -> None:
                 assert isinstance(view, ChannelView)  # mypy awesomeness
                 view.server_view.extra_notifications ^= {view.channel_name}
 
-            var = tkinter.BooleanVar(
+            autojoin_var = tkinter.BooleanVar(
+                value=(view.channel_name in view.server_view.core.autojoin)
+            )
+            extra_notif_var = tkinter.BooleanVar(
                 value=(view.channel_name in view.server_view.extra_notifications)
             )
-            var.trace_add("write", on_change)
-            self._garbage_collection_is_lol = var
+
+            autojoin_var.trace_add("write", toggle_autojoin)
+            extra_notif_var.trace_add("write", toggle_extra_notifications)
+
             self._contextmenu.add_checkbutton(
-                label="Show notifications for all messages", variable=var
+                label="Join automatically when connecting", variable=autojoin_var
             )
+            self._contextmenu.add_checkbutton(
+                label="Show notifications for all messages", variable=extra_notif_var
+            )
+
+            self._garbage_collection_is_lol = (autojoin_var, extra_notif_var)
 
         elif isinstance(view, ServerView):
             self._contextmenu.add_command(
@@ -401,7 +418,8 @@ class IrcWidget(ttk.PanedWindow):
 
         elif isinstance(view, PMView):
             self._contextmenu.add_command(
-                label="Close", command=(lambda: self.remove_view(view)))
+                label="Close", command=(lambda: self.remove_view(view))
+            )
 
     def _view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
