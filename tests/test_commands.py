@@ -95,9 +95,7 @@ def test_topic_change(alice, bob, wait_until):
 
     bob.entry.insert(0, "/topic blah blah")
     bob.on_enter_pressed()
-    wait_until(
-        lambda: "482 Bob #autojoin You're not channel operator" in bob.text()
-    )
+    wait_until(lambda: "482 Bob #autojoin You're not channel operator" in bob.text())
 
 
 @pytest.mark.skipif(
