@@ -425,7 +425,6 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
         for view in server_view.get_subviews():
             if isinstance(view, views.ChannelView):
                 server_view.core.send(f"JOIN {view.channel_name}")
-        server_view.join_initially = None
     else:
         # Mantaray just started, connect according to config.json
         for channel in server_view.join_initially:
