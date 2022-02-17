@@ -93,6 +93,12 @@ def test_topic_change(alice, bob, wait_until):
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #autojoin is: blah blah\n" in bob.text())
 
+    bob.entry.insert(0, "/topic blah blah")
+    bob.on_enter_pressed()
+    wait_until(
+        lambda: "482 Bob #autojoin You're not channel operator" in bob.text()
+    )
+
 
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support KICK"
