@@ -86,8 +86,11 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
 
 def _define_commands() -> dict[str, Callable[..., None]]:
+    # Channel is required, and not assumed to be the current channel view.
+    # This means that after kick, you will have to type the current channel
+    # name manually to rejoin, which is good because it might give you time
+    # to calm down a bit before you continue ranting.
     def join(view: View, core: IrcCore, channel: str) -> None:
-        # TODO: plain '/join' for joining the current channel after kick?
         core.send(f"JOIN {channel}")
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
