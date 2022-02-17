@@ -260,6 +260,11 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
+        # Used once and set to None after creating the channel views.
+        # If you reconnect, we join all currently opened channels.
+        self.join_initially: list[str] | None = server_config["joined_channels"]
+        assert self.join_initially is not None
+
     def _run_core(self) -> None:
         if self.core.quitting_finished():
             self.irc_widget.remove_server(self)
@@ -326,11 +331,6 @@ class ServerView(View):
         return None
 
     def get_current_config(self) -> config.ServerConfig:
-        channels = [
-            view.channel_name
-            for view in self.get_subviews()
-            if isinstance(view, ChannelView)
-        ]
         return {
             "host": self.core.host,
             "port": self.core.port,
@@ -339,10 +339,11 @@ class ServerView(View):
             "username": self.core.username,
             "realname": self.core.realname,
             "password": self.core.password,
-            "joined_channels": sorted(
-                self.core.autojoin,
-                key=(lambda chan: channels.index(chan) if chan in channels else -1),
-            ),
+            "joined_channels": [
+                view.channel_name
+                for view in self.get_subviews()
+                if isinstance(view, ChannelView) and view.join_on_startup
+            ],
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
             "audio_notification": self.audio_notification,
@@ -357,17 +358,12 @@ class ServerView(View):
             self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             self.audio_notification = new_config["audio_notification"]
-            # TODO: autojoin setting would be better in right-click
-            for subview in self.get_subviews():
-                if (
-                    isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
-                ):
-                    self.irc_widget.remove_view(subview)
 
 
 class ChannelView(View):
-    userlist: _UserList  # no idea why this is needed to avoid mypy error
+    # no idea why these are needed to avoid mypy error
+    userlist: _UserList
+    join_on_startup: bool
 
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
@@ -378,6 +374,8 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
+
+        self.join_on_startup = True
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot

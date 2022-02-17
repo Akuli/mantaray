@@ -174,3 +174,37 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     assert "left" not in bob.text()
     assert "parted" not in bob.text()
     assert "quit" not in bob.text()
+
+
+def test_autojoin(alice, wait_until, monkeypatch):
+    alice.entry.insert("end", "/join #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+
+    server_view = alice.get_server_views()[0]
+
+    # Uncheck "Join when Mantaray starts" for #lol. Should not affect anything.
+    assert server_view.find_channel("#autojoin").join_on_startup
+    assert server_view.find_channel("#lol").join_on_startup
+    server_view.find_channel("#lol").join_on_startup = False
+
+    # Force a reconnect
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 1)
+    server_view.core._connection_state.close()
+
+    # Both channels should be joined automatically when reconnecting
+    wait_until(
+        lambda: server_view.find_channel("#lol")
+        .get_text()
+        .count("The topic of #lol is:")
+        == 2
+    )
+    wait_until(
+        lambda: server_view.find_channel("#autojoin")
+        .get_text()
+        .count("The topic of #autojoin is:")
+        == 2
+    )
+
+    # But not when mantaray is later started from the settings
+    assert server_view.get_current_config()["joined_channels"] == ["#autojoin"]

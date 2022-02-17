@@ -158,11 +158,6 @@ def _handle_part(
     if parting_nick == server_view.core.nick:
         server_view.irc_widget.remove_view(channel_view)
 
-        for index, autojoin_chan in enumerate(server_view.core.autojoin):
-            if autojoin_chan.lower() == channel.lower():
-                del server_view.core.autojoin[index]
-                break
-
     else:
         channel_view.userlist.remove_user(parting_nick)
 
@@ -423,15 +418,18 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     topic = join.topic or "(no topic)"
     channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
 
-    if channel not in server_view.core.autojoin:
-        server_view.core.autojoin.append(channel)
-        # TODO: Make this into a setting. You don't always want to add every channel you join to autojoin.
-        # Would be nice if you could rightclick a channel in the channel list to add/remove it from autojoin.
-
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
-    for channel in server_view.core.autojoin:
-        server_view.core.send(f"JOIN {channel}")
+    if server_view.join_initially is None:
+        # Reconnect after connectivity error, join whatever channels are open
+        for view in server_view.get_subviews():
+            if isinstance(view, views.ChannelView):
+                server_view.core.send(f"JOIN {view.channel_name}")
+    else:
+        # Mantaray just started, connect according to config.json
+        for channel in server_view.join_initially:
+            server_view.core.send(f"JOIN {channel}")
+        server_view.join_initially = None
 
 
 def _handle_whoreply(

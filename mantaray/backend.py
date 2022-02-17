@@ -142,8 +142,6 @@ def _flush_and_close_socket(sock: _Socket) -> None:
 
 
 class IrcCore:
-
-    # each channel in autojoin will be joined after connecting
     def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
         self._verbose = verbose
         self._apply_config(server_config)
@@ -194,7 +192,6 @@ class IrcCore:
         self.username = server_config["username"]
         self.realname = server_config["realname"]
         self.password = server_config["password"]
-        self.autojoin = server_config["joined_channels"].copy()
 
     def get_events(self) -> list[IrcEvent]:
         result = self._events.copy()
@@ -395,7 +392,6 @@ class IrcCore:
             return
 
         assert self.nick == server_config["nick"]
-        assert self.autojoin == server_config["joined_channels"]
 
         old_host = self.host
         self._apply_config(server_config)
