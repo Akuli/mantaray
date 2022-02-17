@@ -260,7 +260,7 @@ class ServerView(View):
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
 
-        # Used once and set to None after creating the view.
+        # Used once and set to None after creating the channel views.
         # If you reconnect, we join all currently opened channels.
         self.join_initially: list[str] | None = server_config["joined_channels"]
         assert self.join_initially is not None
