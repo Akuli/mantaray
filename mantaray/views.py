@@ -359,13 +359,6 @@ class ServerView(View):
             self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             self.audio_notification = new_config["audio_notification"]
-            # TODO: autojoin setting would be better in right-click
-            for subview in self.get_subviews():
-                if (
-                    isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
-                ):
-                    self.irc_widget.remove_view(subview)
 
 
 class ChannelView(View):
