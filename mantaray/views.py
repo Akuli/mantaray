@@ -360,7 +360,9 @@ class ServerView(View):
 
 
 class ChannelView(View):
-    userlist: _UserList  # no idea why this is needed to avoid mypy error
+    # no idea why these are needed to avoid mypy error
+    userlist: _UserList
+    join_on_startup: bool
 
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
