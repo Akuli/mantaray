@@ -383,11 +383,9 @@ class IrcWidget(ttk.PanedWindow):
 
     def _fill_menu_for_channel(self, view: ChannelView) -> None:
         def toggle_autojoin(*junk: object) -> None:
-            assert isinstance(view, ChannelView)  # mypy awesomeness
             view.join_on_startup = not view.join_on_startup
 
         def toggle_extra_notifications(*junk: object) -> None:
-            assert isinstance(view, ChannelView)  # mypy awesomeness
             view.server_view.extra_notifications ^= {view.channel_name}
 
         autojoin_var = tkinter.BooleanVar(value=view.join_on_startup)
