@@ -537,6 +537,8 @@ def _handle_received_message(
         _handle_authenticate(server_view)
 
     elif msg.command == RPL_WELCOME and msg.args[0] != server_view.core.nick:
+        # Use whatever nickname the server tells us to use.
+        # Needed e.g. when nick is in use and you changed nick during connecting.
         _handle_nick(server_view, server_view.core.nick, msg.args)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
