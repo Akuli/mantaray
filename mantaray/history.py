@@ -63,7 +63,7 @@ class History:
     # Pressing up/down keys highlight text between marks
     # "history-start-123" and "history-end-123", if they
     # exist, where 123 is the returned history_id.
-    def get_text_and_clear(self) -> tuple[str, int]:
+    def get_text_and_clear_entry(self) -> tuple[str, int]:
         text = self._text_var.get()
         self._text_var.set("")
         self._items[-1].entry_text = text

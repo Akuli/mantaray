@@ -181,7 +181,7 @@ class IrcWidget(ttk.PanedWindow):
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
-        entry_text, history_id = view.history.get_text_and_clear()
+        entry_text, history_id = view.history.get_text_and_clear_entry()
         commands.handle_command(view, view.server_view.core, entry_text, history_id)
 
     def _scroll_up(self, junk_event: object) -> None:
