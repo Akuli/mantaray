@@ -536,7 +536,7 @@ def _handle_received_message(
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
-    elif msg.command == RPL_WELCOME:
+    elif msg.command == RPL_WELCOME and msg.args[0] != server_view.core.nick:
         _handle_nick(server_view, server_view.core.nick, msg.args)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
