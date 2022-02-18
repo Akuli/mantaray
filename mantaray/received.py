@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from typing_extensions import Literal
 
 
-RPL_WELCOME = "301"
+RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
 RPL_ENDOFMOTD = "376"
