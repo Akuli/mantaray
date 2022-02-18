@@ -3,7 +3,9 @@ import tkinter
 
 def get_history_selection(irc_widget):
     try:
-        return irc_widget.get_current_view().textwidget.get("history-selection.first", "history-selection.last")
+        return irc_widget.get_current_view().textwidget.get(
+            "history-selection.first", "history-selection.last"
+        )
     except tkinter.TclError as e:
         print("**", e)
         # nothing tagged with history-selection
@@ -76,6 +78,7 @@ def test_preserving_last_message(alice, wait_until):
     alice.get_current_view().history.next()
     assert alice.entry.get() == "two"
     assert get_history_selection(alice) is None
+
 
 def test_switching_views(alice):
     alice.entry.insert(0, "hello #autojoin")

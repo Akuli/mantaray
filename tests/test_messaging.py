@@ -23,12 +23,7 @@ def test_textwidget_tags(alice, bob, wait_until):
         index = bob.get_current_view().textwidget.search(search_string, "1.0")
         return set(bob.get_current_view().textwidget.tag_names(index))
 
-    assert tags("cyan on red") == {
-        "text",
-        "privmsg",
-        "foreground-11",
-        "background-4",
-    }
+    assert tags("cyan on red") == {"text", "privmsg", "foreground-11", "background-4"}
     assert tags("bold") == {"text", "privmsg"}  # bolding not supported
     assert tags("underline") == {"text", "privmsg", "underline"}
     assert tags("everything") == {

@@ -9,7 +9,9 @@ from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
 
-def _send_privmsg(view: View, core: IrcCore, message: str, *, history_id: int | None = None) -> None:
+def _send_privmsg(
+    view: View, core: IrcCore, message: str, *, history_id: int | None = None
+) -> None:
     if isinstance(view, ChannelView):
         core.send_privmsg(view.channel_name, message, history_id=history_id)
     elif isinstance(view, PMView):
@@ -17,7 +19,8 @@ def _send_privmsg(view: View, core: IrcCore, message: str, *, history_id: int | 
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
-            tag="error", history_id=history_id
+            tag="error",
+            history_id=history_id,
         )
 
 
@@ -30,7 +33,9 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
             func = _commands[entry_text.split()[0].lower()]
         except KeyError:
             view.add_message(
-                f"No command named '{entry_text.split()[0]}'", tag="error", history_id=history_id
+                f"No command named '{entry_text.split()[0]}'",
+                tag="error",
+                history_id=history_id,
             )
             return
 

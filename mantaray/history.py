@@ -39,7 +39,11 @@ class History:
 
         self._textwidget.tag_remove("history-selection", "1.0", "end")
         try:
-            self._textwidget.tag_add("history-selection", f"history-start-{item.id}", f"history-end-{item.id}")
+            self._textwidget.tag_add(
+                "history-selection",
+                f"history-start-{item.id}",
+                f"history-end-{item.id}",
+            )
         except tkinter.TclError as e:
             # No history-start-123 and history-end-123 marks.
             # This is typical for output of commands.
