@@ -25,8 +25,8 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
 
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 6 chars")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
-    assert set(hey_tags) == {"text", "received-privmsg", "pinged"}
-    assert set(bob_tags) == {"text", "received-privmsg", "pinged", "self-nick"}
+    assert set(hey_tags) == {"text", "privmsg", "pinged"}
+    assert set(bob_tags) == {"text", "privmsg", "pinged", "self-nick"}
 
 
 @pytest.mark.skipif(

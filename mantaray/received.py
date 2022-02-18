@@ -4,12 +4,8 @@ from __future__ import annotations
 
 import re
 from base64 import b64encode
-from typing import TYPE_CHECKING
 
 from mantaray import backend, views, textwidget_tags
-
-if TYPE_CHECKING:
-    from typing_extensions import Literal
 
 
 RPL_WELCOME = "001"
@@ -47,14 +43,8 @@ def _add_privmsg_to_view(
     text: str,
     *,
     pinged: bool = False,
+    history_id: int | None = None,
 ) -> None:
-    if sender == view.server_view.core.nick:
-        sender_tag = "self-nick"
-        privmsg_tag: Literal["sent-privmsg", "received-privmsg"] = "sent-privmsg"
-    else:
-        sender_tag = "other-nick"
-        privmsg_tag = "received-privmsg"
-
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
         slash_me = True
@@ -80,15 +70,26 @@ def _add_privmsg_to_view(
                 tags.append(nick_tag)
             parts.append(views.MessagePart(subsubstring, tags=tags))
 
+    if sender == view.server_view.core.nick:
+        sender_tag = "self-nick"
+    else:
+        sender_tag = "other-nick"
+
     if slash_me:
         view.add_message(
             [views.MessagePart(sender, tags=[sender_tag]), views.MessagePart(" ")]
             + parts,
             pinged=pinged,
+            history_id=history_id,
         )
     else:
         view.add_message(
-            parts, sender, sender_tag=sender_tag, tag=privmsg_tag, pinged=pinged
+            parts,
+            sender,
+            sender_tag=sender_tag,
+            tag="privmsg",
+            pinged=pinged,
+            history_id=history_id,
         )
 
 
@@ -606,9 +607,16 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 # start of a new PM conversation
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
-            _add_privmsg_to_view(pm_view, server_view.core.nick, event.text)
+            _add_privmsg_to_view(
+                pm_view, server_view.core.nick, event.text, history_id=event.history_id
+            )
         else:
-            _add_privmsg_to_view(channel_view, server_view.core.nick, event.text)
+            _add_privmsg_to_view(
+                channel_view,
+                server_view.core.nick,
+                event.text,
+                history_id=event.history_id,
+            )
 
     else:
         # If mypy says 'error: unused "type: ignore" comment', you
