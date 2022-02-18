@@ -9,11 +9,11 @@ from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
 
-def _send_privmsg(view: View, core: IrcCore, message: str, history_id: int | None = None) -> None:
+def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
     if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message, history_id)
+        core.send_privmsg(view.channel_name, message)
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message, history_id)
+        core.send_privmsg(view.nick_of_other_user, message)
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
@@ -21,7 +21,7 @@ def _send_privmsg(view: View, core: IrcCore, message: str, history_id: int | Non
         )
 
 
-def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> bool:
+def handle_command(view: View, core: IrcCore, entry_text: str) -> bool:
     if not entry_text:
         return False
 
@@ -75,7 +75,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
             return False
 
     for line in lines:
-        _send_privmsg(view, core, line, history_id)
+        _send_privmsg(view, core, line)
     return True
 
 

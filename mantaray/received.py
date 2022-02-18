@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING
 
 from mantaray import backend, views, textwidget_tags
 
-if TYPE_CHECKING:
-    from typing_extensions import Literal
-
 
 RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
@@ -47,7 +44,6 @@ def _add_privmsg_to_view(
     text: str,
     *,
     pinged: bool = False,
-    history_id: int | None = None,
 ) -> None:
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
@@ -86,7 +82,6 @@ def _add_privmsg_to_view(
             pinged=pinged,
         )
     else:
-        start = view.textwidget.index("end - 1 char")
         view.add_message(
             parts,
             sender,
@@ -94,9 +89,6 @@ def _add_privmsg_to_view(
             tag="privmsg",
             pinged=pinged,
         )
-        end = view.textwidget.index("end - 1 char")
-        if history_id is not None:
-            view.textwidget.tag_add(f"history-{history_id}", start, end)
 
 
 def _handle_privmsg(
@@ -614,14 +606,13 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
             _add_privmsg_to_view(
-                pm_view, server_view.core.nick, event.text, history_id=event.history_id
+                pm_view, server_view.core.nick, event.text
             )
         else:
             _add_privmsg_to_view(
                 channel_view,
                 server_view.core.nick,
                 event.text,
-                history_id=event.history_id,
             )
 
     else:

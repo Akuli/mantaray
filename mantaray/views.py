@@ -6,12 +6,12 @@ import sys
 import tkinter
 import subprocess
 import webbrowser
-from dataclasses import dataclass
 from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, TYPE_CHECKING, IO
 
 from mantaray import backend, textwidget_tags, config, received
+from mantaray.history import History
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -78,13 +78,6 @@ class MessagePart:
         self.tags = tags.copy()
 
 
-# Up/down keys in the entry go through these
-@dataclass
-class HistoryItem:
-    id: int
-    entry_text: str
-
-
 class View:
     def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -106,8 +99,7 @@ class View:
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
 
-        self.history: collections.deque[HistoryItem] = collections.deque(maxlen=100)
-        self.history_index: int | None = None
+        self.history = History()
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()

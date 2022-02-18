@@ -10,7 +10,7 @@ from typing import Any
 from pathlib import Path
 
 from mantaray import config, commands, textwidget_tags, logs
-from mantaray.views import View, ServerView, ChannelView, PMView, HistoryItem
+from mantaray.views import View, ServerView, ChannelView, PMView
 
 
 def _fix_tag_coloring_bug() -> None:
@@ -152,8 +152,6 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Tab>", self._tab_event_handler)
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
-        self.entry.bind("<Up>", self.previous_message_to_entry, add=True)
-        self.entry.bind("<Down>", self.next_message_to_entry, add=True)
 
         # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
@@ -182,58 +180,9 @@ class IrcWidget(ttk.PanedWindow):
             core.send(f"NICK {new_nick}")
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
-        self._history_id_counter += 1
-        history_id = self._history_id_counter
-
         view = self.get_current_view()
-        if not commands.handle_command(view, view.server_view.core, self.entry.get(), history_id):
-            return
-
-        if view.history_index is not None:
-            # User pressed up arrow, and text that was then there was already saved
-            view.history.pop()
-
-        self._history_id_counter += 1
-        view.history.append(HistoryItem(self._history_id_counter, self.entry.get()))
-        view.history_index = None
-        view.textwidget.tag_remove("history-selection", "1.0", "end")
-        self.entry.delete(0, "end")
-
-    def _put_history_item_to_entry(
-        self, view: View, item: HistoryItem
-    ) -> None:
-        assert view.history_index is not None
-
-        view.textwidget.tag_remove("history-selection", "1.0", "end")
-        mark = f"history-{item.id}"
-        try:
-            view.textwidget.tag_add("history-selection", mark, f"{mark} lineend")
-        except tkinter.TclError:
-            # Mark doesn't exist, this history item isn't just a message
-            pass
-
-        self.entry.delete(0, "end")
-        self.entry.insert(0, view.history[view.history_index].entry_text)
-
-    def previous_message_to_entry(self, junk_event: object = None) -> None:
-        view = self.get_current_view()
-        if view.history_index is None:
-            # Save current entry contents to end of history
-            self._history_id_counter += 1
-            view.history.append(HistoryItem(self._history_id_counter, self.entry.get()))
-            view.history_index = len(view.history) - 1
-
-        if view.history_index > 0:
-            if view.history_index == len(view.history) - 1:
-                view.history[-1] = HistoryItem(view.history[-1].id, self.entry.get())
-            view.history_index -= 1
-            self._put_history_item_to_entry(view, view.history[view.history_index])
-
-    def next_message_to_entry(self, junk_event: object = None) -> None:
-        view = self.get_current_view()
-        if view.history_index is not None and view.history_index + 1 < len(view.history):
-            view.history_index += 1
-            self._put_history_item_to_entry(view, view.history[view.history_index])
+        entry_text = view.history.get_text_and_clear()
+        commands.handle_command(view, view.server_view.core, entry_text)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
@@ -356,6 +305,7 @@ class IrcWidget(ttk.PanedWindow):
             self._previous_view.textwidget.pack_forget()
         new_view.textwidget.pack(side="top", fill="both", expand=True)
         new_view.mark_seen()
+        new_view.history.use_entry(self.entry)
 
         self._previous_view = new_view
 

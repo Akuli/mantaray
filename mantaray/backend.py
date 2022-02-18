@@ -91,7 +91,6 @@ class HostChanged:
 class SentPrivmsg:
     nick_or_channel: str
     text: str
-    history_id: int | None
 
 
 @dataclasses.dataclass
@@ -410,10 +409,10 @@ class IrcCore:
         if old_host != self.host:
             self._events.append(HostChanged(old_host, self.host))
 
-    def send_privmsg(self, nick_or_channel: str, text: str, history_id: int | None = None) -> None:
+    def send_privmsg(self, nick_or_channel: str, text: str) -> None:
         self.send(
             f"PRIVMSG {nick_or_channel} :{text}",
-            done_event=SentPrivmsg(nick_or_channel, text, history_id),
+            done_event=SentPrivmsg(nick_or_channel, text),
         )
 
     def quit(self, *, wait: bool = False) -> None:
