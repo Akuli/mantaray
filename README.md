@@ -39,6 +39,12 @@ On Windows, run these commands in Command Prompt:
 
     $ source env/bin/activate
     $ pip install -r requirements-dev.txt
+    $ python3 -m mantaray
+
+This should run mantaray.
+By default, it connects to `##learnpython` on libera, which is where discussion
+about mantatail development happens.
+I am there almost every day at about 6PM to 10PM UTC.
 
 Mantaray's tests use IRC servers that Mantaray connects to for testing.
 They are included with Mantaray as Git submodules.
