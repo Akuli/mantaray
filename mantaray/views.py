@@ -1,5 +1,4 @@
 from __future__ import annotations
-import collections
 import logging
 import time
 import sys
@@ -99,7 +98,7 @@ class View:
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
 
-        self.history = History()
+        self.history = History(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
@@ -207,6 +206,7 @@ class View:
         tag: Literal["info", "error", "privmsg"] = "info",
         show_in_gui: bool = True,
         pinged: bool = False,
+        history_id: int | None = None,
     ) -> None:
         if isinstance(message, str):
             message = [MessagePart(message)]
@@ -214,6 +214,11 @@ class View:
         if show_in_gui:
             # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
+
+            if history_id is not None:
+                # Without gravity, the mark stays at the end as text is inserted
+                self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
+                self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
 
             self.textwidget.config(state="normal")
             start = self.textwidget.index("end - 1 char")
@@ -235,6 +240,10 @@ class View:
             if pinged:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
             self.textwidget.config(state="disabled")
+
+            if history_id is not None:
+                self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
+                self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
 
             textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 

@@ -181,8 +181,8 @@ class IrcWidget(ttk.PanedWindow):
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
-        entry_text = view.history.get_text_and_clear()
-        commands.handle_command(view, view.server_view.core, entry_text)
+        entry_text, history_id = view.history.get_text_and_clear()
+        commands.handle_command(view, view.server_view.core, entry_text, history_id)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")

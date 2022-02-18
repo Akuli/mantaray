@@ -44,6 +44,7 @@ def _add_privmsg_to_view(
     text: str,
     *,
     pinged: bool = False,
+    history_id: int | None = None
 ) -> None:
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
@@ -80,6 +81,7 @@ def _add_privmsg_to_view(
             [views.MessagePart(sender, tags=[sender_tag]), views.MessagePart(" ")]
             + parts,
             pinged=pinged,
+            history_id=history_id,
         )
     else:
         view.add_message(
@@ -88,6 +90,7 @@ def _add_privmsg_to_view(
             sender_tag=sender_tag,
             tag="privmsg",
             pinged=pinged,
+            history_id=history_id,
         )
 
 
@@ -606,13 +609,13 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
             _add_privmsg_to_view(
-                pm_view, server_view.core.nick, event.text
+                pm_view, server_view.core.nick, event.text, history_id=event.history_id
             )
         else:
             _add_privmsg_to_view(
                 channel_view,
                 server_view.core.nick,
-                event.text,
+                event.text, history_id=event.history_id
             )
 
     else:

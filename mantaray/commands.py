@@ -9,19 +9,19 @@ from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
 
-def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
+def _send_privmsg(view: View, core: IrcCore, message: str, *, history_id: int | None = None) -> None:
     if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message)
+        core.send_privmsg(view.channel_name, message, history_id=history_id)
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message)
+        core.send_privmsg(view.nick_of_other_user, message, history_id=history_id)
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
-            tag="error",
+            tag="error", history_id=history_id
         )
 
 
-def handle_command(view: View, core: IrcCore, entry_text: str) -> None:
+def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> None:
     if not entry_text:
         return
 
@@ -30,7 +30,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> None:
             func = _commands[entry_text.split()[0].lower()]
         except KeyError:
             view.add_message(
-                f"No command named '{entry_text.split()[0]}'", tag="error"
+                f"No command named '{entry_text.split()[0]}'", tag="error", history_id=history_id
             )
             return
 
@@ -48,7 +48,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> None:
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage, tag="error")
+            view.add_message("Usage: " + usage, tag="error", history_id=history_id)
         else:
             func(view, core, *args)
 
@@ -75,7 +75,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> None:
             return
 
     for line in lines:
-        _send_privmsg(view, core, line)
+        _send_privmsg(view, core, line, history_id=history_id)
 
 
 def _define_commands() -> dict[str, Callable[..., None]]:
