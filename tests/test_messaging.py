@@ -206,3 +206,21 @@ def test_urls(alice, bob, wait_until):
         "https://stackoverflow.com/",
         "https://en.wikipedia.org/wiki/Whitespace_(programming_language)",
     ]
+
+
+def test_nickname_in_url_not_tagged(alice, bob, wait_until):
+    alice.entry.insert(0, "blah blah https://alice.example.com")
+    alice.on_enter_pressed()
+    wait_until(lambda: "alice.example.com" in alice.text())
+
+    bob.entry.insert(0, "blah blah https://example.com/bob/foobar.html")
+    bob.on_enter_pressed()
+    wait_until(lambda: "example.com/bob" in alice.text())
+
+    for middle_of_nick in [
+        alice.get_current_view().textwidget.search("ice.example.com", "1.0"),
+        alice.get_current_view().textwidget.search("ob/foobar.html", "1.0"),
+    ]:
+        tags = alice.get_current_view().textwidget.tag_names(middle_of_nick)
+        # no self-nick or other-nick tag
+        assert set(tags) == {"url", "privmsg", "text"}
