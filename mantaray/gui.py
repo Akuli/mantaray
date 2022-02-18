@@ -87,7 +87,6 @@ class IrcWidget(ttk.PanedWindow):
     ):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
-        self._history_id_counter = 0
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]
