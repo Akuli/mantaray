@@ -47,7 +47,6 @@ class History:
         except tkinter.TclError as e:
             # No history-start-123 and history-end-123 marks.
             # This is typical for output of commands.
-            print(e)
             pass
 
     def previous(self, junk_event: object = None) -> None:
