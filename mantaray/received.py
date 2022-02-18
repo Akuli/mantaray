@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from typing_extensions import Literal
 
 
+RPL_WELCOME = "301"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
 RPL_ENDOFMOTD = "376"
@@ -178,7 +179,7 @@ def _handle_part(
 
 
 def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
-    [new_nick] = args
+    new_nick = args[0]
     if old_nick == server_view.core.nick:
         server_view.core.nick = new_nick
         if server_view.irc_widget.get_current_view().server_view == server_view:
@@ -534,6 +535,9 @@ def _handle_received_message(
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
+
+    elif msg.command == RPL_WELCOME:
+        _handle_nick(server_view, server_view.core.nick, msg.args)
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         assert isinstance(msg, backend.MessageFromServer)
