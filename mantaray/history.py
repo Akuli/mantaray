@@ -30,9 +30,6 @@ class History:
         entry.bind("<Up>", self.previous)
         entry.bind("<Down>", self.next)
 
-    def use_text_widget(self, textwidget: tkinter.Text) -> None:
-        self._textwidget = textwidget
-
     def _select_current_item(self) -> None:
         item = self._items[self._index]
         self._text_var.set(item.entry_text)
@@ -47,7 +44,6 @@ class History:
         except tkinter.TclError as e:
             # No history-start-123 and history-end-123 marks.
             # This is typical for output of commands.
-            print(e)
             pass
 
     def previous(self, junk_event: object = None) -> None:
