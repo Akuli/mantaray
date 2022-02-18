@@ -37,14 +37,15 @@ On Windows, run these commands in Command Prompt:
 
 ## Developing
 
+First, run mantaray as shown above.
+By default, it connects to `##learnpython` on libera, which is where
+most of the discussion about Mantaray development happens.
+I am there almost every day at about 6PM to 10PM UTC.
+
+To install tools needed for development, run:
+
     $ source env/bin/activate
     $ pip install -r requirements-dev.txt
-    $ python3 -m mantaray
-
-This should run mantaray.
-By default, it connects to `##learnpython` on libera, which is where discussion
-about mantatail development happens.
-I am there almost every day at about 6PM to 10PM UTC.
 
 Mantaray's tests use IRC servers that Mantaray connects to for testing.
 They are included with Mantaray as Git submodules.
@@ -86,6 +87,7 @@ connected to each other.
 This should connect Mantaray to Mantatail.
 You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `--bob` instead of `--alice`.
+This is essentially what Mantaray's tests do.
 
 To see what other options you can specify, run:
 
