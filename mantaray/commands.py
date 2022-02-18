@@ -21,9 +21,9 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         )
 
 
-def handle_command(view: View, core: IrcCore, entry_text: str) -> bool:
+def handle_command(view: View, core: IrcCore, entry_text: str) -> None:
     if not entry_text:
-        return False
+        return
 
     if re.fullmatch("/[A-Za-z]+( .*)?", entry_text):
         try:
@@ -32,7 +32,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> bool:
             view.add_message(
                 f"No command named '{entry_text.split()[0]}'", tag="error"
             )
-            return False
+            return
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
@@ -49,10 +49,10 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> bool:
                 else:
                     usage += f" [<{p.name}>]"
             view.add_message("Usage: " + usage, tag="error")
-            return False
+        else:
+            func(view, core, *args)
 
-        func(view, core, *args)
-        return True
+        return
 
     if entry_text.startswith("//"):
         entry_text = entry_text[1:]
@@ -72,11 +72,10 @@ def handle_command(view: View, core: IrcCore, entry_text: str) -> bool:
             ),
         )
         if not result:
-            return False
+            return
 
     for line in lines:
         _send_privmsg(view, core, line)
-    return True
 
 
 def _define_commands() -> dict[str, Callable[..., None]]:

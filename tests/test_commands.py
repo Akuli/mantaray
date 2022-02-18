@@ -139,6 +139,8 @@ def test_kick(alice, bob, wait_until):
         wait_until(lambda: "#autojoin You're not on that channel" in view.get_text())
 
     alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
+    alice.update()
+
     alice.entry.insert("end", "/kick bob")
     alice.on_enter_pressed()
     wait_until(lambda: alice.text().endswith("You can use /kick only on a channel.\n"))
@@ -179,6 +181,7 @@ def test_op_deop(alice, bob, wait_until):
     # Should test them when available in mantatail
 
     alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
+    alice.update()
 
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
@@ -194,6 +197,7 @@ def test_op_deop(alice, bob, wait_until):
 def switch_to_channel_view(user, channel_name):
     view = user.get_server_views()[0].find_channel(channel_name)
     user.view_selector.selection_set(view.view_id)
+    user.update()
     assert f"The topic of {channel_name} is" in user.text()
 
 
@@ -347,7 +351,6 @@ def test_incorrect_usage(alice, wait_until, command, error):
     alice.on_enter_pressed()
     wait_until(lambda: alice.text().endswith(error + "\n"))
     assert "error" in alice.get_current_view().textwidget.tag_names("end - 5 chars")
-    assert alice.entry.get() == command  # give user chance to correct easily
 
 
 @pytest.mark.skipif(

@@ -25,20 +25,20 @@ def test_textwidget_tags(alice, bob, wait_until):
 
     assert tags("cyan on red") == {
         "text",
-        "received-privmsg",
+        "privmsg",
         "foreground-11",
         "background-4",
     }
-    assert tags("bold") == {"text", "received-privmsg"}  # bolding not supported
-    assert tags("underline") == {"text", "received-privmsg", "underline"}
+    assert tags("bold") == {"text", "privmsg"}  # bolding not supported
+    assert tags("underline") == {"text", "privmsg", "underline"}
     assert tags("everything") == {
         "text",
-        "received-privmsg",
+        "privmsg",
         "foreground-11",
         "background-4",
         "underline",
     }
-    assert tags("nothing") == {"text", "received-privmsg"}
+    assert tags("nothing") == {"text", "privmsg"}
     assert "cyan on red bold underline everything nothing" in bob.text()
 
 
@@ -96,7 +96,6 @@ def test_multiline_not_sending(alice, bob, wait_until, mocker):
     alice.entry.insert("end", "one\ntwo\nthree\nfour")
     alice.on_enter_pressed()
     mock.assert_called_once()
-    assert alice.entry.get() == "one\ntwo\nthree\nfour"
 
 
 def test_slash_r_character(alice, bob, wait_until):
@@ -212,65 +211,3 @@ def test_urls(alice, bob, wait_until):
         "https://stackoverflow.com/",
         "https://en.wikipedia.org/wiki/Whitespace_(programming_language)",
     ]
-
-
-def test_history(alice, bob, wait_until):
-    # Alice presses first arrow up, then arrow down
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert not alice.entry.get()
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    # Bob presses first arrow down, then arrow up
-    assert not alice.entry.get()
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.insert(0, "first message")
-    alice.on_enter_pressed()
-    wait_until(lambda: "first message" in alice.text())
-
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.insert(0, "second message")
-    alice.on_enter_pressed()
-    wait_until(lambda: "second message" in alice.text())
-
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.delete(0, "end")
-    alice.entry.insert(0, "//escaped message")
-    alice.on_enter_pressed()
-    wait_until(lambda: "escaped message" in alice.text())
-
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "//escaped message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.next_message_to_entry()
-    assert alice.entry.get() == "//escaped message"
