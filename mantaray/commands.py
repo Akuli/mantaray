@@ -9,11 +9,11 @@ from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
 
-def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
+def _send_privmsg(view: View, core: IrcCore, message: str, history_id: int | None = None) -> None:
     if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message)
+        core.send_privmsg(view.channel_name, message, history_id)
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message)
+        core.send_privmsg(view.nick_of_other_user, message, history_id)
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
@@ -21,22 +21,16 @@ def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
         )
 
 
-def escape_message(s: str) -> str:
-    if s.startswith("/"):
-        return "/" + s
-    return s
-
-
-def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
-    if not entry_content:
+def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> bool:
+    if not entry_text:
         return False
 
-    if re.fullmatch("/[A-Za-z]+( .*)?", entry_content):
+    if re.fullmatch("/[A-Za-z]+( .*)?", entry_text):
         try:
-            func = _commands[entry_content.split()[0].lower()]
+            func = _commands[entry_text.split()[0].lower()]
         except KeyError:
             view.add_message(
-                f"No command named '{entry_content.split()[0]}'", tag="error"
+                f"No command named '{entry_text.split()[0]}'", tag="error"
             )
             return False
 
@@ -46,7 +40,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        command_name, *args = entry_content.rstrip().split(maxsplit=max(len(params), 1))
+        command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
             usage = command_name
             for p in params:
@@ -60,10 +54,10 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
         func(view, core, *args)
         return True
 
-    if entry_content.startswith("//"):
-        entry_content = entry_content[1:]
+    if entry_text.startswith("//"):
+        entry_text = entry_text[1:]
 
-    lines = [line for line in entry_content.split("\n") if line]
+    lines = [line for line in entry_text.split("\n") if line]
     if len(lines) > 3:
         # TODO: add button that pastebins?
         result = messagebox.askyesno(
@@ -81,7 +75,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             return False
 
     for line in lines:
-        _send_privmsg(view, core, line)
+        _send_privmsg(view, core, line, history_id)
     return True
 
 

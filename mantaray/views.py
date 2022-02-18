@@ -1,10 +1,12 @@
 from __future__ import annotations
+import collections
 import logging
 import time
 import sys
 import tkinter
 import subprocess
 import webbrowser
+from dataclasses import dataclass
 from playsound import playsound  # type: ignore
 from tkinter import ttk
 from typing import Any, TYPE_CHECKING, IO
@@ -76,6 +78,13 @@ class MessagePart:
         self.tags = tags.copy()
 
 
+# Up/down keys in the entry go through these
+@dataclass
+class HistoryItem:
+    id: int
+    entry_text: str
+
+
 class View:
     def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -96,6 +105,9 @@ class View:
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
+
+        self.history: collections.deque[HistoryItem] = collections.deque(maxlen=100)
+        self.history_index: int | None = None
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
@@ -200,7 +212,7 @@ class View:
         sender: str = "*",
         *,
         sender_tag: str | None = None,
-        tag: Literal["info", "error", "sent-privmsg", "received-privmsg"] = "info",
+        tag: Literal["info", "error", "privmsg"] = "info",
         show_in_gui: bool = True,
         pinged: bool = False,
     ) -> None:

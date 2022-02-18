@@ -154,10 +154,9 @@ def config_tags(
     textwidget.tag_configure("channel", foreground="#f7e452")
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
-    textwidget.tag_configure("received-privmsg", foreground=FOREGROUND)
-    textwidget.tag_configure("sent-privmsg", foreground=FOREGROUND)
+    textwidget.tag_configure("privmsg", foreground=FOREGROUND)
 
-    for lower_tag in ["info", "error", "sent-privmsg", "received-privmsg"]:
+    for lower_tag in ["info", "error", "privmsg"]:
         textwidget.tag_lower(lower_tag, "pinged")
     for upper_tag in ["history-selection", "channel", "self-nick", "other-nick"]:
         textwidget.tag_raise(upper_tag, "pinged")
@@ -165,10 +164,8 @@ def config_tags(
     for number, hexcolor in _MIRC_COLORS.items():
         textwidget.tag_configure(f"foreground-{number}", foreground=hexcolor)
         textwidget.tag_configure(f"background-{number}", background=hexcolor)
-        textwidget.tag_raise(f"foreground-{number}", "sent-privmsg")
-        textwidget.tag_raise(f"background-{number}", "sent-privmsg")
-        textwidget.tag_raise(f"foreground-{number}", "received-privmsg")
-        textwidget.tag_raise(f"background-{number}", "received-privmsg")
+        textwidget.tag_raise(f"foreground-{number}", "privmsg")
+        textwidget.tag_raise(f"background-{number}", "privmsg")
 
     default_cursor = textwidget["cursor"]
     for tag in ["url", "other-nick"]:
