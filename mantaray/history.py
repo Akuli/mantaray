@@ -41,7 +41,7 @@ class History:
                 f"history-start-{item.id}",
                 f"history-end-{item.id}",
             )
-        except tkinter.TclError as e:
+        except tkinter.TclError:
             # No history-start-123 and history-end-123 marks.
             # This is typical for output of commands.
             pass
