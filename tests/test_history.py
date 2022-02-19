@@ -80,18 +80,14 @@ def test_preserving_last_message(alice, wait_until):
     assert get_history_selection(alice) is None
 
 
-def test_switching_views(alice):
+def test_switching_views(alice, switch_view):
     alice.entry.insert(0, "hello #autojoin")
 
-    alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
-    alice.update()
+    switch_view(alice, alice.get_server_views()[0])
     assert not alice.entry.get()
     alice.entry.insert(0, "this is for the server view")
 
-    alice.view_selector.selection_set(
-        alice.get_server_views()[0].find_channel("#autojoin").view_id
-    )
-    alice.update()
+    switch_view(alice, "#autojoin")
     assert alice.entry.get() == "hello #autojoin"
 
 

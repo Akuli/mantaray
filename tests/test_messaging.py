@@ -75,7 +75,7 @@ def test_enter_press_with_no_text(alice, bob, wait_until):
 def test_multiline_sending(alice, bob, wait_until, mocker):
     mock = mocker.patch("tkinter.messagebox.askyesno")
     mock.return_value = True
-    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.entry.insert(0, "one\ntwo\nthree\nfour")
     alice.on_enter_pressed()
     assert not alice.entry.get()
     mock.assert_called_once()
@@ -88,13 +88,13 @@ def test_multiline_sending(alice, bob, wait_until, mocker):
 def test_multiline_not_sending(alice, bob, wait_until, mocker):
     mock = mocker.patch("tkinter.messagebox.askyesno")
     mock.return_value = False
-    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.entry.insert(0, "one\ntwo\nthree\nfour")
     alice.on_enter_pressed()
     mock.assert_called_once()
 
 
 def test_slash_r_character(alice, bob, wait_until):
-    alice.entry.insert("end", "hello \rlol\r world")
+    alice.entry.insert(0, "hello \rlol\r world")
     alice.on_enter_pressed()
     wait_until(lambda: "hello \rlol\r world" in bob.text())
 

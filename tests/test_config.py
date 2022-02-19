@@ -88,7 +88,7 @@ def test_cancel(alice, mocker, monkeypatch, wait_until):
     server_view.show_config_dialog()
 
     # Ensure nothing happened
-    alice.entry.insert("end", "lolwatwut")
+    alice.entry.insert(0, "lolwatwut")
     alice.on_enter_pressed()
     wait_until(lambda: "lolwatwut" in alice.text())
 
@@ -137,7 +137,7 @@ def test_default_settings(root_window, monkeypatch):
     os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
 )
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
-    bob.entry.insert("end", "/join #lol")
+    bob.entry.insert(0, "/join #lol")
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in bob.text())
 
@@ -151,18 +151,18 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     bob.get_server_views()[0].show_config_dialog()
     wait_until(lambda: bob.text().count("The topic of #lol is:") == 2)
 
-    alice.entry.insert("end", "/join #lol")
+    alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "/part #lol")
+    alice.entry.insert(0, "/part #lol")
     alice.on_enter_pressed()
     wait_until(lambda: not alice.get_server_views()[0].find_channel("#lol"))
-    alice.entry.insert("end", "/join #lol")
+    alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "Hello Bob")
+    alice.entry.insert(0, "Hello Bob")
     alice.on_enter_pressed()
-    alice.entry.insert("end", "/quit")
+    alice.entry.insert(0, "/quit")
     alice.on_enter_pressed()
     wait_until(lambda: not alice.winfo_exists())
 
@@ -177,7 +177,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
 
 def test_autojoin(alice, wait_until, monkeypatch):
-    alice.entry.insert("end", "/join #lol")
+    alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
 
