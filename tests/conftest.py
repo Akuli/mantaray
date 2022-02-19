@@ -74,11 +74,14 @@ def wait_until(root_window, irc_widgets_dict):
 def switch_view():
     def actually_switch_view(irc_widget, view):
         if isinstance(view, str):
-            view = irc_widget.get_server_views()[0].find_channel(view) or irc_widget.get_server_views()[0].find_pm(view)
+            view = irc_widget.get_server_views()[0].find_channel(
+                view
+            ) or irc_widget.get_server_views()[0].find_pm(view)
             assert view is not None
 
         irc_widget.view_selector.selection_set(view.view_id)
         irc_widget.update()
+
     return actually_switch_view
 
 
