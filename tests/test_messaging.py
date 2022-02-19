@@ -2,8 +2,6 @@ import os
 
 import pytest
 
-from mantaray.views import ChannelView
-
 
 def test_basic(alice, bob, wait_until):
     alice.entry.insert(0, "Hello there")
