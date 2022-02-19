@@ -435,7 +435,7 @@ class IrcWidget(ttk.PanedWindow):
             self._fill_menu_for_server(view)
         if isinstance(view, ChannelView):
             self._fill_menu_for_channel(view)
-        elif isinstance(view, PMView):
+        if isinstance(view, PMView):
             self._fill_menu_for_pm(view)
 
         self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
