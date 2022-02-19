@@ -180,6 +180,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 root_window,
                 config.load_from_file(Path(name)),
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
+                verbose=(name == "alice"),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
             wait_until(
