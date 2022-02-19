@@ -218,7 +218,7 @@ def test_command_cant_contain_multiple_slashes(alice, bob, wait_until):
     wait_until(lambda: "/home/alice" in bob.text())
 
 
-def test_nickserv_and_memoserv(alice, bob, wait_until):
+def test_nickserv(alice, bob, wait_until):
     # Bob shall pretend he is nickserv, because hircd and mantatail don't have nickserv
     bob.get_server_views()[0].core.send("NICK NickServ")
     wait_until(lambda: "You are now known as NickServ.\n" in bob.text())
@@ -230,13 +230,15 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     assert "hunter2" not in alice.text()
 
     text = (alice.log_manager.log_dir / "localhost" / "nickserv.log").read_text("utf-8")
-    assert "identify ********" in text
+    assert "IdEnTiFy ********" in text
     assert "hunter2" not in text
 
     # It does not actually send the stars though, lol. So Bob sees the password
     wait_until(lambda: "IdEnTiFy Alice hunter2\n" in bob.text())
     assert bob.get_current_view().nick_of_other_user == "Alice"
 
+
+def test_memoserv(alice, bob, wait_until):
     bob.get_server_views()[0].core.send("NICK MemoServ")
     wait_until(lambda: "You are now known as MemoServ.\n" in bob.text())
 
