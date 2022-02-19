@@ -112,6 +112,55 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
     )
 
 
+def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
+    def dialog_callback(dialog):
+        [content] = dialog.winfo_children()
+        content._server_entry.delete(0, "end")
+        content._server_entry.insert(0, "localhost")
+        content._ssl_var.set(False)
+        content._nick_entry.delete(0, "end")
+        content._nick_entry.insert(0, "Alice2")
+        content._channel_entry.delete(0, "end")
+        content._channel_entry.insert(0, "#autojoin")
+        click(dialog, "Connect!")
+
+    # right-click view selector in the middle of nowhere
+    event = mocker.MagicMock()
+    event.y = 1234
+    mocker.patch("tkinter.Menu.tk_popup")
+    alice.on_view_selector_right_click(event)
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", dialog_callback)
+    alice.contextmenu.invoke("Connect to a new server...")
+
+    wait_until(lambda: len(alice.get_server_views()) == 2)
+    wait_until(
+        lambda: alice.get_current_view()
+        == alice.get_server_views()[1].find_channel("#autojoin")
+    )
+    assert len(alice.get_current_config()["servers"]) == 2
+    wait_until(lambda: "*\tAlice2 joined #autojoin.\n" in bob.text())
+
+    alice.entry.insert(0, "hi")
+    alice.on_enter_pressed()
+    wait_until(lambda: "\tAlice2\thi\n" in bob.text())
+
+    # right-click the new server view
+    x, y, width, height = alice.view_selector.bbox(alice.get_server_views()[1].view_id)
+    event.y = y + int(height / 2)
+    alice.on_view_selector_right_click(event)
+
+    askyesno = mocker.patch("tkinter.messagebox.askyesno")
+    askyesno.return_value = True
+    alice.contextmenu.invoke("Leave this server")
+    askyesno.assert_called_once()
+    assert askyesno.call_args.kwargs["detail"] == (
+        "You can reconnect later, but if you decide to do so, Mantaray won't"
+        " remember things like the host and port (localhost 6667), your nick"
+        " (Alice2) or what channels you joined."
+    )
+    wait_until(lambda: len(alice.get_current_config()["servers"]) == 1)
+
+
 def test_default_settings(root_window, monkeypatch):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Connect!"))
     config = show_connection_settings_dialog(

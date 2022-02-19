@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 import sys
 import tkinter
-from tkinter import ttk
+from functools import partial
+from tkinter import ttk, messagebox
 from tkinter.font import Font
 from typing import Any
 from pathlib import Path
@@ -87,6 +88,7 @@ class IrcWidget(ttk.PanedWindow):
     ):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
+        self.verbose = verbose
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]
@@ -116,18 +118,18 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
-        self._contextmenu = tkinter.Menu(tearoff=False)
+        self.contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         if sys.platform == "darwin":
-            self.view_selector.bind("<Button-2>", self._view_selector_right_click)
+            self.view_selector.bind("<Button-2>", self.on_view_selector_right_click)
             self.view_selector.bind(
-                "<Control-Button-1>", self._view_selector_right_click
+                "<Control-Button-1>", self.on_view_selector_right_click
             )
         else:
-            self.view_selector.bind("<Button-3>", self._view_selector_right_click)
+            self.view_selector.bind("<Button-3>", self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
@@ -152,12 +154,9 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
 
-        # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
-            view = ServerView(self, server_config, verbose=verbose)
-            self.add_view(view)
-            view.start_running()  # Must be after add_view()
+            self._create_and_add_server_view(server_config)
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
@@ -316,6 +315,11 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
 
+    def _create_and_add_server_view(self, server_config: config.ServerConfig) -> None:
+        view = ServerView(self, server_config)
+        self.add_view(view)
+        view.start_running()  # Must be after add_view()
+
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
@@ -337,9 +341,49 @@ class IrcWidget(ttk.PanedWindow):
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 
-    def _fill_menu_for_server(self, view: ServerView) -> None:
-        self._contextmenu.add_command(
-            label="Server settings...", command=view.show_config_dialog
+    def _show_add_server_dialog(self) -> None:
+        server_config = config.show_connection_settings_dialog(
+            transient_to=self.winfo_toplevel(), initial_config=None
+        )
+        if server_config is not None:
+            self._create_and_add_server_view(server_config)
+
+    def _leave_server(self, view: ServerView) -> None:
+        wont_remember = []
+        wont_remember.append(f"the host and port ({view.core.host} {view.core.port})")
+        wont_remember.append(f"your nick ({view.core.nick})")
+        if view.core.username != view.core.nick:
+            wont_remember.append(f"your username ({view.core.username})")
+        if view.core.password is not None:
+            wont_remember.append("your password")
+        wont_remember.append("what channels you joined")
+
+        if messagebox.askyesno(
+            "Leave server",
+            f"Are you sure you want to leave {view.core.host}?",
+            detail=(
+                f"You can reconnect later, but if you decide to do so,"
+                f" Mantaray won't remember things like"
+                f" {', '.join(wont_remember[:-1])} or {wont_remember[-1]}."
+            ),
+            default="no",
+        ):
+            view.core.quit()
+
+    def _fill_menu_for_server(self, view: ServerView | None) -> None:
+        if view is not None:
+            self.contextmenu.add_command(
+                label="Server settings...", command=view.show_config_dialog
+            )
+            self.contextmenu.add_command(
+                label="Leave this server",
+                command=partial(self._leave_server, view),
+                # To leave the last server, you need to close window instead
+                state=("disabled" if len(self.get_server_views()) == 1 else "normal"),
+            )
+
+        self.contextmenu.add_command(
+            label="Connect to a new server...", command=self._show_add_server_dialog
         )
 
     def _fill_menu_for_channel(self, view: ChannelView) -> None:
@@ -357,44 +401,45 @@ class IrcWidget(ttk.PanedWindow):
         autojoin_var.trace_add("write", toggle_autojoin)
         extra_notif_var.trace_add("write", toggle_extra_notifications)
 
-        self._contextmenu.add_checkbutton(
+        self.contextmenu.add_checkbutton(
             label="Join when Mantaray starts", variable=autojoin_var
         )
-        self._contextmenu.add_checkbutton(
+        self.contextmenu.add_checkbutton(
             label="Show notifications for all messages", variable=extra_notif_var
         )
 
         self._garbage_collection_is_lol = (autojoin_var, extra_notif_var)
 
-        self._contextmenu.add_command(
+        self.contextmenu.add_command(
             label="Part this channel",
             command=(lambda: view.server_view.core.send(f"PART {view.channel_name}")),
         )
 
     def _fill_menu_for_pm(self, view: PMView) -> None:
-        self._contextmenu.add_command(
+        self.contextmenu.add_command(
             label="Close", command=(lambda: self.remove_view(view))
         )
 
-    def _view_selector_right_click(
+    def on_view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
         item_id = self.view_selector.identify_row(event.y)
-        if not item_id:
-            return
-        self.view_selector.selection_set(item_id)
+        if item_id:
+            self.view_selector.selection_set(item_id)
+            view = self.get_current_view()
+        else:
+            view = None
 
-        self._contextmenu.delete(0, "end")
+        self.contextmenu.delete(0, "end")
 
-        view = self.get_current_view()
-        if isinstance(view, ServerView):
+        if view is None or isinstance(view, ServerView):
             self._fill_menu_for_server(view)
         if isinstance(view, ChannelView):
             self._fill_menu_for_channel(view)
         if isinstance(view, PMView):
             self._fill_menu_for_pm(view)
 
-        self._contextmenu.tk_popup(event.x_root + 5, event.y_root)
+        self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
 
     def get_current_config(self) -> config.Config:
         return {
