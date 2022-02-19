@@ -29,6 +29,15 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     assert set(bob_tags) == {"text", "privmsg", "pinged", "self-nick"}
 
 
+def test_notification_when_mentioned_with_slash_me(alice, bob, wait_until, monkeypatch):
+    monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
+
+    alice.entry.insert(0, "/me says hi to Bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: "says hi to Bob" in bob.text())
+    views._show_popup.assert_called_once_with("#autojoin", "Alice says hi to Bob")
+
+
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
 )

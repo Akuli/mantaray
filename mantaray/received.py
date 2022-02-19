@@ -44,6 +44,7 @@ def _add_privmsg_to_view(
     *,
     pinged: bool = False,
     history_id: int | None = None,
+    notification: bool = False,
 ) -> None:
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
@@ -92,6 +93,15 @@ def _add_privmsg_to_view(
             history_id=history_id,
         )
 
+    if notification:
+        if slash_me:
+            view.add_notification(f"{sender} {text}")
+        else:
+            if isinstance(view, views.ChannelView):
+                view.add_notification(f"<{sender}> {text}")
+            else:
+                view.add_notification(text)
+
 
 def _handle_privmsg(
     server_view: views.ServerView, sender: str, args: list[str]
@@ -105,9 +115,8 @@ def _handle_privmsg(
             # start of a new PM conversation
             pm_view = views.PMView(server_view, sender)
             server_view.irc_widget.add_view(pm_view)
-        _add_privmsg_to_view(pm_view, sender, text)
+        _add_privmsg_to_view(pm_view, sender, text, notification=True)
         pm_view.add_view_selector_tag("new_message")
-        pm_view.add_notification(text)
 
     else:
         channel_view = server_view.find_channel(recipient)
@@ -119,10 +128,16 @@ def _handle_privmsg(
                 text, server_view.core.nick, [server_view.core.nick]
             )
         )
-        _add_privmsg_to_view(channel_view, sender, text, pinged=pinged)
+        _add_privmsg_to_view(
+            channel_view,
+            sender,
+            text,
+            pinged=pinged,
+            notification=(
+                pinged or (channel_view.channel_name in server_view.extra_notifications)
+            ),
+        )
         channel_view.add_view_selector_tag("pinged" if pinged else "new_message")
-        if pinged or (channel_view.channel_name in server_view.extra_notifications):
-            channel_view.add_notification(f"<{sender}> {text}")
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
