@@ -223,10 +223,18 @@ def test_nickserv_and_memoserv(alice, bob, wait_until):
     bob.get_server_views()[0].core.send("NICK NickServ")
     wait_until(lambda: "You are now known as NickServ.\n" in bob.text())
 
-    # FIXME: show password with *** in Alice's client?
-    alice.entry.insert(0, "/ns identify Alice hunter2")
+    # Password is shown with *** in Alice's client, nickserv commands are case insensitive
+    alice.entry.insert(0, "/ns IdEnTiFy Alice hunter2")
     alice.on_enter_pressed()
-    wait_until(lambda: "identify Alice hunter2\n" in bob.text())
+    wait_until(lambda: "IdEnTiFy ********\n" in alice.text())
+    assert "hunter2" not in alice.text()
+
+    text = (alice.log_manager.log_dir / "localhost" / "nickserv.log").read_text("utf-8")
+    assert "identify ********" in text
+    assert "hunter2" not in text
+
+    # It does not actually send the stars though, lol. So Bob sees the password
+    wait_until(lambda: "IdEnTiFy Alice hunter2\n" in bob.text())
     assert bob.get_current_view().nick_of_other_user == "Alice"
 
     bob.get_server_views()[0].core.send("NICK MemoServ")
