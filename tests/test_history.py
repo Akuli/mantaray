@@ -63,7 +63,7 @@ def test_preserving_last_message(alice, wait_until):
     assert alice.entry.get() == "one"
     assert get_history_selection(alice).endswith("\tone\n")
 
-    alice.entry.insert(0, "asdf asdf")
+    alice.entry.insert("end", "asdf asdf")
     assert alice.entry.get() == "oneasdf asdf"
     assert get_history_selection(alice).endswith("\tone\n")
 
