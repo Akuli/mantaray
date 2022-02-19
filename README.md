@@ -146,3 +146,6 @@ You can use telnet instead, after googling how to install it (e.g. I googled
 "windows 7 install telnet"):
 
     $ telnet irc.libera.chat 6667
+
+I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)
+if you want more details about how something works.
