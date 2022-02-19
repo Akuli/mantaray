@@ -124,10 +124,6 @@ def test_private_messages(alice, bob, wait_until):
     wait_until(lambda: "Hey Alice" in bob.text())
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd",
-    reason="hircd sometimes sends PART twice",
-)
 def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     bob.entry.insert(0, "/msg Alice hello")
     bob.on_enter_pressed()
@@ -135,7 +131,12 @@ def test_private_messages_nick_changing_bug(alice, bob, wait_until):
 
     bob.entry.insert(0, "/part #autojoin")
     bob.on_enter_pressed()
-    wait_until(lambda: not isinstance(alice.get_current_view(), ChannelView))
+    wait_until(
+        lambda: "Bob"
+        not in alice.get_server_views()[0]
+        .find_channel("#autojoin")
+        .userlist.get_nicks()
+    )
 
     bob.entry.insert(0, "/nick Bob2")
     bob.on_enter_pressed()
