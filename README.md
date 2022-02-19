@@ -106,3 +106,5 @@ and tell Mantaray to use it with `--config-dir`:
 
 Run `python3 -m mantaray --help` to see
 where it stores the configuration by default.
+For example, I recommend trying `--verbose`,
+especially if you aren't yet familiar with how IRC works.
