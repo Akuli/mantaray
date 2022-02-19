@@ -81,6 +81,7 @@ def switch_view():
 
         irc_widget.view_selector.selection_set(view.view_id)
         irc_widget.update()
+        assert irc_widget.get_current_view() == view
 
     return actually_switch_view
 
