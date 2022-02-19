@@ -125,8 +125,8 @@ def test_private_messages(alice, bob, wait_until):
 
 
 @pytest.mark.skipif(
-    os.environ.get("GITHUB_ACTIONS") == "true",
-    reason="randomly fails with 'Item Bob not found' errors",
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="hircd sometimes sends PART twice",
 )
 def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     bob.entry.insert(0, "/msg Alice hello")
