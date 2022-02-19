@@ -104,8 +104,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     # Doesn't support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
-    def quit(view: View, core: IrcCore) -> None:
-        core.quit()
+    # TODO: add this back and decide whether it should quit all servers or one server only
+    #    def quit(view: View, core: IrcCore) -> None:
+    #        core.quit()
 
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.send(f"NICK :{new_nick}")
@@ -164,7 +165,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     return {
         "/join": join,
         "/part": part,
-        "/quit": quit,
+        # "/quit": quit,
         "/nick": nick,
         "/topic": topic,
         "/me": me,
