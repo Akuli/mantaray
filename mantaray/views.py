@@ -30,7 +30,12 @@ class _UserList:
         self.treeview.insert("", nicks.index(nick), nick, text=nick)
 
     def remove_user(self, nick: str) -> None:
-        self.treeview.delete(nick)
+        try:
+            self.treeview.delete(nick)
+        except tkinter.TclError as e:
+            raise RuntimeError(
+                f"nick {nick!r} not found, all nicks are {self.get_nicks()}"
+            ) from e
 
     def change_nick(self, old: str, new: str) -> None:
         tags = self.treeview.item(old, "tags")
