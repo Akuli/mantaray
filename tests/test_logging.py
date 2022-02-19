@@ -38,8 +38,7 @@ def test_basic(alice, bob, wait_until, check_log):
     bob.on_enter_pressed()
     wait_until(lambda: "Hiii" in alice.text())
 
-    alice.entry.insert(0, "/quit")
-    alice.on_enter_pressed()
+    alice.get_server_views()[0].core.quit()
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(
@@ -72,8 +71,7 @@ def test_pm_logs(alice, bob, wait_until, check_log):
     wait_until(lambda: "its ur new nick" in alice.text())
     wait_until(lambda: "its ur new nick" in bob.text())
 
-    alice.entry.insert(0, "/quit")
-    alice.on_enter_pressed()
+    alice.get_server_views()[0].core.quit()
     wait_until(lambda: not alice.winfo_exists())
 
     check_log(

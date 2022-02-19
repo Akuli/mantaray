@@ -191,26 +191,6 @@ def test_op_deop(alice, bob, wait_until, switch_view):
     assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
 
 
-def test_quit(alice, bob, wait_until, switch_view):
-    # Bob joins a second channel, but Alice only joins #autojoin.
-    # Alice's quit message should only appear on #autojoin
-    bob.entry.insert(0, "/join #bob")
-    bob.on_enter_pressed()
-    wait_until(lambda: "The topic of #bob is" in bob.text())
-    switch_view(bob, "#autojoin")
-
-    alice.entry.insert(0, "/quit")
-    alice.on_enter_pressed()
-    assert alice.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
-
-    wait_until(lambda: "Alice quit." in bob.text())
-    wait_until(lambda: not alice.winfo_exists())
-
-    assert "Alice quit." in bob.text()
-    switch_view(bob, "#bob")
-    assert "Alice quit." not in bob.text()
-
-
 def test_invalid_command(alice, wait_until):
     alice.entry.insert(0, "/asdf")
     alice.on_enter_pressed()
@@ -331,9 +311,9 @@ def test_who_on_join(alice, bob, wait_until, sharing_channels):
         ("/nick", "Usage: /nick <new_nick>"),
         ("/msg", "Usage: /msg <nick> <message>"),
         ("/msg Bob", "Usage: /msg <nick> <message>"),
-        ("/quit asdf", "Usage: /quit"),  # no arguments expected is special-cased
         ("/kick", "Usage: /kick <nick> [<reason>]"),
         ("/away", "Usage: /away <away_message>"),
+        ("/back asdf", "Usage: /back"),
     ],
 )
 def test_incorrect_usage(alice, wait_until, command, error):
