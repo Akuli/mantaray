@@ -607,8 +607,17 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 # start of a new PM conversation
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
+
+            # /msg NickServ identify <password>   --> hide password
+            text = event.text
+            if (
+                pm_view.nick_of_other_user.lower() == "nickserv"
+                and text.lower().startswith("identify ")
+            ):
+                text = text[:9] + "********"
+
             _add_privmsg_to_view(
-                pm_view, server_view.core.nick, event.text, history_id=event.history_id
+                pm_view, server_view.core.nick, text, history_id=event.history_id
             )
         else:
             _add_privmsg_to_view(
