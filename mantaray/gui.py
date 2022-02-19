@@ -118,18 +118,18 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
-        self._contextmenu = tkinter.Menu(tearoff=False)
+        self.contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         if sys.platform == "darwin":
-            self.view_selector.bind("<Button-2>", self._view_selector_right_click)
+            self.view_selector.bind("<Button-2>", self.on_view_selector_right_click)
             self.view_selector.bind(
-                "<Control-Button-1>", self._view_selector_right_click
+                "<Control-Button-1>", self.on_view_selector_right_click
             )
         else:
-            self.view_selector.bind("<Button-3>", self._view_selector_right_click)
+            self.view_selector.bind("<Button-3>", self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
@@ -349,26 +349,21 @@ class IrcWidget(ttk.PanedWindow):
             self._create_and_add_server_view(server_config)
 
     def _leave_server(self, view: ServerView) -> None:
-        wont_remember = [f"the host ({view.core.host})"]
-        if view.core.ssl:
-            default_port = 6697
-        else:
-            default_port = 6667
-        if view.core.port != default_port:
-            wont_remember.append(f"the port ({view.core.port})")
+        wont_remember = [f"the host and port ({view.core.host} {view.core.port})"]
         wont_remember.append(f"your nick ({view.core.nick})")
         if view.core.username != view.core.nick:
-            wont_remember.append(f"your user name ({view.core.username})")
+            wont_remember.append(f"your username ({view.core.username})")
         if view.core.password is not None:
             wont_remember.append("your password")
+        wont_remember.append("what channels you joined")
 
         if messagebox.askyesno(
             "Leave server",
             f"Are you sure you want to leave {view.core.host}?",
             detail=(
                 f"You can reconnect later, but if you decide to do so,"
-                f" Mantaray won't remember"
-                f" {', '.join(wont_remember[:-1])} and {wont_remember[-1]}."
+                f" Mantaray won't remember things like"
+                f" {', '.join(wont_remember[:-1])} or {wont_remember[-1]}."
             ),
             default="no",
         ):
@@ -376,17 +371,17 @@ class IrcWidget(ttk.PanedWindow):
 
     def _fill_menu_for_server(self, view: ServerView | None) -> None:
         if view is not None:
-            self._contextmenu.add_command(
+            self.contextmenu.add_command(
                 label="Server settings...", command=view.show_config_dialog
             )
-            self._contextmenu.add_command(
+            self.contextmenu.add_command(
                 label="Leave this server",
                 command=partial(self._leave_server, view),
                 # To leave the last server, you need to close window instead
                 state=("disabled" if len(self.get_server_views()) == 1 else "normal"),
             )
 
-        self._contextmenu.add_command(
+        self.contextmenu.add_command(
             label="Connect to a new server...", command=self._show_add_server_dialog
         )
 
@@ -405,26 +400,26 @@ class IrcWidget(ttk.PanedWindow):
         autojoin_var.trace_add("write", toggle_autojoin)
         extra_notif_var.trace_add("write", toggle_extra_notifications)
 
-        self._contextmenu.add_checkbutton(
+        self.contextmenu.add_checkbutton(
             label="Join when Mantaray starts", variable=autojoin_var
         )
-        self._contextmenu.add_checkbutton(
+        self.contextmenu.add_checkbutton(
             label="Show notifications for all messages", variable=extra_notif_var
         )
 
         self._garbage_collection_is_lol = (autojoin_var, extra_notif_var)
 
-        self._contextmenu.add_command(
+        self.contextmenu.add_command(
             label="Part this channel",
             command=(lambda: view.server_view.core.send(f"PART {view.channel_name}")),
         )
 
     def _fill_menu_for_pm(self, view: PMView) -> None:
-        self._contextmenu.add_command(
+        self.contextmenu.add_command(
             label="Close", command=(lambda: self.remove_view(view))
         )
 
-    def _view_selector_right_click(
+    def on_view_selector_right_click(
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
         item_id = self.view_selector.identify_row(event.y)
@@ -434,7 +429,7 @@ class IrcWidget(ttk.PanedWindow):
         else:
             view = None
 
-        self._contextmenu.delete(0, "end")
+        self.contextmenu.delete(0, "end")
 
         if view is None or isinstance(view, ServerView):
             self._fill_menu_for_server(view)
@@ -443,7 +438,7 @@ class IrcWidget(ttk.PanedWindow):
         elif isinstance(view, PMView):
             self._fill_menu_for_pm(view)
 
-        self._contextmenu.tk_popup(event.x_root + 5, event.y_root)
+        self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
 
     def get_current_config(self) -> config.Config:
         return {
