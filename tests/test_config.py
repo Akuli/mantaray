@@ -124,13 +124,12 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
         content._channel_entry.insert(0, "#autojoin")
         click(dialog, "Connect!")
 
-    monkeypatch.setattr("tkinter.Toplevel.wait_window", dialog_callback)
-    mocker.patch("tkinter.Menu.tk_popup")
-
     # right-click view selector in the middle of nowhere
     event = mocker.MagicMock()
     event.y = 1234
+    mocker.patch("tkinter.Menu.tk_popup")
     alice.on_view_selector_right_click(event)
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", dialog_callback)
     alice.contextmenu.invoke("Connect to a new server...")
 
     wait_until(lambda: len(alice.get_server_views()) == 2)
