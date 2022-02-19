@@ -92,3 +92,17 @@ This is essentially what Mantaray's tests do.
 To see what other options you can specify, run:
 
     $ python3 -m mantaray --help
+
+I recommend downloading two copies of Mantaray:
+one that you develop, and another that you use to talk with people.
+You probably want to have different settings on the two copies.
+For example, the development copy could have a different nickname,
+and join a channel where nobody will get annoyed if you constantly join and leave.
+To do this, you can create a new folder for the development settings
+and tell Mantaray to use it with `--config-dir`:
+
+    $ mkdir dev-config
+    $ python3 -m mantaray --config-dir dev-config
+
+Run `python3 -m mantaray --help` to see
+where it stores the configuration by default.
