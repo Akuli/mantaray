@@ -6,8 +6,7 @@ def get_history_selection(irc_widget):
         return irc_widget.get_current_view().textwidget.get(
             "history-selection.first", "history-selection.last"
         )
-    except tkinter.TclError as e:
-        print("**", e)
+    except tkinter.TclError:
         # nothing tagged with history-selection
         return None
 
