@@ -116,6 +116,8 @@ def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
 
         match_end = f"{match_start} + {len(url)} chars"
         textwidget.tag_add("url", match_start, match_end)
+        textwidget.tag_remove("self-nick", match_start, match_end)
+        textwidget.tag_remove("other-nick", match_start, match_end)
         search_start = f"{match_end} + 1 char"
 
 
