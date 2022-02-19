@@ -162,8 +162,7 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     wait_until(lambda: "The topic of #lol is:" in alice.text())
     alice.entry.insert(0, "Hello Bob")
     alice.on_enter_pressed()
-    alice.entry.insert(0, "/quit")
-    alice.on_enter_pressed()
+    alice.get_server_views()[0].core.quit()
     wait_until(lambda: not alice.winfo_exists())
 
     wait_until(
