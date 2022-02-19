@@ -35,6 +35,7 @@ On Windows, run these commands in Command Prompt:
     $ pip install -r requirements.txt
     $ py -m mantaray
 
+
 ## Developing
 
 First, run mantaray as shown above.
@@ -89,6 +90,56 @@ You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `--bob` instead of `--alice`.
 This is essentially what Mantaray's tests do.
 
-To see what other options you can specify, run:
+I recommend downloading two copies of Mantaray:
+one that you develop, and another that you use to talk with people.
+You probably want to have different settings on the two copies.
+For example, the development copy could have a different nickname,
+and join a channel where nobody will get annoyed if you constantly join and leave.
+To do this, you can create a new folder for the development settings
+and tell Mantaray to use it with `--config-dir`:
 
-    $ python3 -m mantaray --help
+    $ mkdir dev-config
+    $ python3 -m mantaray --config-dir dev-config
+
+Run `python3 -m mantaray --help` to see
+where it stores the configuration by default.
+
+
+## How IRC works
+
+Mantaray connects a TCP socket, optionally with SSL, to a server.
+You don't really need to know what TCP and SSL are.
+The important thing is that this way Mantaray can send bytes to the server
+and receive bytes from the server.
+To see what exactly Mantaray sends and receives, run it with `--verbose`.
+For example:
+
+    $ python3 -m mantaray --config-dir dev-config --verbose
+
+For quick experimenting, it's often useful to connect to IRC without Mantaray.
+If you are on Linux or Mac, you can use netcat (aka `nc`) for this:
+
+    $ nc irc.libera.chat 6667
+
+On windows, it is possible to download netcat,
+but I find telnet to be easier to install
+(google e.g. "windows 7 install telnet"):
+
+    $ telnet irc.libera.chat 6667
+
+Here `irc.libera.chat` and `6667` are the host and port,
+i.e. the same information you would enter to Mantaray's connect dialog.
+If you want to connect to Mantatail, use `localhost` instead of `irc.libera.chat`.
+Netcat and telnet don't support SSL, so we use port 6667 instead of 6697.
+
+Once connected, type this to netcat (or telnet),
+replacing `nickname`, `username` and `realname` with whatever you want:
+
+    NICK nickname
+    USER username 0 * :realname
+
+You should now be connected to IRC. You can join channels (`JOIN ##learnpython`),
+send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on.
+
+I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)
+if you want more details about how each IRC command works.
