@@ -89,10 +89,6 @@ You can connect other IRC clients too,
 or you can connect another instance of Mantaray with `--bob` instead of `--alice`.
 This is essentially what Mantaray's tests do.
 
-To see what other options you can specify, run:
-
-    $ python3 -m mantaray --help
-
 I recommend downloading two copies of Mantaray:
 one that you develop, and another that you use to talk with people.
 You probably want to have different settings on the two copies.
