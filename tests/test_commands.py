@@ -101,7 +101,7 @@ def test_topic_change(alice, bob, wait_until):
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support KICK"
 )
-def test_kick(alice, bob, wait_until):
+def test_kick(alice, bob, wait_until, switch_view):
     alice.entry.insert("end", "/kick bob")
     alice.on_enter_pressed()
     wait_until(
@@ -138,9 +138,7 @@ def test_kick(alice, bob, wait_until):
     for view in bob.views_by_id.values():
         wait_until(lambda: "#autojoin You're not on that channel" in view.get_text())
 
-    alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
-    alice.update()
-
+    switch_view(alice, alice.get_server_views()[0])
     alice.entry.insert("end", "/kick bob")
     alice.on_enter_pressed()
     wait_until(lambda: alice.text().endswith("You can use /kick only on a channel.\n"))
@@ -156,7 +154,7 @@ def test_me(alice, bob, wait_until):
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support modes"
 )
-def test_op_deop(alice, bob, wait_until):
+def test_op_deop(alice, bob, wait_until, switch_view):
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
     wait_until(
@@ -180,8 +178,7 @@ def test_op_deop(alice, bob, wait_until):
     # TODO: modes other than +o and -o are displayed differently.
     # Should test them when available in mantatail
 
-    alice.view_selector.selection_set(alice.get_server_views()[0].view_id)
-    alice.update()
+    switch_view(alice, alice.get_server_views()[0])
 
     alice.entry.insert("end", "/op bob")
     alice.on_enter_pressed()
@@ -194,20 +191,13 @@ def test_op_deop(alice, bob, wait_until):
     assert "error" in alice.get_current_view().textwidget.tag_names("end - 10 chars")
 
 
-def switch_to_channel_view(user, channel_name):
-    view = user.get_server_views()[0].find_channel(channel_name)
-    user.view_selector.selection_set(view.view_id)
-    user.update()
-    assert f"The topic of {channel_name} is" in user.text()
-
-
-def test_quit(alice, bob, wait_until):
+def test_quit(alice, bob, wait_until, switch_view):
     # Bob joins a second channel, but Alice only joins #autojoin.
     # Alice's quit message should only appear on #autojoin
     bob.entry.insert(0, "/join #bob")
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #bob is" in bob.text())
-    switch_to_channel_view(bob, "#autojoin")
+    switch_view(bob, "#autojoin")
 
     alice.entry.insert("end", "/quit")
     alice.on_enter_pressed()
@@ -217,7 +207,7 @@ def test_quit(alice, bob, wait_until):
     wait_until(lambda: not alice.winfo_exists())
 
     assert "Alice quit." in bob.text()
-    switch_to_channel_view(bob, "#bob")
+    switch_view(bob, "#bob")
     assert "Alice quit." not in bob.text()
 
 

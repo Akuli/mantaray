@@ -67,7 +67,7 @@ def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused
     assert not bob.get_current_view().textwidget.tag_ranges("pinged")
 
 
-def test_new_message_tags(alice, bob, wait_until):
+def test_new_message_tags(alice, bob, wait_until, switch_view):
     alice_autojoin = alice.get_current_view()
     alice.get_server_views()[0].core.send("JOIN #lol")
     wait_until(lambda: "The topic of #lol is" in alice.text())
@@ -88,6 +88,5 @@ def test_new_message_tags(alice, bob, wait_until):
     wait_until(lambda: "blah blah 2" in alice_autojoin.textwidget.get(1.0, "end"))
     assert alice.view_selector.item(alice_autojoin.view_id, "tags") == ("pinged",)
 
-    alice.view_selector.selection_set(alice_autojoin.view_id)
-    alice.update()
+    switch_view(alice, "#autojoin")
     assert not alice.view_selector.item(alice_autojoin.view_id, "tags")
