@@ -48,7 +48,7 @@ jobs:
     strategy:
       matrix:
         # os is last so you can see everything in github's ui, even if the job name gets truncated
-        irc-server: ["hircd", "mantatail"]
+        irc-server: ["hircd", "hircd", "hircd", "hircd", "mantatail"]
         os: ["ubuntu-latest", "windows-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
