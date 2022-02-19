@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 import sys
 import tkinter
-from tkinter import ttk
+from functools import partial
+from tkinter import ttk, messagebox
 from tkinter.font import Font
 from typing import Any
 from pathlib import Path
@@ -315,9 +316,9 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.selection_set(view.view_id)
 
     def _create_and_add_server_view(self, server_config: config.ServerConfig) -> None:
-            view = ServerView(self, server_config)
-            self.add_view(view)
-            view.start_running()  # Must be after add_view()
+        view = ServerView(self, server_config)
+        self.add_view(view)
+        view.start_running()  # Must be after add_view()
 
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
@@ -341,17 +342,53 @@ class IrcWidget(ttk.PanedWindow):
             del self.views_by_id[server_view.view_id]
 
     def _show_add_server_dialog(self) -> None:
-        server_config = config.show_connection_settings_dialog(transient_to=self.winfo_toplevel(), initial_config=None)
+        server_config = config.show_connection_settings_dialog(
+            transient_to=self.winfo_toplevel(), initial_config=None
+        )
         if server_config is not None:
             self._create_and_add_server_view(server_config)
+
+    def _leave_server(self, view: ServerView) -> None:
+        wont_remember = [f"the host ({view.core.host})"]
+        if view.core.ssl:
+            default_port = 6697
+        else:
+            default_port = 6667
+        if view.core.port != default_port:
+            wont_remember.append(f"the port ({view.core.port})")
+        wont_remember.append(f"your nick ({view.core.nick})")
+        if view.core.username != view.core.nick:
+            wont_remember.append(f"your user name ({view.core.username})")
+        if view.core.password is not None:
+            wont_remember.append("your password")
+
+        if messagebox.askyesno(
+            "Leave server",
+            f"Are you sure you want to leave {view.core.host}?",
+            detail=(
+                f"You can reconnect later, but if you decide to do so,"
+                f" Mantaray won't remember"
+                f" {', '.join(wont_remember[:-1])} and {wont_remember[-1]}."
+            ),
+            default="no",
+        ):
+            view.core.quit()
 
     def _fill_menu_for_server(self, view: ServerView | None) -> None:
         if view is not None:
             self._contextmenu.add_command(
                 label="Server settings...", command=view.show_config_dialog
             )
+            self._contextmenu.add_command(
+                label="Leave this server",
+                command=partial(self._leave_server, view),
+                # To leave the last server, you need to close window instead
+                state=("disabled" if len(self.get_server_views()) == 1 else "normal"),
+            )
+
         self._contextmenu.add_command(
-            label="Connect to a new server...", command=self._show_add_server_dialog)
+            label="Connect to a new server...", command=self._show_add_server_dialog
+        )
 
     def _fill_menu_for_channel(self, view: ChannelView) -> None:
         def toggle_autojoin(*junk: object) -> None:
