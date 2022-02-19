@@ -87,6 +87,7 @@ class IrcWidget(ttk.PanedWindow):
     ):
         super().__init__(master, orient="horizontal")
         self.log_manager = logs.LogManager(log_dir)
+        self.verbose = verbose
 
         self.font = Font(
             family=file_config["font_family"], size=file_config["font_size"]
@@ -152,12 +153,9 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
 
-        # {channel_like.name: channel_like}
         self.views_by_id: dict[str, View] = {}
         for server_config in file_config["servers"]:
-            view = ServerView(self, server_config, verbose=verbose)
-            self.add_view(view)
-            view.start_running()  # Must be after add_view()
+            self._create_and_add_server_view(server_config)
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
@@ -316,6 +314,11 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
 
+    def _create_and_add_server_view(self, server_config: config.ServerConfig) -> None:
+            view = ServerView(self, server_config)
+            self.add_view(view)
+            view.start_running()  # Must be after add_view()
+
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
@@ -337,10 +340,18 @@ class IrcWidget(ttk.PanedWindow):
             server_view.destroy_widgets()
             del self.views_by_id[server_view.view_id]
 
-    def _fill_menu_for_server(self, view: ServerView) -> None:
+    def _show_add_server_dialog(self) -> None:
+        server_config = config.show_connection_settings_dialog(transient_to=self.winfo_toplevel(), initial_config=None)
+        if server_config is not None:
+            self._create_and_add_server_view(server_config)
+
+    def _fill_menu_for_server(self, view: ServerView | None) -> None:
+        if view is not None:
+            self._contextmenu.add_command(
+                label="Server settings...", command=view.show_config_dialog
+            )
         self._contextmenu.add_command(
-            label="Server settings...", command=view.show_config_dialog
-        )
+            label="Connect to a new server...", command=self._show_add_server_dialog)
 
     def _fill_menu_for_channel(self, view: ChannelView) -> None:
         def toggle_autojoin(*junk: object) -> None:
@@ -380,18 +391,19 @@ class IrcWidget(ttk.PanedWindow):
         self, event: tkinter.Event[tkinter.ttk.Treeview]
     ) -> None:
         item_id = self.view_selector.identify_row(event.y)
-        if not item_id:
-            return
-        self.view_selector.selection_set(item_id)
+        if item_id:
+            self.view_selector.selection_set(item_id)
+            view = self.get_current_view()
+        else:
+            view = None
 
         self._contextmenu.delete(0, "end")
 
-        view = self.get_current_view()
-        if isinstance(view, ServerView):
+        if view is None or isinstance(view, ServerView):
             self._fill_menu_for_server(view)
         if isinstance(view, ChannelView):
             self._fill_menu_for_channel(view)
-        if isinstance(view, PMView):
+        elif isinstance(view, PMView):
             self._fill_menu_for_pm(view)
 
         self._contextmenu.tk_popup(event.x_root + 5, event.y_root)

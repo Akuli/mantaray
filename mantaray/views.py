@@ -262,13 +262,15 @@ class View:
 
 
 class ServerView(View):
-    core: backend.IrcCore  # no idea why mypy need this
+    # no idea why mypy need these
+    core: backend.IrcCore
+    audio_notification: bool
 
     def __init__(
-        self, irc_widget: IrcWidget, server_config: config.ServerConfig, verbose: bool
+        self, irc_widget: IrcWidget, server_config: config.ServerConfig
     ):
         super().__init__(irc_widget, server_config["host"])
-        self.core = backend.IrcCore(server_config, verbose=verbose)
+        self.core = backend.IrcCore(server_config, verbose=irc_widget.verbose)
         self.extra_notifications = set(server_config["extra_notifications"])
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
