@@ -139,8 +139,7 @@ replacing `nickname`, `username` and `realname` with whatever you want:
     USER username 0 * :realname
 
 You should now be connected to IRC. You can join channels (`JOIN ##learnpython`),
-send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on,
-just like mantaray would.
+send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on.
 
 I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)
 if you want more details about how each IRC command works.
