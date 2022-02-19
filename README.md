@@ -35,6 +35,7 @@ On Windows, run these commands in Command Prompt:
     $ pip install -r requirements.txt
     $ py -m mantaray
 
+
 ## Developing
 
 First, run mantaray as shown above.
@@ -106,5 +107,42 @@ and tell Mantaray to use it with `--config-dir`:
 
 Run `python3 -m mantaray --help` to see
 where it stores the configuration by default.
-For example, I recommend trying `--verbose`,
-especially if you aren't yet familiar with how IRC works.
+
+
+## How IRC works
+
+Mantaray connects a TCP socket, optionally with SSL, to a server.
+You don't really need to know what TCP and SSL are.
+The important thing is that this way Mantaray can send bytes to the server
+and receive bytes from the server.
+To see what exactly Mantaray sends and receives, run it with `--verbose`.
+For example:
+
+    $ python3 -m mantaray --config-dir dev-config --verbose
+
+For quick experimenting, it's often useful to connect to IRC without Mantaray.
+If you are on Linux or Mac, you can use netcat (aka `nc`) for this:
+
+    $ nc irc.libera.chat 6667
+
+Here `irc.libera.chat` and `6667` are the host and port,
+i.e. the same information you would enter to Mantaray's connect dialog.
+If you want to connect to Mantatail or hircd, use `localhost` instead of `6667`.
+Netcat doesn't support SSL, so we use port 6667 instead of 6697.
+
+Once connected, type this to netcat,
+replacing `nickname`, `username` and `realname` with whatever you want:
+
+    NICK nickname
+    USER username 0 * :realname
+
+You should now be connected to IRC. You can join channels (`JOIN ##learnpython`),
+send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on,
+just like mantaray would.
+
+If you are on Windows, you probably don't have netcat.
+It's possible to download it, but most antivirus programs don't like it.
+You can use telnet instead, after googling how to install it (e.g. I googled
+"windows 7 install telnet"):
+
+    $ telnet irc.libera.chat 6667
