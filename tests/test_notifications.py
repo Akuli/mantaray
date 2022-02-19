@@ -5,9 +5,6 @@ import pytest
 from mantaray import views
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
-)
 def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
 
