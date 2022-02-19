@@ -10,7 +10,7 @@ Supported features:
 - SASL authentication
 - Notifications for new messages
 - Multiple channels
-- Multiple servers (if you add them manually in the config file, lol)
+- Multiple servers
 - Private messages
 - `/away` & `/back`
 - `/me`
