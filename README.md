@@ -121,12 +121,18 @@ If you are on Linux or Mac, you can use netcat (aka `nc`) for this:
 
     $ nc irc.libera.chat 6667
 
+On windows, it is possible to download netcat,
+but I find telnet to be easier to install
+(google e.g. "windows 7 install telnet"):
+
+    $ telnet irc.libera.chat 6667
+
 Here `irc.libera.chat` and `6667` are the host and port,
 i.e. the same information you would enter to Mantaray's connect dialog.
-If you want to connect to Mantatail or hircd, use `localhost` instead of `6667`.
-Netcat doesn't support SSL, so we use port 6667 instead of 6697.
+If you want to connect to Mantatail, use `localhost` instead of `irc.libera.chat`.
+Netcat and telnet don't support SSL, so we use port 6667 instead of 6697.
 
-Once connected, type this to netcat,
+Once connected, type this to netcat (or telnet),
 replacing `nickname`, `username` and `realname` with whatever you want:
 
     NICK nickname
@@ -136,12 +142,5 @@ You should now be connected to IRC. You can join channels (`JOIN ##learnpython`)
 send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on,
 just like mantaray would.
 
-If you are on Windows, you probably don't have netcat.
-It's possible to download it, but most antivirus programs don't like it.
-You can use telnet instead, after googling how to install it (e.g. I googled
-"windows 7 install telnet"):
-
-    $ telnet irc.libera.chat 6667
-
 I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)
-if you want more details about how something works.
+if you want more details about how each IRC command works.
