@@ -266,9 +266,7 @@ class ServerView(View):
     core: backend.IrcCore
     audio_notification: bool
 
-    def __init__(
-        self, irc_widget: IrcWidget, server_config: config.ServerConfig
-    ):
+    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget, server_config["host"])
         self.core = backend.IrcCore(server_config, verbose=irc_widget.verbose)
         self.extra_notifications = set(server_config["extra_notifications"])
