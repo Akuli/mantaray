@@ -349,7 +349,8 @@ class IrcWidget(ttk.PanedWindow):
             self._create_and_add_server_view(server_config)
 
     def _leave_server(self, view: ServerView) -> None:
-        wont_remember = [f"the host and port ({view.core.host} {view.core.port})"]
+        wont_remember = []
+        wont_remember.append(f"the host and port ({view.core.host} {view.core.port})")
         wont_remember.append(f"your nick ({view.core.nick})")
         if view.core.username != view.core.nick:
             wont_remember.append(f"your username ({view.core.username})")
@@ -435,7 +436,7 @@ class IrcWidget(ttk.PanedWindow):
             self._fill_menu_for_server(view)
         if isinstance(view, ChannelView):
             self._fill_menu_for_channel(view)
-        elif isinstance(view, PMView):
+        if isinstance(view, PMView):
             self._fill_menu_for_pm(view)
 
         self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
