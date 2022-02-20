@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import re
 from base64 import b64encode
-from typing import TYPE_CHECKING
 
 from mantaray import backend, views, textwidget_tags
 
-if TYPE_CHECKING:
-    from typing_extensions import Literal
 
-
+RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
 RPL_ENDOFMOTD = "376"
@@ -47,14 +44,9 @@ def _add_privmsg_to_view(
     text: str,
     *,
     pinged: bool = False,
+    history_id: int | None = None,
+    notification: bool = False,
 ) -> None:
-    if sender == view.server_view.core.nick:
-        sender_tag = "self-nick"
-        privmsg_tag: Literal["sent-privmsg", "received-privmsg"] = "sent-privmsg"
-    else:
-        sender_tag = "other-nick"
-        privmsg_tag = "received-privmsg"
-
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
         slash_me = True
@@ -80,16 +72,36 @@ def _add_privmsg_to_view(
                 tags.append(nick_tag)
             parts.append(views.MessagePart(subsubstring, tags=tags))
 
+    if sender == view.server_view.core.nick:
+        sender_tag = "self-nick"
+    else:
+        sender_tag = "other-nick"
+
     if slash_me:
         view.add_message(
             [views.MessagePart(sender, tags=[sender_tag]), views.MessagePart(" ")]
             + parts,
             pinged=pinged,
+            history_id=history_id,
         )
     else:
         view.add_message(
-            parts, sender, sender_tag=sender_tag, tag=privmsg_tag, pinged=pinged
+            parts,
+            sender,
+            sender_tag=sender_tag,
+            tag="privmsg",
+            pinged=pinged,
+            history_id=history_id,
         )
+
+    if notification:
+        if slash_me:
+            view.add_notification(f"{sender} {text}")
+        else:
+            if isinstance(view, views.ChannelView):
+                view.add_notification(f"<{sender}> {text}")
+            else:
+                view.add_notification(text)
 
 
 def _handle_privmsg(
@@ -104,9 +116,8 @@ def _handle_privmsg(
             # start of a new PM conversation
             pm_view = views.PMView(server_view, sender)
             server_view.irc_widget.add_view(pm_view)
-        _add_privmsg_to_view(pm_view, sender, text)
+        _add_privmsg_to_view(pm_view, sender, text, notification=True)
         pm_view.add_view_selector_tag("new_message")
-        pm_view.add_notification(text)
 
     else:
         channel_view = server_view.find_channel(recipient)
@@ -118,10 +129,16 @@ def _handle_privmsg(
                 text, server_view.core.nick, [server_view.core.nick]
             )
         )
-        _add_privmsg_to_view(channel_view, sender, text, pinged=pinged)
+        _add_privmsg_to_view(
+            channel_view,
+            sender,
+            text,
+            pinged=pinged,
+            notification=(
+                pinged or (channel_view.channel_name in server_view.extra_notifications)
+            ),
+        )
         channel_view.add_view_selector_tag("pinged" if pinged else "new_message")
-        if pinged or (channel_view.channel_name in server_view.extra_notifications):
-            channel_view.add_notification(f"<{sender}> {text}")
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -154,8 +171,6 @@ def _handle_part(
 
     if parting_nick == server_view.core.nick:
         server_view.irc_widget.remove_view(channel_view)
-        if channel in server_view.core.autojoin:
-            server_view.core.autojoin.remove(channel)
 
     else:
         channel_view.userlist.remove_user(parting_nick)
@@ -177,7 +192,7 @@ def _handle_part(
 
 
 def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
-    [new_nick] = args
+    new_nick = args[0]
     if old_nick == server_view.core.nick:
         server_view.core.nick = new_nick
         if server_view.irc_widget.get_current_view().server_view == server_view:
@@ -192,8 +207,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 ]
             )
             if isinstance(view, views.ChannelView):
-                view.userlist.remove_user(old_nick)
-                view.userlist.add_user(new_nick)
+                view.userlist.change_nick(old_nick, new_nick)
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
@@ -206,8 +220,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             )
 
             if isinstance(view, views.ChannelView):
-                view.userlist.remove_user(old_nick)
-                view.userlist.add_user(new_nick)
+                view.userlist.change_nick(old_nick, new_nick)
 
             if isinstance(view, views.PMView):
                 # Someone else might have had this nick before
@@ -430,16 +443,18 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     topic = join.topic or "(no topic)"
     channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
 
-    if channel not in server_view.core.autojoin:
-        server_view.core.autojoin.append(channel)
-        # TODO: Make this into a setting. You don't always want to add every channel you join to autojoin.
-        # Would be nice if you could rightclick a channel in the channel list to add/remove it from autojoin.
-
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
-    # TODO: relying on MOTD good?
-    for channel in server_view.core.autojoin:
-        server_view.core.send(f"JOIN {channel}")
+    if server_view.join_initially is None:
+        # Reconnect after connectivity error, join whatever channels are open
+        for view in server_view.get_subviews():
+            if isinstance(view, views.ChannelView):
+                server_view.core.send(f"JOIN {view.channel_name}")
+    else:
+        # Mantaray just started, connect according to config.json
+        for channel in server_view.join_initially:
+            server_view.core.send(f"JOIN {channel}")
+        server_view.join_initially = None
 
 
 def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
@@ -551,6 +566,11 @@ def _handle_received_message(
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
+    elif msg.command == RPL_WELCOME and msg.args[0] != server_view.core.nick:
+        # Use whatever nickname the server tells us to use.
+        # Needed e.g. when nick is in use and you changed nick during connecting.
+        _handle_nick(server_view, server_view.core.nick, msg.args)
+
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         assert isinstance(msg, backend.MessageFromServer)
         server_view.add_message(f'{msg.command} {" ".join(msg.args)}', msg.server)
@@ -619,9 +639,25 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 # start of a new PM conversation
                 pm_view = views.PMView(server_view, event.nick_or_channel)
                 server_view.irc_widget.add_view(pm_view)
-            _add_privmsg_to_view(pm_view, server_view.core.nick, event.text)
+
+            # /msg NickServ identify <password>   --> hide password
+            text = event.text
+            if (
+                pm_view.nick_of_other_user.lower() == "nickserv"
+                and text.lower().startswith("identify ")
+            ):
+                text = text[:9] + "********"
+
+            _add_privmsg_to_view(
+                pm_view, server_view.core.nick, text, history_id=event.history_id
+            )
         else:
-            _add_privmsg_to_view(channel_view, server_view.core.nick, event.text)
+            _add_privmsg_to_view(
+                channel_view,
+                server_view.core.nick,
+                event.text,
+                history_id=event.history_id,
+            )
 
     else:
         # If mypy says 'error: unused "type: ignore" comment', you

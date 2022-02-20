@@ -10,6 +10,7 @@ from tkinter import ttk
 from typing import Any, TYPE_CHECKING, IO
 
 from mantaray import backend, textwidget_tags, config, received
+from mantaray.history import History
 
 if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
@@ -19,9 +20,7 @@ if TYPE_CHECKING:
 class _UserList:
     def __init__(self, irc_widget: IrcWidget):
         self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
-        self.treeview.tag_configure(
-            "away", foreground="#95968c"
-        )  # TODO: Apply tag if user with away tag changes nick
+        self.treeview.tag_configure("away", foreground="#95968c")
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -32,6 +31,12 @@ class _UserList:
 
     def remove_user(self, nick: str) -> None:
         self.treeview.delete(nick)
+
+    def change_nick(self, old: str, new: str) -> None:
+        tags = self.treeview.item(old, "tags")
+        self.remove_user(old)
+        self.add_user(new)
+        self.treeview.item(new, tags=tags)
 
     def get_nicks(self) -> tuple[str, ...]:
         return self.treeview.get_children("")
@@ -92,6 +97,8 @@ class View:
         self.textwidget.tag_config("text", lmargin2=160)
         self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
+
+        self.history = History(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
@@ -196,9 +203,10 @@ class View:
         sender: str = "*",
         *,
         sender_tag: str | None = None,
-        tag: Literal["info", "error", "sent-privmsg", "received-privmsg"] = "info",
+        tag: Literal["info", "error", "privmsg"] = "info",
         show_in_gui: bool = True,
         pinged: bool = False,
+        history_id: int | None = None,
     ) -> None:
         if isinstance(message, str):
             message = [MessagePart(message)]
@@ -206,6 +214,11 @@ class View:
         if show_in_gui:
             # scroll down all the way if the user hasn't scrolled up manually
             do_the_scroll = self.textwidget.yview()[1] == 1.0
+
+            if history_id is not None:
+                # Without gravity, the mark stays at the end as text is inserted
+                self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
+                self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
 
             self.textwidget.config(state="normal")
             start = self.textwidget.index("end - 1 char")
@@ -228,6 +241,10 @@ class View:
                 self.textwidget.tag_add("pinged", start, "end - 1 char")
             self.textwidget.config(state="disabled")
 
+            if history_id is not None:
+                self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
+                self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
+
             textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 
             if do_the_scroll:
@@ -245,16 +262,21 @@ class View:
 
 
 class ServerView(View):
-    core: backend.IrcCore  # no idea why mypy need this
+    # no idea why mypy need these
+    core: backend.IrcCore
+    audio_notification: bool
 
-    def __init__(
-        self, irc_widget: IrcWidget, server_config: config.ServerConfig, verbose: bool
-    ):
+    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
         super().__init__(irc_widget, server_config["host"])
-        self.core = backend.IrcCore(server_config, verbose=verbose)
+        self.core = backend.IrcCore(server_config, verbose=irc_widget.verbose)
         self.extra_notifications = set(server_config["extra_notifications"])
         self.audio_notification = server_config["audio_notification"]
         self._join_leave_hiding_config = server_config["join_leave_hiding"]
+
+        # Used once and set to None after creating the channel views.
+        # If you reconnect, we join all currently opened channels.
+        self.join_initially: list[str] | None = server_config["joined_channels"]
+        assert self.join_initially is not None
 
     def _run_core(self) -> None:
         if self.core.quitting_finished():
@@ -322,11 +344,6 @@ class ServerView(View):
         return None
 
     def get_current_config(self) -> config.ServerConfig:
-        channels = [
-            view.channel_name
-            for view in self.get_subviews()
-            if isinstance(view, ChannelView)
-        ]
         return {
             "host": self.core.host,
             "port": self.core.port,
@@ -335,10 +352,11 @@ class ServerView(View):
             "username": self.core.username,
             "realname": self.core.realname,
             "password": self.core.password,
-            "joined_channels": sorted(
-                self.core.autojoin,
-                key=(lambda chan: channels.index(chan) if chan in channels else -1),
-            ),
+            "joined_channels": [
+                view.channel_name
+                for view in self.get_subviews()
+                if isinstance(view, ChannelView) and view.join_on_startup
+            ],
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self._join_leave_hiding_config,
             "audio_notification": self.audio_notification,
@@ -353,17 +371,12 @@ class ServerView(View):
             self._join_leave_hiding_config = new_config["join_leave_hiding"]
             self.core.apply_config_and_reconnect(new_config)
             self.audio_notification = new_config["audio_notification"]
-            # TODO: autojoin setting would be better in right-click
-            for subview in self.get_subviews():
-                if (
-                    isinstance(subview, ChannelView)
-                    and subview.channel_name not in self.core.autojoin
-                ):
-                    self.irc_widget.remove_view(subview)
 
 
 class ChannelView(View):
-    userlist: _UserList  # no idea why this is needed to avoid mypy error
+    # no idea why these are needed to avoid mypy error
+    userlist: _UserList
+    join_on_startup: bool
 
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
@@ -374,6 +387,8 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
+
+        self.join_on_startup = True
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot

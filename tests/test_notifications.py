@@ -5,9 +5,6 @@ import pytest
 from mantaray import views
 
 
-@pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
-)
 def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
     monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
 
@@ -25,8 +22,17 @@ def test_notification_when_mentioned(alice, bob, wait_until, monkeypatch):
 
     hey_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 6 chars")
     bob_tags = bob.get_current_view().textwidget.tag_names("pinged.last - 2 chars")
-    assert set(hey_tags) == {"text", "received-privmsg", "pinged"}
-    assert set(bob_tags) == {"text", "received-privmsg", "pinged", "self-nick"}
+    assert set(hey_tags) == {"text", "privmsg", "pinged"}
+    assert set(bob_tags) == {"text", "privmsg", "pinged", "self-nick"}
+
+
+def test_notification_when_mentioned_with_slash_me(alice, bob, wait_until, monkeypatch):
+    monkeypatch.setattr(bob.get_current_view(), "_window_has_focus", (lambda: False))
+
+    alice.entry.insert(0, "/me says hi to Bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: "says hi to Bob" in bob.text())
+    views._show_popup.assert_called_once_with("#autojoin", "Alice says hi to Bob")
 
 
 @pytest.mark.skipif(
@@ -67,7 +73,7 @@ def test_extra_notifications(alice, bob, wait_until, monkeypatch, window_focused
     assert not bob.get_current_view().textwidget.tag_ranges("pinged")
 
 
-def test_new_message_tags(alice, bob, wait_until):
+def test_new_message_tags(alice, bob, wait_until, switch_view):
     alice_autojoin = alice.get_current_view()
     alice.get_server_views()[0].core.send("JOIN #lol")
     wait_until(lambda: "The topic of #lol is" in alice.text())
@@ -88,6 +94,5 @@ def test_new_message_tags(alice, bob, wait_until):
     wait_until(lambda: "blah blah 2" in alice_autojoin.textwidget.get(1.0, "end"))
     assert alice.view_selector.item(alice_autojoin.view_id, "tags") == ("pinged",)
 
-    alice.view_selector.selection_set(alice_autojoin.view_id)
-    alice.update()
+    switch_view(alice, "#autojoin")
     assert not alice.view_selector.item(alice_autojoin.view_id, "tags")

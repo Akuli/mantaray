@@ -9,36 +9,35 @@ from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
 
 
-def _send_privmsg(view: View, core: IrcCore, message: str) -> None:
+def _send_privmsg(
+    view: View, core: IrcCore, message: str, *, history_id: int | None = None
+) -> None:
     if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message)
+        core.send_privmsg(view.channel_name, message, history_id=history_id)
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message)
+        core.send_privmsg(view.nick_of_other_user, message, history_id=history_id)
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
             tag="error",
+            history_id=history_id,
         )
 
 
-def escape_message(s: str) -> str:
-    if s.startswith("/"):
-        return "/" + s
-    return s
+def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> None:
+    if not entry_text:
+        return
 
-
-def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
-    if not entry_content:
-        return False
-
-    if re.fullmatch("/[A-Za-z]+( .*)?", entry_content):
+    if re.fullmatch("/[A-Za-z]+( .*)?", entry_text):
         try:
-            func = _commands[entry_content.split()[0].lower()]
+            func = _commands[entry_text.split()[0].lower()]
         except KeyError:
             view.add_message(
-                f"No command named '{entry_content.split()[0]}'", tag="error"
+                f"No command named '{entry_text.split()[0]}'",
+                tag="error",
+                history_id=history_id,
             )
-            return False
+            return
 
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
@@ -46,7 +45,7 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
 
         # Last arg can contain spaces
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
-        command_name, *args = entry_content.rstrip().split(maxsplit=max(len(params), 1))
+        command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
             usage = command_name
             for p in params:
@@ -54,16 +53,16 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage, tag="error")
-            return False
+            view.add_message("Usage: " + usage, tag="error", history_id=history_id)
+        else:
+            func(view, core, *args)
 
-        func(view, core, *args)
-        return True
+        return
 
-    if entry_content.startswith("//"):
-        entry_content = entry_content[1:]
+    if entry_text.startswith("//"):
+        entry_text = entry_text[1:]
 
-    lines = [line for line in entry_content.split("\n") if line]
+    lines = [line for line in entry_text.split("\n") if line]
     if len(lines) > 3:
         # TODO: add button that pastebins?
         result = messagebox.askyesno(
@@ -78,16 +77,18 @@ def handle_command(view: View, core: IrcCore, entry_content: str) -> bool:
             ),
         )
         if not result:
-            return False
+            return
 
     for line in lines:
-        _send_privmsg(view, core, line)
-    return True
+        _send_privmsg(view, core, line, history_id=history_id)
 
 
 def _define_commands() -> dict[str, Callable[..., None]]:
+    # Channel is required, and not assumed to be the current channel view.
+    # So when you have been kicked, you will have to type the current channel
+    # name manually to rejoin, which is good because it might give you time
+    # to calm down a bit before you continue ranting.
     def join(view: View, core: IrcCore, channel: str) -> None:
-        # TODO: plain '/join' for joining the current channel after kick?
         core.send(f"JOIN {channel}")
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
@@ -101,10 +102,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
                 "Channel is needed unless you are currently on a channel.", tag="error"
             )
 
-    # Doesn't support specifying a reason, because when talking about these commands, I
+    # TODO: add /quit, make sure it quits all servers and saves settings correctly.
+    # Do not support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
-    def quit(view: View, core: IrcCore) -> None:
-        core.quit()
 
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.send(f"NICK :{new_nick}")
@@ -163,7 +163,6 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     return {
         "/join": join,
         "/part": part,
-        "/quit": quit,
         "/nick": nick,
         "/topic": topic,
         "/me": me,

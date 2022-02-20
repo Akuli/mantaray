@@ -70,6 +70,22 @@ def wait_until(root_window, irc_widgets_dict):
     return actually_wait_until
 
 
+@pytest.fixture
+def switch_view():
+    def actually_switch_view(irc_widget, view):
+        if isinstance(view, str):
+            view = irc_widget.get_server_views()[0].find_channel(
+                view
+            ) or irc_widget.get_server_views()[0].find_pm(view)
+            assert view is not None
+
+        irc_widget.view_selector.selection_set(view.view_id)
+        irc_widget.update()
+        assert irc_widget.get_current_view() == view
+
+    return actually_switch_view
+
+
 class _IrcServer:
     def __init__(self):
         self.process = None
@@ -166,11 +182,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
-            # Fails sometimes on macos github actions, don't know yet why
-            # TODO: still failing with bigger timeout?
             wait_until(
-                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
-                timeout=15,
+                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text()
             )
 
             for user in users_who_join_before:
