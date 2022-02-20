@@ -416,6 +416,8 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
 # While waiting for a response to a WHO, don't send another WHO.
 # This prevents the server from deciding to disconnect because it's
 # being asked to send a lot of data quickly.
+#
+# TODO: clear this when reconnecting
 _pending_who_sends: dict[views.ServerView, list[str]] = {}
 
 
