@@ -15,6 +15,7 @@ RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
 RPL_WHOREPLY = "352"
+RPL_ENDOFWHO = "315"
 RPL_SASLSUCCESS = "903"
 RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
@@ -141,15 +142,11 @@ def _handle_privmsg(
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
-    [channel] = args
     # When this user joins a channel, wait for RPL_ENDOFNAMES
     if nick == server_view.core.nick:
-        if "away-notify" in server_view.core.cap_list:
-            # TODO: sends WHOs too frequenty, should wait for WHOREPLY
-            # server_view.core.send(f"WHO {channel}")
-            pass
         return
 
+    [channel] = args
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
@@ -416,6 +413,14 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
 
+# While waiting for a response to a WHO, don't send another WHO.
+# This prevents the server from deciding to disconnect because it's
+# being asked to send a lot of data quickly.
+#
+# TODO: clear this when reconnecting
+_pending_who_sends: dict[views.ServerView, list[str]] = {}
+
+
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
@@ -430,7 +435,12 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         channel_view.userlist.set_nicks(join.nicks)
 
     if "away-notify" in server_view.core.cap_list:
-        server_view.core.send(f"WHO {channel}")
+        if server_view in _pending_who_sends:
+            # WHO sending is currently in progress, queue the next one
+            _pending_who_sends[server_view].append(channel)
+        else:
+            _pending_who_sends[server_view] = []
+            server_view.core.send(f"WHO {channel}")
 
     topic = join.topic or "(no topic)"
     channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
@@ -449,9 +459,7 @@ def _handle_endofmotd(server_view: views.ServerView) -> None:
         server_view.join_initially = None
 
 
-def _handle_whoreply(
-    server_view: views.ServerView, command: str, args: list[str]
-) -> None:
+def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
     assert len(args) == 8
     nick = args[5]
     away_status = args[6][0]
@@ -462,6 +470,14 @@ def _handle_whoreply(
 
     if away_status.lower() == "g":
         view.userlist.set_away(nick, True)
+
+
+def _handle_endofwho(server_view: views.ServerView) -> None:
+    if _pending_who_sends[server_view]:
+        channel = _pending_who_sends[server_view].pop()
+        server_view.core.send(f"WHO {channel}")
+    else:
+        del _pending_who_sends[server_view]
 
 
 def _handle_literally_topic(
@@ -575,7 +591,10 @@ def _handle_received_message(
         _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command == RPL_WHOREPLY:
-        _handle_whoreply(server_view, msg.command, msg.args)
+        _handle_whoreply(server_view, msg.args)
+
+    elif msg.command == RPL_ENDOFWHO:
+        _handle_endofwho(server_view)
 
     elif msg.command == RPL_UNAWAY:
         back_notification = msg.args[1]
