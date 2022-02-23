@@ -598,7 +598,7 @@ def _handle_received_message(
 
     elif msg.command == RPL_WHOISUSER:
         if msg.args[0] == server_view.core.nick:
-            server_view.core.nickmask = f"{msg.args[1]}!{msg.args[2]}@{msg.args[3]}"
+            server_view.core.nickmask = f"!{msg.args[2]}@{msg.args[3]}"
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
 
