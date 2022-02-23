@@ -88,17 +88,17 @@ def test_cancel(alice, mocker, monkeypatch, wait_until):
     server_view.show_config_dialog()
 
     # Ensure nothing happened
-    alice.entry.insert("end", "lolwatwut")
+    alice.entry.insert(0, "lolwatwut")
     alice.on_enter_pressed()
     wait_until(lambda: "lolwatwut" in alice.text())
-    assert "Disconnected" not in alice.text()
 
 
 def test_reconnect(alice, mocker, monkeypatch, wait_until):
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
     server_view = alice.get_server_views()[0]
     server_view.show_config_dialog()
-    wait_until(lambda: "Disconnected" in alice.text())
+    wait_until(lambda: "Connecting to localhost port 6667..." in alice.text())
+    wait_until(lambda: alice.text().count("The topic of #autojoin is") == 2)
 
 
 def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
@@ -110,6 +110,55 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
         )
         == sample_config
     )
+
+
+def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
+    def dialog_callback(dialog):
+        [content] = dialog.winfo_children()
+        content._server_entry.delete(0, "end")
+        content._server_entry.insert(0, "localhost")
+        content._ssl_var.set(False)
+        content._nick_entry.delete(0, "end")
+        content._nick_entry.insert(0, "Alice2")
+        content._channel_entry.delete(0, "end")
+        content._channel_entry.insert(0, "#autojoin")
+        click(dialog, "Connect!")
+
+    # right-click view selector in the middle of nowhere
+    event = mocker.MagicMock()
+    event.y = 1234
+    mocker.patch("tkinter.Menu.tk_popup")
+    alice.on_view_selector_right_click(event)
+    monkeypatch.setattr("tkinter.Toplevel.wait_window", dialog_callback)
+    alice.contextmenu.invoke("Connect to a new server...")
+
+    wait_until(lambda: len(alice.get_server_views()) == 2)
+    wait_until(
+        lambda: alice.get_current_view()
+        == alice.get_server_views()[1].find_channel("#autojoin")
+    )
+    assert len(alice.get_current_config()["servers"]) == 2
+    wait_until(lambda: "*\tAlice2 joined #autojoin.\n" in bob.text())
+
+    alice.entry.insert(0, "hi")
+    alice.on_enter_pressed()
+    wait_until(lambda: "\tAlice2\thi\n" in bob.text())
+
+    # right-click the new server view
+    x, y, width, height = alice.view_selector.bbox(alice.get_server_views()[1].view_id)
+    event.y = y + int(height / 2)
+    alice.on_view_selector_right_click(event)
+
+    askyesno = mocker.patch("tkinter.messagebox.askyesno")
+    askyesno.return_value = True
+    alice.contextmenu.invoke("Leave this server")
+    askyesno.assert_called_once()
+    assert askyesno.call_args.kwargs["detail"] == (
+        "You can reconnect later, but if you decide to do so, Mantaray won't"
+        " remember things like the host and port (localhost 6667), your nick"
+        " (Alice2) or what channels you joined."
+    )
+    wait_until(lambda: len(alice.get_current_config()["servers"]) == 1)
 
 
 def test_default_settings(root_window, monkeypatch):
@@ -137,7 +186,7 @@ def test_default_settings(root_window, monkeypatch):
     os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
 )
 def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
-    bob.entry.insert("end", "/join #lol")
+    bob.entry.insert(0, "/join #lol")
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in bob.text())
 
@@ -149,20 +198,20 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
     monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)
     bob.get_server_views()[0].show_config_dialog()
+    wait_until(lambda: bob.text().count("The topic of #lol is:") == 2)
 
-    alice.entry.insert("end", "/join #lol")
+    alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "/part #lol")
+    alice.entry.insert(0, "/part #lol")
     alice.on_enter_pressed()
     wait_until(lambda: not alice.get_server_views()[0].find_channel("#lol"))
-    alice.entry.insert("end", "/join #lol")
+    alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
-    alice.entry.insert("end", "Hello Bob")
+    alice.entry.insert(0, "Hello Bob")
     alice.on_enter_pressed()
-    alice.entry.insert("end", "/quit")
-    alice.on_enter_pressed()
+    alice.get_server_views()[0].core.quit()
     wait_until(lambda: not alice.winfo_exists())
 
     wait_until(
@@ -199,3 +248,37 @@ def test_generate_nickmask(alice, mocker, wait_until):
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 3)
 
     assert alice.server_view.core.nickmask == "Foo!FooUsr@127.0.0.1"
+
+
+def test_autojoin(alice, wait_until, monkeypatch):
+    alice.entry.insert(0, "/join #lol")
+    alice.on_enter_pressed()
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+
+    server_view = alice.get_server_views()[0]
+
+    # Uncheck "Join when Mantaray starts" for #lol. Should not affect anything.
+    assert server_view.find_channel("#autojoin").join_on_startup
+    assert server_view.find_channel("#lol").join_on_startup
+    server_view.find_channel("#lol").join_on_startup = False
+
+    # Force a reconnect
+    monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 1)
+    server_view.core._connection_state.close()
+
+    # Both channels should be joined automatically when reconnecting
+    wait_until(
+        lambda: server_view.find_channel("#lol")
+        .get_text()
+        .count("The topic of #lol is:")
+        == 2
+    )
+    wait_until(
+        lambda: server_view.find_channel("#autojoin")
+        .get_text()
+        .count("The topic of #autojoin is:")
+        == 2
+    )
+
+    # But not when mantaray is later started from the settings
+    assert server_view.get_current_config()["joined_channels"] == ["#autojoin"]

@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import sys
@@ -14,10 +15,31 @@ from ttkthemes import ThemedTk
 os.environ.setdefault("IRC_SERVER", "mantatail")
 
 
+# https://github.com/pytest-dev/pytest/issues/8887
+@pytest.fixture(scope="function", autouse=True)
+def check_no_errors_logged(request):
+    if "caplog" in request.fixturenames:
+        # Test uses caplog fixture, expects to get logging errors
+        yield
+    else:
+        # Fail test if it logs an error
+        errors = []
+        handler = logging.Handler()
+        handler.setLevel(logging.ERROR)
+        handler.emit = errors.append
+        logging.getLogger().addHandler(handler)
+        yield
+        logging.getLogger().removeHandler(handler)
+        assert not errors
+
+
 @pytest.fixture(scope="session")
 def root_window():
     root = ThemedTk(theme="black")
     root.geometry("800x500")
+    root.report_callback_exception = lambda *args: logging.error(
+        "error in tkinter callback", exc_info=args
+    )
     yield root
     root.destroy()
 
@@ -36,15 +58,32 @@ def wait_until(root_window, irc_widgets_dict):
             root_window.update()
             if condition():
                 return
-        raise RuntimeError(
-            "timed out waiting"
-            + "".join(
-                f"\n{name}'s text = {widget.text()!r}"
-                for name, widget in irc_widgets_dict.items()
-            )
-        )
+
+        message = "timed out waiting"
+        for name, widget in irc_widgets_dict.items():
+            try:
+                message += f"\n{name}'s text = {widget.text()!r}"
+            except Exception:
+                message += f"\n{name}'s text = <error>"
+        raise RuntimeError(message)
 
     return actually_wait_until
+
+
+@pytest.fixture
+def switch_view():
+    def actually_switch_view(irc_widget, view):
+        if isinstance(view, str):
+            view = irc_widget.get_server_views()[0].find_channel(
+                view
+            ) or irc_widget.get_server_views()[0].find_pm(view)
+            assert view is not None
+
+        irc_widget.view_selector.selection_set(view.view_id)
+        irc_widget.update()
+        assert irc_widget.get_current_view() == view
+
+    return actually_switch_view
 
 
 class _IrcServer:
@@ -123,6 +162,7 @@ def irc_server():
             .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
             .replace(b"[ERROR] :localhost 421 WHOIS :Unknown command", b"")
             .replace(b"ConnectionResetError: [Errno 54]", b"")
+            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
         )
 
     if b"error" in output.lower():
@@ -143,11 +183,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)
-            # Fails sometimes on macos github actions, don't know yet why
-            # TODO: still failing with bigger timeout?
             wait_until(
-                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text(),
-                timeout=15,
+                lambda: "The topic of #autojoin is" in irc_widgets_dict[name].text()
             )
 
             for user in users_who_join_before:

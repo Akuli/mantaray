@@ -2,8 +2,6 @@ import os
 
 import pytest
 
-from mantaray.views import ChannelView
-
 
 def test_basic(alice, bob, wait_until):
     alice.entry.insert(0, "Hello there")
@@ -23,22 +21,17 @@ def test_textwidget_tags(alice, bob, wait_until):
         index = bob.get_current_view().textwidget.search(search_string, "1.0")
         return set(bob.get_current_view().textwidget.tag_names(index))
 
-    assert tags("cyan on red") == {
-        "text",
-        "received-privmsg",
-        "foreground-11",
-        "background-4",
-    }
-    assert tags("bold") == {"text", "received-privmsg"}  # bolding not supported
-    assert tags("underline") == {"text", "received-privmsg", "underline"}
+    assert tags("cyan on red") == {"text", "privmsg", "foreground-11", "background-4"}
+    assert tags("bold") == {"text", "privmsg"}  # bolding not supported
+    assert tags("underline") == {"text", "privmsg", "underline"}
     assert tags("everything") == {
         "text",
-        "received-privmsg",
+        "privmsg",
         "foreground-11",
         "background-4",
         "underline",
     }
-    assert tags("nothing") == {"text", "received-privmsg"}
+    assert tags("nothing") == {"text", "privmsg"}
     assert "cyan on red bold underline everything nothing" in bob.text()
 
 
@@ -80,7 +73,7 @@ def test_enter_press_with_no_text(alice, bob, wait_until):
 def test_multiline_sending(alice, bob, wait_until, mocker):
     mock = mocker.patch("tkinter.messagebox.askyesno")
     mock.return_value = True
-    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.entry.insert(0, "one\ntwo\nthree\nfour")
     alice.on_enter_pressed()
     assert not alice.entry.get()
     mock.assert_called_once()
@@ -93,14 +86,13 @@ def test_multiline_sending(alice, bob, wait_until, mocker):
 def test_multiline_not_sending(alice, bob, wait_until, mocker):
     mock = mocker.patch("tkinter.messagebox.askyesno")
     mock.return_value = False
-    alice.entry.insert("end", "one\ntwo\nthree\nfour")
+    alice.entry.insert(0, "one\ntwo\nthree\nfour")
     alice.on_enter_pressed()
     mock.assert_called_once()
-    assert alice.entry.get() == "one\ntwo\nthree\nfour"
 
 
 def test_slash_r_character(alice, bob, wait_until):
-    alice.entry.insert("end", "hello \rlol\r world")
+    alice.entry.insert(0, "hello \rlol\r world")
     alice.on_enter_pressed()
     wait_until(lambda: "hello \rlol\r world" in bob.text())
 
@@ -110,8 +102,6 @@ def test_slash_r_character(alice, bob, wait_until):
     reason="hircd doesn't support case insensitive nicks",
 )
 def test_private_messages(alice, bob, wait_until):
-    # TODO: some button in gui to start private messaging?
-
     alice.entry.insert(0, "/msg Bob hello there")
     alice.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
@@ -139,7 +129,12 @@ def test_private_messages_nick_changing_bug(alice, bob, wait_until):
 
     bob.entry.insert(0, "/part #autojoin")
     bob.on_enter_pressed()
-    wait_until(lambda: not isinstance(alice.get_current_view(), ChannelView))
+    wait_until(
+        lambda: "Bob"
+        not in alice.get_server_views()[0]
+        .find_channel("#autojoin")
+        .userlist.get_nicks()
+    )
 
     bob.entry.insert(0, "/nick Bob2")
     bob.on_enter_pressed()
@@ -216,63 +211,19 @@ def test_urls(alice, bob, wait_until):
     ]
 
 
-def test_history(alice, bob, wait_until):
-    # Alice presses first arrow up, then arrow down
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert not alice.entry.get()
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    # Bob presses first arrow down, then arrow up
-    assert not alice.entry.get()
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.insert(0, "first message")
+def test_nickname_in_url_not_tagged(alice, bob, wait_until):
+    alice.entry.insert(0, "blah blah https://alice.example.com")
     alice.on_enter_pressed()
-    wait_until(lambda: "first message" in alice.text())
+    wait_until(lambda: "alice.example.com" in alice.text())
 
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
+    bob.entry.insert(0, "blah blah https://example.com/bob/foobar.html")
+    bob.on_enter_pressed()
+    wait_until(lambda: "example.com/bob" in alice.text())
 
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.insert(0, "second message")
-    alice.on_enter_pressed()
-    wait_until(lambda: "second message" in alice.text())
-
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "first message"
-    alice.next_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.next_message_to_entry()
-    assert not alice.entry.get()
-
-    alice.entry.delete(0, "end")
-    alice.entry.insert(0, "//escaped message")
-    alice.on_enter_pressed()
-    wait_until(lambda: "escaped message" in alice.text())
-
-    assert not alice.entry.get()
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "//escaped message"
-    alice.previous_message_to_entry()
-    assert alice.entry.get() == "second message"
-    alice.next_message_to_entry()
-    assert alice.entry.get() == "//escaped message"
+    for middle_of_nick in [
+        alice.get_current_view().textwidget.search("ice.example.com", "1.0"),
+        alice.get_current_view().textwidget.search("ob/foobar.html", "1.0"),
+    ]:
+        tags = alice.get_current_view().textwidget.tag_names(middle_of_nick)
+        # no self-nick or other-nick tag
+        assert set(tags) == {"url", "privmsg", "text"}
