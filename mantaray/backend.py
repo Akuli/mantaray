@@ -201,6 +201,9 @@ class IrcCore:
         self._events.clear()
         return result
 
+    def get_nickmask(self) -> str:
+        return self.nick + self.nickmask
+
     # Call this repeatedly from the GUI's event loop.
     #
     # This is the best we can do in tkinter without threading. I
