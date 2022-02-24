@@ -88,8 +88,9 @@ def switch_view():
 
 
 class _IrcServer:
-    def __init__(self):
+    def __init__(self, log_file):
         self.process = None
+        self._log_file = log_file
 
     def start(self):
         # Make sure that prints appear right away
@@ -129,8 +130,8 @@ class _IrcServer:
 
         self.process = subprocess.Popen(
             command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stdout=self._log_file,
+            stderr=self._log_file,
             env=env,
             cwd=working_dir,
         )
@@ -147,15 +148,17 @@ class _IrcServer:
 
 @pytest.fixture
 def irc_server():
-    server = _IrcServer()
-    try:
-        server.start()
-        yield server
-    finally:
-        if server.process is not None:
-            server.process.kill()
+    with tempfile.TemporaryFile() as output_file:
+        server = _IrcServer()
+        try:
+            server.start()
+            yield server
+        finally:
+            if server.process is not None:
+                server.process.kill()
 
-    output = server.process.stdout.read()
+        output_file.seek(0)
+        output = output_file.read()
 
 #    if os.environ["IRC_SERVER"] == "hircd":
 #        # A bit of a hack, but I don't care about disconnect errors
