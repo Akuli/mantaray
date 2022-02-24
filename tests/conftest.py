@@ -4,6 +4,7 @@ import time
 import sys
 import subprocess
 import shutil
+import socket
 import tempfile
 from pathlib import Path
 
@@ -134,13 +135,14 @@ class _IrcServer:
             cwd=working_dir,
         )
 
-        # Wait for it to start
-        for line in self.process.stdout:
-            assert b"error" not in line.lower()
-            if b"Starting hircd" in line or b"Mantatail running" in line:
+        # Wait max 5sec for the server to start
+        time_limit = time.monotonic() + 5
+        while True:
+            try:
+                socket.create_connection(('localhost', 6667)).close()
                 break
-        else:
-            raise RuntimeError
+            except ConnectionRefusedError:
+                assert time.monotonic() < time_limit
 
 
 @pytest.fixture
@@ -155,14 +157,14 @@ def irc_server():
 
     output = server.process.stdout.read()
 
-    if os.environ["IRC_SERVER"] == "hircd":
-        # A bit of a hack, but I don't care about disconnect errors
-        output = (
-            output.replace(b"BrokenPipeError:", b"")
-            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
-            .replace(b"ConnectionResetError: [Errno 54]", b"")
-            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
-        )
+#    if os.environ["IRC_SERVER"] == "hircd":
+#        # A bit of a hack, but I don't care about disconnect errors
+#        output = (
+#            output.replace(b"BrokenPipeError:", b"")
+#            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+#            .replace(b"ConnectionResetError: [Errno 54]", b"")
+#            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
+#        )
 
     if b"error" in output.lower():
         print(output.decode("utf-8", errors="replace"))
