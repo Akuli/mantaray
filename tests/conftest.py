@@ -4,6 +4,7 @@ import time
 import sys
 import subprocess
 import shutil
+import socket
 import tempfile
 from pathlib import Path
 
@@ -87,8 +88,9 @@ def switch_view():
 
 
 class _IrcServer:
-    def __init__(self):
+    def __init__(self, output_file):
         self.process = None
+        self._output_file = output_file
 
     def start(self):
         # Make sure that prints appear right away
@@ -128,38 +130,42 @@ class _IrcServer:
 
         self.process = subprocess.Popen(
             command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stdout=self._output_file,
+            stderr=self._output_file,
             env=env,
             cwd=working_dir,
         )
 
-        # Wait for it to start
-        for line in self.process.stdout:
-            assert b"error" not in line.lower()
-            if b"Starting hircd" in line or b"Mantatail running" in line:
+        # Wait max 5sec for the server to start
+        time_limit = time.monotonic() + 5
+        while True:
+            try:
+                socket.create_connection(("localhost", 6667)).close()
                 break
-        else:
-            raise RuntimeError
+            except ConnectionRefusedError:
+                assert time.monotonic() < time_limit
 
 
 @pytest.fixture
 def irc_server():
-    server = _IrcServer()
-    try:
-        server.start()
-        yield server
-    finally:
-        if server.process is not None:
-            server.process.kill()
+    with tempfile.TemporaryFile() as output_file:
+        server = _IrcServer(output_file)
+        try:
+            server.start()
+            yield server
+        finally:
+            if server.process is not None:
+                server.process.kill()
 
-    output = server.process.stdout.read()
+        output_file.seek(0)
+        output = output_file.read()
 
     if os.environ["IRC_SERVER"] == "hircd":
         # A bit of a hack, but I don't care about disconnect errors
         output = (
             output.replace(b"BrokenPipeError:", b"")
             .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+            .replace(b"ConnectionResetError: [WinError 10054]", b"")
             .replace(b"ConnectionResetError: [Errno 54]", b"")
             .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
         )
