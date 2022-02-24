@@ -140,7 +140,7 @@ class _IrcServer:
         time_limit = time.monotonic() + 5
         while True:
             try:
-                socket.create_connection(('localhost', 6667)).close()
+                socket.create_connection(("localhost", 6667)).close()
                 break
             except ConnectionRefusedError:
                 assert time.monotonic() < time_limit
