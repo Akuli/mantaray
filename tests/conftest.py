@@ -88,9 +88,9 @@ def switch_view():
 
 
 class _IrcServer:
-    def __init__(self, log_file):
+    def __init__(self, output_file):
         self.process = None
-        self._log_file = log_file
+        self._output_file = output_file
 
     def start(self):
         # Make sure that prints appear right away
@@ -130,8 +130,8 @@ class _IrcServer:
 
         self.process = subprocess.Popen(
             command,
-            stdout=self._log_file,
-            stderr=self._log_file,
+            stdout=self._output_file,
+            stderr=self._output_file,
             env=env,
             cwd=working_dir,
         )
@@ -149,7 +149,7 @@ class _IrcServer:
 @pytest.fixture
 def irc_server():
     with tempfile.TemporaryFile() as output_file:
-        server = _IrcServer()
+        server = _IrcServer(output_file)
         try:
             server.start()
             yield server
@@ -160,14 +160,14 @@ def irc_server():
         output_file.seek(0)
         output = output_file.read()
 
-#    if os.environ["IRC_SERVER"] == "hircd":
-#        # A bit of a hack, but I don't care about disconnect errors
-#        output = (
-#            output.replace(b"BrokenPipeError:", b"")
-#            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
-#            .replace(b"ConnectionResetError: [Errno 54]", b"")
-#            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
-#        )
+    if os.environ["IRC_SERVER"] == "hircd":
+        # A bit of a hack, but I don't care about disconnect errors
+        output = (
+            output.replace(b"BrokenPipeError:", b"")
+            .replace(b"ConnectionAbortedError: [WinError 10053]", b"")
+            .replace(b"ConnectionResetError: [Errno 54]", b"")
+            .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
+        )
 
     if b"error" in output.lower():
         print(output.decode("utf-8", errors="replace"))
