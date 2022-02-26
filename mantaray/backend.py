@@ -201,8 +201,9 @@ class IrcCore:
         self._events.clear()
         return result
 
-    def get_nickmask(self) -> str:
-        assert self.nickmask is not None
+    def get_nickmask(self) -> str | None:
+        if self.nickmask is None:
+            return None
         return self.nick + self.nickmask
 
     # Call this repeatedly from the GUI's event loop.
