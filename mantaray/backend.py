@@ -185,7 +185,7 @@ class IrcCore:
         self._ping_sent = False
         self._last_receive_time = time.monotonic()
 
-        self.nickmask: str | None = None
+        self._nickmask: str | None = None
 
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
@@ -202,9 +202,9 @@ class IrcCore:
         return result
 
     def get_nickmask(self) -> str | None:
-        if self.nickmask is None:
+        if self._nickmask is None:
             return None
-        return self.nick + self.nickmask
+        return self.nick + self._nickmask
 
     # Call this repeatedly from the GUI's event loop.
     #
@@ -252,6 +252,7 @@ class IrcCore:
 
             self._ping_sent = False
             self._last_receive_time = time.monotonic()
+            self._nickmask = None
 
             self._connection_state.setblocking(False)
 
