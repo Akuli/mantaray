@@ -256,7 +256,6 @@ class IrcCore:
             for capability in self.cap_req:
                 self.send(f"CAP REQ {capability}")
 
-            # TODO: what if nick or user are in use? use alternatives?
             self.send(f"NICK {self.nick}")
             self.send(f"USER {self.username} 0 * :{self.realname}")
 
