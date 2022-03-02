@@ -206,6 +206,9 @@ class IrcCore:
             return None
         return self.nick + self._nickmask
 
+    def set_nickmask(self, user: str, host: str) -> None:
+        self._nickmask = f"!{user}@{host}"
+
     # Call this repeatedly from the GUI's event loop.
     #
     # This is the best we can do in tkinter without threading. I

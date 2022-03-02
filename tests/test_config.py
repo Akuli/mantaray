@@ -224,30 +224,26 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     assert "quit" not in bob.text()
 
 
-# Hircd currently doesn't support the WHOIS command
-# IrcCore._nickmask will therefore always be None in the test.
 @pytest.mark.skipif(
-    os.environ["IRC_SERVER"] == "hircd", reason="hircd sends QUIT twice"
+    os.environ["IRC_SERVER"] == "hircd",
+    reason="Hircd currently doesn't support the WHOIS command. IrcCore._nickmask will therefore always be None in the test.",
 )
-@pytest.mark.xfail
 def test_generate_nickmask(alice, mocker, wait_until):
+
     server_view = alice.get_server_views()[0]
-    assert alice.server_view.core._nickmask == "Alice!AliceUsr@localhost"
+    assert server_view.core.get_nickmask() == "Alice!AliceUsr@127.0.0.1"
 
     alice.entry.insert("end", "/nick Foo")
     alice.on_enter_pressed()
 
-    assert alice.server_view.core._nickmask == "Foo!AliceUsr@localhost"
+    wait_until(lambda: "You are now known as Foo" in alice.text())
+    assert server_view.core.get_nickmask() == "Foo!AliceUsr@127.0.0.1"
 
     reconnect_with_change(server_view, mocker, "username", old="AliceUsr", new="FooUsr")
+
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
 
-    assert alice.server_view.core._nickmask == "Foo!FooUsr@localhost"
-
-    reconnect_with_change(server_view, mocker, "host", old="localhost", new="127.0.0.1")
-    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 3)
-
-    assert alice.server_view.core._nickmask == "Foo!FooUsr@127.0.0.1"
+    assert server_view.core.get_nickmask() == "Foo!FooUsr@127.0.0.1"
 
 
 def test_autojoin(alice, wait_until, monkeypatch):
