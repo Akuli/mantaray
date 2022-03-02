@@ -227,6 +227,7 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
+            self._nickmask = None
 
             self._events.append(
                 ConnectivityMessage(
@@ -255,7 +256,6 @@ class IrcCore:
 
             self._ping_sent = False
             self._last_receive_time = time.monotonic()
-            self._nickmask = None
 
             self._connection_state.setblocking(False)
 
