@@ -224,6 +224,35 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     assert "quit" not in bob.text()
 
 
+def test_generate_nickmask(alice, mocker, wait_until):
+    server_view = alice.get_server_views()[0]
+
+    if (
+        os.environ["IRC_SERVER"] == "hircd"
+    ):  # Hircd does not support the WHOIS command. Nickmask will therefore always be None.
+        assert server_view.core.get_nickmask() is None
+    else:
+        assert server_view.core.get_nickmask() == "Alice!AliceUsr@127.0.0.1"
+
+    alice.entry.insert("end", "/nick Foo")
+    alice.on_enter_pressed()
+
+    wait_until(lambda: "You are now known as Foo" in alice.text())
+    if os.environ["IRC_SERVER"] == "hircd":
+        assert server_view.core.get_nickmask() is None
+    else:
+        assert server_view.core.get_nickmask() == "Foo!AliceUsr@127.0.0.1"
+
+    reconnect_with_change(server_view, mocker, "username", old="AliceUsr", new="FooUsr")
+
+    wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
+
+    if os.environ["IRC_SERVER"] == "hircd":
+        assert server_view.core.get_nickmask() is None
+    else:
+        assert server_view.core.get_nickmask() == "Foo!FooUsr@127.0.0.1"
+
+
 def test_autojoin(alice, wait_until, monkeypatch):
     alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()

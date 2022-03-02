@@ -11,6 +11,7 @@ from mantaray import backend, views, textwidget_tags
 RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
+RPL_WHOISUSER = "311"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -208,6 +209,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             )
             if isinstance(view, views.ChannelView):
                 view.userlist.change_nick(old_nick, new_nick)
+
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
@@ -447,6 +449,8 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
+    server_view.core.send(f"WHOIS {server_view.core.nick}")
+
     if server_view.join_initially is None:
         # Reconnect after connectivity error, join whatever channels are open
         for view in server_view.get_subviews():
@@ -590,6 +594,9 @@ def _handle_received_message(
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
 
+    elif msg.command == RPL_WHOISUSER:
+        if msg.args[0] == server_view.core.nick:
+            server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
 

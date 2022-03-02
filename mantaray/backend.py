@@ -185,6 +185,8 @@ class IrcCore:
         self._ping_sent = False
         self._last_receive_time = time.monotonic()
 
+        self._nickmask: str | None = None
+
     def _apply_config(self, server_config: config.ServerConfig) -> None:
         self.host = server_config["host"]
         self.port = server_config["port"]
@@ -198,6 +200,14 @@ class IrcCore:
         result = self._events.copy()
         self._events.clear()
         return result
+
+    def get_nickmask(self) -> str | None:
+        if self._nickmask is None:
+            return None
+        return self.nick + self._nickmask
+
+    def set_nickmask(self, user: str, host: str) -> None:
+        self._nickmask = f"!{user}@{host}"
 
     # Call this repeatedly from the GUI's event loop.
     #
@@ -217,6 +227,7 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
+            self._nickmask = None
 
             self._events.append(
                 ConnectivityMessage(
