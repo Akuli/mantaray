@@ -553,8 +553,8 @@ def _handle_received_message(
     elif msg.command == "PING":
         _handle_ping(server_view, msg.args)
 
-    # TODO: figure out what MODE with 2 args is
-    elif msg.command == "MODE" and len(msg.args) != 2:
+    # TODO: figure out what MODE with 2 or 4 args is
+    elif msg.command == "MODE" and len(msg.args) == 3:
         assert isinstance(msg, backend.MessageFromUser)
         _handle_mode(server_view, msg.sender_nick, msg.args)
 
