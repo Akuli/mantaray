@@ -155,7 +155,7 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     channel_view.add_message(
         [
             views.MessagePart(nick, tags=["other-nick"]),
-            views.MessagePart(f" joined "),
+            views.MessagePart(" joined "),
             views.MessagePart(channel_view.channel_name, tags=["channel"]),
             views.MessagePart("."),
         ],
@@ -186,7 +186,7 @@ def _handle_part(
         channel_view.add_message(
             [
                 views.MessagePart(parting_nick, tags=["other-nick"]),
-                views.MessagePart(f" left "),
+                views.MessagePart(" left "),
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart("."),
                 views.MessagePart(extra),
