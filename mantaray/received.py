@@ -330,8 +330,9 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
                     f". (Reason: {reason}) You can still join by typing "
                 ),
                 # TODO: new tag instead of abusing the "pinged" tag for this
-                views.MessagePart("/join ", tags=["pinged"]),
-                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart(
+                    f"/join {channel_view.channel_name}", tags=["pinged"]
+                ),
                 views.MessagePart("."),
             ],
             tag="error",
