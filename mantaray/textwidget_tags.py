@@ -154,6 +154,7 @@ def config_tags(
     textwidget.tag_configure("info", foreground="#FFE6C7")
     textwidget.tag_configure("history-selection", background="#5a5c50")
     textwidget.tag_configure("channel", foreground="#f7e452")
+    textwidget.tag_configure("topic", foreground="#a2e0de")
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
     textwidget.tag_configure("privmsg", foreground=FOREGROUND)
