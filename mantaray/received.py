@@ -155,9 +155,7 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     channel_view.add_message(
         [
             views.MessagePart(nick, tags=["other-nick"]),
-            views.MessagePart(" joined "),
-            views.MessagePart(channel_view.channel_name, tags=["channel"]),
-            views.MessagePart("."),
+            views.MessagePart(f" joined {channel_view.channel_name}."),
         ],
         show_in_gui=channel_view.server_view.should_show_join_leave_message(nick),
     )
@@ -186,10 +184,7 @@ def _handle_part(
         channel_view.add_message(
             [
                 views.MessagePart(parting_nick, tags=["other-nick"]),
-                views.MessagePart(" left "),
-                views.MessagePart(channel_view.channel_name, tags=["channel"]),
-                views.MessagePart("."),
-                views.MessagePart(extra),
+                views.MessagePart(f" left {channel_view.channel_name}." + extra),
             ],
             show_in_gui=channel_view.server_view.should_show_join_leave_message(
                 parting_nick
@@ -324,14 +319,14 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
             [
                 views.MessagePart(kicker, tags=[kicker_tag]),
                 views.MessagePart(" has kicked you from "),
-                # TODO: Make channel tag clickable?
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart(
                     f". (Reason: {reason}) You can still join by typing "
                 ),
                 # TODO: new tag instead of abusing the "pinged" tag for this
-                views.MessagePart("/join ", tags=["pinged"]),
-                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart(
+                    f"/join {channel_view.channel_name}", tags=["pinged"]
+                ),
                 views.MessagePart("."),
             ],
             tag="error",
@@ -343,7 +338,7 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
                 views.MessagePart(" has kicked "),
                 views.MessagePart(kicked_nick, tags=["other-nick"]),
                 views.MessagePart(" from "),
-                # TODO: Make channel tag clickable?
+                # TODO: use the channel tag more, make clickable?
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart(f". (Reason: {reason})"),
             ]
@@ -449,14 +444,7 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
             server_view.core.send(f"WHO {channel}")
 
     topic = join.topic or "(no topic)"
-    channel_view.add_message(
-        [
-            views.MessagePart("The topic of "),
-            views.MessagePart(channel_view.channel_name, tags=["channel"]),
-            views.MessagePart(" is: "),
-            views.MessagePart(topic, tags=["topic"]),
-        ]
-    )
+    channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
@@ -510,10 +498,9 @@ def _handle_literally_topic(
     channel_view.add_message(
         [
             views.MessagePart(who_changed, tags=[nick_tag]),
-            views.MessagePart(" changed the topic of "),
-            views.MessagePart(channel_view.channel_name, tags=["channel"]),
-            views.MessagePart(": "),
-            views.MessagePart(topic, tags=["topic"]),
+            views.MessagePart(
+                f" changed the topic of {channel_view.channel_name}: {topic}"
+            ),
         ]
     )
 
