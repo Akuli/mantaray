@@ -1,4 +1,4 @@
-black==21.12b0
+black==22.6.0
 pyflakes==2.4.0
 mypy==0.931
 types-appdirs==1.4.2
