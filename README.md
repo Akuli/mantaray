@@ -132,13 +132,20 @@ i.e. the same information you would enter to Mantaray's connect dialog.
 If you want to connect to Mantatail, use `localhost` instead of `irc.libera.chat`.
 Netcat and telnet don't support SSL, so we use port 6667 instead of 6697.
 
-Once connected, type this to netcat (or telnet),
+You should get something like this:
+
+    :sodium.libera.chat NOTICE * :*** Checking Ident
+    :sodium.libera.chat NOTICE * :*** Looking up your hostname...
+    :sodium.libera.chat NOTICE * :*** Found your hostname: foobar.example.com
+    :sodium.libera.chat NOTICE * :*** No Ident response
+
+You can then type this to netcat (or telnet),
 replacing `nickname`, `username` and `realname` with whatever you want:
 
     NICK nickname
     USER username 0 * :realname
 
-You should now be connected to IRC. You can join channels (`JOIN ##learnpython`),
+You can then join channels (`JOIN ##learnpython`),
 send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on.
 
 I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)
