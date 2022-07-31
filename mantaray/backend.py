@@ -17,6 +17,8 @@ import time
 from typing import Union, Iterator
 from concurrent.futures import ThreadPoolExecutor, Future
 
+import certifi
+
 from . import config
 
 
@@ -109,7 +111,7 @@ def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
     sock: _Socket
 
     if use_ssl:
-        context = ssl.create_default_context()
+        context = ssl.create_default_context(cafile=certifi.where())
         sock = context.wrap_socket(socket.socket(), server_hostname=host)
     else:
         sock = socket.socket()
