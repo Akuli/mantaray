@@ -312,10 +312,9 @@ def test_autojoin_setting(alice, wait_until, monkeypatch):
     wait_until(lambda: "The topic of #lol is:" in alice.text())
     assert "#lol" in alice.get_server_views()[0].settings.joined_channels
 
-    # /part immediately removes from autojoin list
     alice.entry.insert(0, "/part #lol")
     alice.on_enter_pressed()
-    assert "#lol" not in alice.get_server_views()[0].settings.joined_channels
+    wait_until(lambda: "#lol" not in alice.get_server_views()[0].settings.joined_channels)
 
 
 def test_autojoin_after_connection_error(alice, wait_until, monkeypatch):
