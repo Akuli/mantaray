@@ -354,6 +354,9 @@ class IrcWidget(ttk.PanedWindow):
 
     # Does not remove the server from settings, so mantaray will connect
     # to it when started next time.
+    #
+    # This should be called only when exiting mantaray. It breaks the
+    # sort_settings_according_to_gui() method, for example.
     def remove_server(self, server_view: ServerView) -> None:
         for subview in server_view.get_subviews():
             assert isinstance(subview, (ChannelView, PMView))
