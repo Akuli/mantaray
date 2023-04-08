@@ -342,7 +342,9 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
         if isinstance(view, ChannelView):
-            view.userlist.treeview.bind("<Map>", self._get_widths_from_settings_soon, add=True)
+            view.userlist.treeview.bind(
+                "<Map>", self._get_widths_from_settings_soon, add=True
+            )
 
     def _create_and_add_server_view(self, settings: config.ServerSettings) -> None:
         view = ServerView(self, settings)
