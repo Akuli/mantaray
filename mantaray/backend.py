@@ -155,6 +155,9 @@ class IrcCore:
         # by trying f"{settings.nick}_" or similar.
         self.nick = settings.nick
 
+        # Similar to nick this is where we are actually connected to.
+        self.host = settings.host
+
         self._send_queue: collections.deque[
             tuple[bytes, SentPrivmsg | _Quit | None]
         ] = collections.deque()
@@ -176,7 +179,7 @@ class IrcCore:
         # (asyncio calls getaddrinfo() in a separate thread, and manages
         # to do it in a way that makes connecting slow on my system)
         self._connect_pool = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix=f"connect-{self.settings.host}-{hex(id(self))}"
+            max_workers=1, thread_name_prefix=f"connect-{self.host}-{hex(id(self))}"
         )
 
         # Possible states:
@@ -228,13 +231,17 @@ class IrcCore:
             self.cap_list.clear()
             self._nickmask = None
 
+            if self.host != self.settings.host:
+                self._events.append(HostChanged(old=self.host, new=self.settings.host))
+                self.host = self.settings.host
+
             self._events.append(
                 ConnectivityMessage(
-                    f"Connecting to {self.settings.host} port {self.settings.port}...", is_error=False
+                    f"Connecting to {self.host} port {self.settings.port}...", is_error=False
                 )
             )
             self._connection_state = self._connect_pool.submit(
-                _create_connection, self.settings.host, self.settings.port, self.settings.ssl
+                _create_connection, self.host, self.settings.port, self.settings.ssl
             )
 
         elif isinstance(self._connection_state, Future):

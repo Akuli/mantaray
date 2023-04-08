@@ -26,22 +26,16 @@ def test_join_and_part(alice, bob, wait_until, part_command):
     bob.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in bob.text())
     wait_until(lambda: "Bob joined #lol.\n" in alice.text())
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
-        "#autojoin",
-        "#lol",
-    ]
+    assert bob.settings.servers[0].joined_channels == ["#autojoin", "#lol"]
 
     bob.move_view_up()
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == [
-        "#lol",
-        "#autojoin",
-    ]
+    assert bob.settings.servers[0].joined_channels == ["#lol", "#autojoin"]
 
     bob.entry.insert(0, part_command)
     bob.on_enter_pressed()
     wait_until(lambda: not bob.get_server_views()[0].find_channel("#lol"))
     wait_until(lambda: "Bob left #lol.\n" in alice.text())
-    assert bob.get_current_config()["servers"][0]["joined_channels"] == ["#autojoin"]
+    assert bob.settings.servers[0].joined_channels == ["#autojoin"]
 
 
 def test_part_last_channel(alice, bob, wait_until):

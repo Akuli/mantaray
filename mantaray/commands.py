@@ -90,24 +90,18 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     # to calm down a bit before you continue ranting.
     def join(view: View, core: IrcCore, channel: str) -> None:
         core.send(f"JOIN {channel}")
+        view.server_view.last_slash_join_channel = channel
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
-        if channel is None:
-            if isinstance(view, ChannelView):
-                channel = view.channel_name
-            else:
-                view.add_message("Usage: /part [<channel>]")
-                view.add_message(
-                    "Channel is needed unless you are currently on a channel.",
-                    tag="error",
-                )
-                return
-
-        core.send(f"PART {channel}")
-        # User wants to GTFO from the channel for whatever reason, so don't
-        # join them back automatically when mantaray restarts
-        if channel in view.server_view.settings.joined_channels:
-            view.server_view.settings.joined_channels.remove(channel)
+        if channel is not None:
+            core.send(f"PART {channel}")
+        elif isinstance(view, ChannelView):
+            core.send(f"PART {view.channel_name}")
+        else:
+            view.add_message("Usage: /part [<channel>]")
+            view.add_message(
+                "Channel is needed unless you are currently on a channel.", tag="error"
+            )
 
     # TODO: add /quit, make sure it quits all servers.
     # Do not support specifying a reason, because when talking about these commands, I

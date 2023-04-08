@@ -342,15 +342,11 @@ class ServerView(View):
         return None
 
     def show_config_dialog(self) -> None:
-        assert self.view_name == self.settings.host
-        old_host = self.settings.host
-
         user_clicked_reconnect = config.show_connection_settings_dialog(
             transient_to=self.irc_widget.winfo_toplevel(),
             settings=self.settings,
             connecting_to_new_server=False,
         )
-
         if user_clicked_reconnect:
             self.core.reconnect()
 

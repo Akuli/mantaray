@@ -9,6 +9,7 @@ from tkinter.font import Font
 import pytest
 
 from mantaray.config import Settings, ServerSettings, show_connection_settings_dialog
+from mantaray.gui import IrcWidget
 
 
 def test_old_config_format(tmp_path, root_window):
@@ -127,7 +128,7 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, mocker, monkey
     settings.save.assert_called_once()
 
 
-def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
+def test_multiple_servers(alice: IrcWidget, bob, mocker, monkeypatch, wait_until):
     def dialog_callback(dialog):
         [content] = dialog.winfo_children()
         content._server_entry.delete(0, "end")
@@ -152,8 +153,26 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
         lambda: alice.get_current_view()
         == alice.get_server_views()[1].find_channel("#autojoin")
     )
-    assert len(alice.get_current_config()["servers"]) == 2
+    assert len(alice.settings.servers) == 2
     wait_until(lambda: "*\tAlice2 joined #autojoin.\n" in bob.text())
+
+    # Test changing the order of the servers
+    old_view_id = alice.get_current_view().view_id
+    alice.view_selector.selection_set(alice.get_server_views()[1].view_id)
+    alice.settings.save = mocker.Mock()
+
+    assert [s.nick for s in alice.settings.servers] == ["Alice", "Alice2"]
+    assert alice.settings.save.call_count == 0
+
+    alice.move_view_up()
+    assert alice.settings.save.call_count == 1
+    assert [s.nick for s in alice.settings.servers] == ["Alice2", "Alice"]
+
+    alice.move_view_down()
+    assert alice.settings.save.call_count == 2
+    assert [s.nick for s in alice.settings.servers] == ["Alice", "Alice2"]
+
+    alice.view_selector.selection_set(old_view_id)
 
     alice.entry.insert(0, "hi")
     alice.on_enter_pressed()
@@ -164,6 +183,7 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
     event.y = y + int(height / 2)
     alice.on_view_selector_right_click(event)
 
+    # Leave the server by clicking that option in the right-click menu
     askyesno = mocker.patch("tkinter.messagebox.askyesno")
     askyesno.return_value = True
     alice.contextmenu.invoke("Leave this server")
@@ -173,7 +193,7 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
         " remember things like the host and port (localhost 6667), your nick"
         " (Alice2) or what channels you joined."
     )
-    wait_until(lambda: len(alice.get_current_config()["servers"]) == 1)
+    wait_until(lambda: len(alice.settings.servers) == 1)
 
 
 def test_default_settings():

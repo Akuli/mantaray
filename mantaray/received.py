@@ -178,6 +178,8 @@ def _handle_part(
 
     if parting_nick == server_view.core.nick:
         server_view.irc_widget.remove_view(channel_view)
+        if channel_view.channel_name in server_view.settings.joined_channels:
+            server_view.settings.joined_channels.remove(channel_view.channel_name)
 
     else:
         channel_view.userlist.remove_user(parting_nick)

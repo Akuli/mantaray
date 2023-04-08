@@ -249,7 +249,6 @@ class IrcWidget(ttk.PanedWindow):
         )
         self.sort_settings_according_to_gui()
 
-    # TODO: test this
     def sort_settings_according_to_gui(self) -> None:
         servers_in_gui = [view.settings for view in self.get_server_views()]
         self.settings.servers.sort(key=servers_in_gui.index)
@@ -400,6 +399,8 @@ class IrcWidget(ttk.PanedWindow):
         ):
             # TODO: make sure it's forgotten from settings
             view.core.quit()
+            self.settings.servers.remove(view.settings)
+            self.settings.save()
 
     def _fill_menu_for_server(self, view: ServerView | None) -> None:
         if view is not None:
