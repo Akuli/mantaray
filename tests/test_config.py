@@ -56,6 +56,8 @@ def test_old_config_format(tmp_path, root_window):
             ],
             "font_family": Font(name="TkFixedFont", exists=True)["family"],
             "font_size": Font(name="TkFixedFont", exists=True)["size"],
+            "view_selector_width": 200,
+            "userlist_width": 150,
         }
 
 
@@ -189,7 +191,7 @@ def test_multiple_servers(alice: IrcWidget, bob, mocker, monkeypatch, wait_until
     wait_until(lambda: len(alice.settings.servers) == 1)
 
 
-def test_default_settings():
+def test_default_server_settings():
     config = ServerSettings().get_json()
     assert config.pop("nick") == config.pop("username") == config.pop("realname")
     assert config == {

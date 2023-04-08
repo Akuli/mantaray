@@ -87,6 +87,15 @@ def switch_view():
     return actually_switch_view
 
 
+def _port_6667_is_in_use() -> bool:
+    try:
+        socket.create_connection(("localhost", 6667)).close()
+    except ConnectionRefusedError:
+        return False
+    else:
+        return True
+
+
 class _IrcServer:
     def __init__(self, output_file):
         self.process = None
@@ -145,12 +154,8 @@ class _IrcServer:
 
         # Wait max 5sec for the server to start
         time_limit = time.monotonic() + 5
-        while True:
-            try:
-                socket.create_connection(("localhost", 6667)).close()
-                break
-            except ConnectionRefusedError:
-                assert time.monotonic() < time_limit
+        while not _port_6667_is_in_use():
+            assert time.monotonic() < time_limit
 
 
 @pytest.fixture
