@@ -103,7 +103,9 @@ class _IrcServer:
 
     def start(self):
         if _port_6667_is_in_use():
-            raise RuntimeError("an IRC server (or something else) is already running on port 6667")
+            raise RuntimeError(
+                "an IRC server (or something else) is already running on port 6667"
+            )
 
         # Make sure that prints appear right away
         env = dict(os.environ)
