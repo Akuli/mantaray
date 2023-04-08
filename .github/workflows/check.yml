@@ -11,15 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - run: |
         grep $(date +%Y) LICENSE
   mypy:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
         python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
     - run: pip install -r requirements.txt -r requirements-dev.txt
@@ -35,12 +35,12 @@ jobs:
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     # https://stackoverflow.com/a/66919851
     - if: matrix.os == 'macos-latest'
       run: brew install python@3.9 python-tk@3.9
     - if: matrix.os != 'macos-latest'
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: "3.10"
     - run: git submodule update --init
