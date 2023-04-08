@@ -314,7 +314,14 @@ def test_autojoin_setting(alice, wait_until, monkeypatch):
 
     alice.entry.insert(0, "/part #lol")
     alice.on_enter_pressed()
-    wait_until(lambda: "#lol" not in alice.get_server_views()[0].settings.joined_channels)
+
+    # autojoins are removed after a successful part.
+    # This way the parting can come from the "/part" command or clicking something in GUI.
+    # Also, you should never get into a situation where mantaray is not on #foo, but it
+    # would automatically join #foo when restarted.
+    assert "#lol" in alice.get_server_views()[0].settings.joined_channels
+    wait_until(lambda: alice.get_server_views()[0].find_channel("#lol") is None)
+    assert "#lol" not in alice.get_server_views()[0].settings.joined_channels
 
 
 def test_autojoin_after_connection_error(alice, wait_until, monkeypatch):
