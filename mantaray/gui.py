@@ -6,7 +6,7 @@ import sys
 import tkinter
 from functools import partial
 from tkinter import ttk, messagebox
-from typing import Any
+from typing import Any, Callable
 from pathlib import Path
 
 from mantaray import config, commands, textwidget_tags, logs
@@ -83,12 +83,14 @@ class IrcWidget(ttk.PanedWindow):
         settings: config.Settings,
         log_dir: Path,
         *,
+        on_quit: Callable[[], None] | None = None,
         verbose: bool = False,
     ):
         super().__init__(master, orient="horizontal")
         self.settings = settings
         self.log_manager = logs.LogManager(log_dir)
         self.verbose = verbose
+        self._on_quit = on_quit
 
         images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
@@ -161,13 +163,11 @@ class IrcWidget(ttk.PanedWindow):
         return self.get_current_view().textwidget.get("1.0", "end - 1 char")
 
     def get_server_views(self) -> list[ServerView]:
-        # Return the views in same order as they show up in GUI
-        result = []
-        for server_id in self.view_selector.get_children(""):
-            view = self.views_by_id[server_id]
-            assert isinstance(view, ServerView)
-            result.append(view)
-        return result
+        server_views = [
+            v for v in self.views_by_id.values() if isinstance(v, ServerView)
+        ]
+        server_views.sort(key=(lambda v: self.view_selector.index(v.view_id)))
+        return server_views
 
     def _show_change_nick_dialog(self) -> None:
         server_view = self.get_current_view().server_view
@@ -350,19 +350,27 @@ class IrcWidget(ttk.PanedWindow):
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
+    # Does not remove the server from settings, so mantaray will connect
+    # to it when started next time.
     def remove_server(self, server_view: ServerView) -> None:
         for subview in server_view.get_subviews():
             assert isinstance(subview, (ChannelView, PMView))
             self.remove_view(subview)
 
-        server_view.close_log_file()
-        if len(self.view_selector.get_children("")) == 1:
-            self.destroy()
-        else:
+        is_last = len(self.view_selector.get_children("")) == 1
+        if not is_last:
             self._select_another_view(server_view)
-            self.view_selector.delete(server_view.view_id)
-            server_view.destroy_widgets()
-            del self.views_by_id[server_view.view_id]
+
+        self.view_selector.delete(server_view.view_id)
+        server_view.close_log_file()
+        server_view.destroy_widgets()
+        del self.views_by_id[server_view.view_id]
+
+        if is_last:
+            if self._on_quit is None:
+                self.destroy()
+            else:
+                self._on_quit()
 
     def _show_add_server_dialog(self) -> None:
         server_settings = config.ServerSettings()
@@ -397,7 +405,7 @@ class IrcWidget(ttk.PanedWindow):
             ),
             default="no",
         ):
-            # TODO: make sure it's forgotten from settings
+            # TODO: test that it's forgotten from settings
             view.core.quit()
             self.settings.servers.remove(view.settings)
             self.settings.save()

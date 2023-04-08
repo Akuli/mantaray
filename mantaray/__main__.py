@@ -117,10 +117,9 @@ def main() -> None:
             server_view.core.quit()
 
     irc_widget = gui.IrcWidget(
-        root, settings, args.config_dir / "logs", verbose=args.verbose
+        root, settings, args.config_dir / "logs", verbose=args.verbose, on_quit=root.destroy
     )
     irc_widget.pack(fill="both", expand=True)
-    irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
 
     def add_binding(binding: str, callback: Callable[[], None]) -> None:
         def actual_callback(event: object) -> str:
