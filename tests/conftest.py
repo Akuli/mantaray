@@ -93,6 +93,13 @@ class _IrcServer:
         self._output_file = output_file
 
     def start(self):
+        try:
+            socket.create_connection(("localhost", 6667)).close()
+        except ConnectionRefusedError:
+            pass
+        else:
+            raise RuntimeError("an IRC server is already running on port 6667")
+
         # Make sure that prints appear right away
         env = dict(os.environ)
         env["PYTHONUNBUFFERED"] = "1"
@@ -150,15 +157,23 @@ class _IrcServer:
 def irc_server():
     with tempfile.TemporaryFile() as output_file:
         server = _IrcServer(output_file)
+        is_error = False
+
         try:
             server.start()
             yield server
+        except Exception as e:
+            is_error = True
+            raise e
         finally:
             if server.process is not None:
                 server.process.kill()
-
-        output_file.seek(0)
-        output = output_file.read()
+            output_file.seek(0)
+            output = output_file.read()
+            if is_error:
+                print("---- IRC server output begins ----")
+                print(output.decode("utf-8", errors="replace"))
+                print("---- IRC server output ends ----")
 
     if os.environ["IRC_SERVER"] == "hircd":
         # A bit of a hack, but I don't care about disconnect errors
