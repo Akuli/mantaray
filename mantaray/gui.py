@@ -172,10 +172,9 @@ class IrcWidget(ttk.PanedWindow):
 
     def _show_change_nick_dialog(self) -> None:
         server_view = self.get_current_view().server_view
-        new_nick = ask_new_nick(self.winfo_toplevel(), server_view.core.nick)
-        if new_nick != server_view.core.nick:
+        new_nick = ask_new_nick(self.winfo_toplevel(), server_view.settings.nick)
+        if new_nick != server_view.settings.nick:
             server_view.core.send(f"NICK {new_nick}")
-            server_view.settings.nick = new_nick
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
@@ -331,7 +330,7 @@ class IrcWidget(ttk.PanedWindow):
 
         self._previous_view = new_view
 
-        self.nickbutton.config(text=new_view.server_view.core.nick)
+        self.nickbutton.config(text=new_view.server_view.settings.nick)
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id
