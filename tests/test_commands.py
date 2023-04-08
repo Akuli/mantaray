@@ -1,8 +1,8 @@
 import os
+
 import pytest
 
 from mantaray.views import ServerView
-
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
@@ -14,6 +14,7 @@ if os.environ["IRC_SERVER"] == "hircd":
     )
 else:
     params.append("/part #LOL")
+
 
 # TODO: should test entering channel name case insensitively, but hircd is case sensitive :(
 @pytest.mark.parametrize("part_command", params)

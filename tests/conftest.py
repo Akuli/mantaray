@@ -1,17 +1,17 @@
 import logging
 import os
-import time
-import sys
-import subprocess
 import shutil
 import socket
+import subprocess
+import sys
 import tempfile
+import time
 from pathlib import Path
-
-from mantaray import gui, config
 
 import pytest
 from ttkthemes import ThemedTk
+
+from mantaray import config, gui
 
 os.environ.setdefault("IRC_SERVER", "mantatail")
 
@@ -168,6 +168,7 @@ def irc_server():
             .replace(b"ConnectionResetError: [WinError 10054]", b"")
             .replace(b"ConnectionResetError: [Errno 54]", b"")
             .replace(b"[ERROR] :localhost 421 CAP :Unknown command", b"")
+            .replace(b"[ERROR] :localhost 421 WHOIS :Unknown command", b"")
         )
 
     if b"error" in output.lower():

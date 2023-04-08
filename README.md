@@ -105,6 +105,24 @@ Run `python3 -m mantaray --help` to see
 where it stores the configuration by default.
 
 
+## How Mantaray works
+
+When mantaray starts:
+
+1. User runs `python3 -m mantaray`. This runs `__main__.py`.
+    It is as if the user ran `python3 mantaray/__main__.py`, except that imports work the right way:
+    `from mantaray import foo` imports `mantaray/foo.py`.
+2. `__main__.py` parses command-line arguments, such as `--config-dir`.
+3. `__main__.py` calls `config.py` to load the configuration
+    or display a connecting dialog if `config.json` doesn't exist yet.
+4. `__main__.py` initializes the GUI (`gui.py`).
+    Each `ServerView` (from `views.py`) creates its own connection to the server (`IrcCore` in backend.py).
+
+Here's how the different files interact with each other once mantaray is started:
+
+![mantaray-running.png](mantaray-running.png)
+
+
 ## How IRC works
 
 Mantaray connects a TCP socket, optionally with SSL, to a server.
@@ -132,13 +150,20 @@ i.e. the same information you would enter to Mantaray's connect dialog.
 If you want to connect to Mantatail, use `localhost` instead of `irc.libera.chat`.
 Netcat and telnet don't support SSL, so we use port 6667 instead of 6697.
 
-Once connected, type this to netcat (or telnet),
+You should get something like this:
+
+    :sodium.libera.chat NOTICE * :*** Checking Ident
+    :sodium.libera.chat NOTICE * :*** Looking up your hostname...
+    :sodium.libera.chat NOTICE * :*** Found your hostname: foobar.example.com
+    :sodium.libera.chat NOTICE * :*** No Ident response
+
+You can then type this to netcat (or telnet),
 replacing `nickname`, `username` and `realname` with whatever you want:
 
     NICK nickname
     USER username 0 * :realname
 
-You should now be connected to IRC. You can join channels (`JOIN ##learnpython`),
+You can then join channels (`JOIN ##learnpython`),
 send messages to channels (`PRIVMSG ##learnpython :hello world`) and so on.
 
 I recommend [modern.ircdocs.horse](https://modern.ircdocs.horse/)

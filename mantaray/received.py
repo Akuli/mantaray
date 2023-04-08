@@ -5,12 +5,12 @@ from __future__ import annotations
 import re
 from base64 import b64encode
 
-from mantaray import backend, views, textwidget_tags
-
+from mantaray import backend, textwidget_tags, views
 
 RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
+RPL_WHOISUSER = "311"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -154,7 +154,9 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     channel_view.add_message(
         [
             views.MessagePart(nick, tags=["other-nick"]),
-            views.MessagePart(f" joined {channel_view.channel_name}."),
+            views.MessagePart(" joined "),
+            views.MessagePart(channel_view.channel_name, tags=["channel"]),
+            views.MessagePart("."),
         ],
         show_in_gui=channel_view.server_view.should_show_join_leave_message(nick),
     )
@@ -183,7 +185,10 @@ def _handle_part(
         channel_view.add_message(
             [
                 views.MessagePart(parting_nick, tags=["other-nick"]),
-                views.MessagePart(f" left {channel_view.channel_name}." + extra),
+                views.MessagePart(" left "),
+                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart("."),
+                views.MessagePart(extra),
             ],
             show_in_gui=channel_view.server_view.should_show_join_leave_message(
                 parting_nick
@@ -208,6 +213,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             )
             if isinstance(view, views.ChannelView):
                 view.userlist.change_nick(old_nick, new_nick)
+
     else:
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
@@ -317,7 +323,7 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
             [
                 views.MessagePart(kicker, tags=[kicker_tag]),
                 views.MessagePart(" has kicked you from "),
-                # TODO: use the channel tag more, make clickable?
+                # TODO: Make channel tag clickable?
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart(
                     f". (Reason: {reason}) You can still join by typing "
@@ -337,7 +343,7 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
                 views.MessagePart(" has kicked "),
                 views.MessagePart(kicked_nick, tags=["other-nick"]),
                 views.MessagePart(" from "),
-                # TODO: use the channel tag more, make clickable?
+                # TODO: Make channel tag clickable?
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart(f". (Reason: {reason})"),
             ]
@@ -443,10 +449,19 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
             server_view.core.send(f"WHO {channel}")
 
     topic = join.topic or "(no topic)"
-    channel_view.add_message(f"The topic of {channel_view.channel_name} is: {topic}")
+    channel_view.add_message(
+        [
+            views.MessagePart("The topic of "),
+            views.MessagePart(channel_view.channel_name, tags=["channel"]),
+            views.MessagePart(" is: "),
+            views.MessagePart(topic, tags=["topic"]),
+        ]
+    )
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
+    server_view.core.send(f"WHOIS {server_view.core.nick}")
+
     if server_view.join_initially is None:
         # Reconnect after connectivity error, join whatever channels are open
         for view in server_view.get_subviews():
@@ -495,9 +510,10 @@ def _handle_literally_topic(
     channel_view.add_message(
         [
             views.MessagePart(who_changed, tags=[nick_tag]),
-            views.MessagePart(
-                f" changed the topic of {channel_view.channel_name}: {topic}"
-            ),
+            views.MessagePart(" changed the topic of "),
+            views.MessagePart(channel_view.channel_name, tags=["channel"]),
+            views.MessagePart(": "),
+            views.MessagePart(topic, tags=["topic"]),
         ]
     )
 
@@ -549,8 +565,8 @@ def _handle_received_message(
     elif msg.command == "PING":
         _handle_ping(server_view, msg.args)
 
-    # TODO: figure out what MODE with 2 args is
-    elif msg.command == "MODE" and len(msg.args) != 2:
+    # TODO: figure out what MODE with 2 or 4 args is
+    elif msg.command == "MODE" and len(msg.args) == 3:
         assert isinstance(msg, backend.MessageFromUser)
         _handle_mode(server_view, msg.sender_nick, msg.args)
 
@@ -590,6 +606,9 @@ def _handle_received_message(
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
 
+    elif msg.command == RPL_WHOISUSER:
+        if msg.args[0] == server_view.core.nick:
+            server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
 
