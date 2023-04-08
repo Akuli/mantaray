@@ -1,17 +1,17 @@
 import logging
 import os
-import time
-import sys
-import subprocess
 import shutil
 import socket
+import subprocess
+import sys
 import tempfile
+import time
 from pathlib import Path
-
-from mantaray import gui, config
 
 import pytest
 from ttkthemes import ThemedTk
+
+from mantaray import config, gui
 
 os.environ.setdefault("IRC_SERVER", "mantatail")
 

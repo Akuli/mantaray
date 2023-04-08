@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import json
 import re
-import tkinter
 import sys
+import tkinter
+from getpass import getuser
 from pathlib import Path
 from tkinter import ttk
 from tkinter.font import Font
-from getpass import getuser
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -304,7 +305,7 @@ class _DialogContent(ttk.Frame):
             return False
         # TODO: can realname be empty?
 
-        from .backend import NICK_REGEX, CHANNEL_REGEX
+        from .backend import CHANNEL_REGEX, NICK_REGEX
 
         if self._nick_entry is not None and not re.fullmatch(
             NICK_REGEX, self._nick_entry.get()
@@ -380,7 +381,6 @@ def show_connection_settings_dialog(
     transient_to: tkinter.Tk | tkinter.Toplevel | None,
     initial_config: ServerConfig | None,
 ) -> ServerConfig | None:
-
     dialog = tkinter.Toplevel()
 
     if initial_config is None:
