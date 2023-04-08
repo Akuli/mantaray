@@ -265,9 +265,6 @@ class View:
 
 
 class ServerView(View):
-    # no idea why mypy needs this
-    core: backend.IrcCore
-
     def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
         super().__init__(irc_widget, settings.host)
         self.settings = settings
@@ -355,9 +352,6 @@ class ServerView(View):
 
 
 class ChannelView(View):
-    # no idea why these are needed to avoid mypy error
-    userlist: _UserList
-
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
             server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
