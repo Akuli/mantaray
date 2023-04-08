@@ -28,11 +28,13 @@ def get_default_fixed_font() -> tuple[str, int]:
 class Settings:
     def __init__(self, config_dir: Path, *, read_only: bool = False) -> None:
         self._config_dir = config_dir
+        self.read_only = read_only
 
         default_family, default_size = get_default_fixed_font()
         self.font = Font(family=default_family, size=default_size)
         self.servers: list[ServerSettings] = []
-        self.read_only = read_only
+        self.view_selector_width = 200
+        self.userlist_width = 150
 
     def add_server(self, server_settings: ServerSettings) -> None:
         assert server_settings.parent_settings_object is None
@@ -47,6 +49,10 @@ class Settings:
 
             if "font_family" in result and "font_size" in result:
                 self.font.config(family=result["font_family"], size=result["font_size"])
+            if "view_selector_width" in result:
+                self.view_selector_width = result["view_selector_width"]
+            if "userlist_width" in result:
+                self.userlist_width = result["userlist_width"]
 
             for server_dict in result["servers"]:
                 # Backwards compatibility with older config.json files
@@ -74,6 +80,8 @@ class Settings:
             "font_family": self.font["family"],
             "font_size": self.font["size"],
             "servers": [s.get_json() for s in self.servers],
+            "view_selector_width": self.view_selector_width,
+            "userlist_width": self.userlist_width,
         }
 
     # Please save the settings after changing them.
