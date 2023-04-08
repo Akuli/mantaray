@@ -158,6 +158,8 @@ class IrcCore:
         self.nick = settings.nick
 
         # Similar to nick this is where we are actually connected to.
+        # Most of the time this is same as settings.host, because we
+        # reconnect shortly after changing the host in settings.
         self.host = settings.host
 
         self._send_queue: collections.deque[
