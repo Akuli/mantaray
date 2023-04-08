@@ -15,6 +15,7 @@ if os.environ["IRC_SERVER"] == "hircd":
 else:
     params.append("/part #LOL")
 
+
 # TODO: should test entering channel name case insensitively, but hircd is case sensitive :(
 @pytest.mark.parametrize("part_command", params)
 def test_join_and_part(alice, bob, wait_until, part_command):
