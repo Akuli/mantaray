@@ -58,7 +58,7 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
     result = old_nick
 
-    def ok(junk_event: object = None) -> None:
+    def ok() -> None:
         nonlocal result
         result = entry.get()
         dialog.destroy()
@@ -154,6 +154,9 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id: dict[str, View] = {}
         for server_config in self.settings.servers:
             self._create_and_add_server_view(server_config)
+
+        self.bind("<Button1-Motion>", self._save_widths, add=True)
+        self.view_selector.bind("<Map>", self._get_widths_from_settings_soon, add=True)
 
     def get_current_view(self) -> View:
         [view_id] = self.view_selector.selection()
@@ -338,6 +341,10 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
+        if isinstance(view, ChannelView):
+            view.userlist.treeview.bind(
+                "<Map>", self._get_widths_from_settings_soon, add=True
+            )
 
     def _create_and_add_server_view(self, settings: config.ServerSettings) -> None:
         view = ServerView(self, settings)
@@ -490,3 +497,18 @@ class IrcWidget(ttk.PanedWindow):
             self._fill_menu_for_pm(view)
 
         self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
+
+    def _save_widths(self, junk_event: object = None) -> None:
+        self.settings.view_selector_width = self.sashpos(0)
+        if isinstance(self.get_current_view(), ChannelView):
+            self.settings.userlist_width = self.winfo_width() - self.sashpos(1)
+        self.settings.save()
+
+    def _get_widths_from_settings_soon(self, junk_event: object = None) -> None:
+        self.after_idle(self._get_widths_from_settings)
+
+    def _get_widths_from_settings(self) -> None:
+        self.sashpos(0, self.settings.view_selector_width)
+        if isinstance(self.get_current_view(), ChannelView):
+            # there is a user list
+            self.sashpos(1, self.winfo_width() - self.settings.userlist_width)
