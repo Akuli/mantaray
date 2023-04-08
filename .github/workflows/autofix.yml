@@ -25,7 +25,7 @@ jobs:
     - run: pip install wheel
     # Be careful to not install arbitrary dependencies, install only the dependencies we really need and trust
     - run: pip install $(grep -E '^(black|isort|pycln)==[0-9.]*$' pr/requirements-dev.txt)
-    - run: python3 -m pycln --disable-all-dunder-policy pr/mantaray pr/tests
+    - run: python3 -m pycln --all --disable-all-dunder-policy pr/mantaray pr/tests
     - run: python3 -m black pr/mantaray pr/tests
     - run: python3 -m isort pr/mantaray pr/tests
     - uses: stefanzweifel/git-auto-commit-action@v4

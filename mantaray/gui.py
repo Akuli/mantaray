@@ -8,7 +8,6 @@ import tkinter
 from functools import partial
 from pathlib import Path
 from tkinter import messagebox, ttk
-from tkinter.font import Font
 from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
