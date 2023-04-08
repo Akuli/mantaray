@@ -410,7 +410,6 @@ class IrcWidget(ttk.PanedWindow):
             ),
             default="no",
         ):
-            # TODO: test that it's forgotten from settings
             view.core.quit()
             self.settings.servers.remove(view.settings)
             self.settings.save()
