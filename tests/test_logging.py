@@ -1,7 +1,8 @@
 import re
-from mantaray.views import ServerView
 
 import pytest
+
+from mantaray.views import ServerView
 
 
 def _read_file(path):

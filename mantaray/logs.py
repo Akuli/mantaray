@@ -1,8 +1,8 @@
 import re
 import sys
 import time
-from typing import IO
 from pathlib import Path
+from typing import IO
 
 
 class LogManager:

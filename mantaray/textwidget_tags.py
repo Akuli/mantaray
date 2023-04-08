@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import re
 import tkinter
 from functools import partial
-from typing import Callable, Iterator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Iterator
 
 if TYPE_CHECKING:
     from typing_extensions import Literal

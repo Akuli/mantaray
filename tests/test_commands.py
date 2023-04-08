@@ -1,8 +1,8 @@
 import os
+
 import pytest
 
 from mantaray.views import ServerView
-
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
