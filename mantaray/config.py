@@ -425,22 +425,20 @@ class _DialogContent(ttk.Frame):
     def connect_clicked(self, junk_event: object = None) -> None:
         assert self._validate()
 
-        if self._nick_entry is None:
-            nick = self._settings.nick
-        else:
-            nick = self._nick_entry.get()
-
-            self._settings.nick = self._nick_entry.get()
-
         self._settings.host = self._server_entry.get()
         self._settings.port = int(self._port_entry.get())
         self._settings.ssl = self._ssl_var.get()
-        self._settings.nick = nick
+        if self._nick_entry is not None:
+            self._settings.nick = self._nick_entry.get()
         self._settings.username = (
-            nick if self._username_entry is None else self._username_entry.get()
+            self._settings.nick
+            if self._username_entry is None
+            else self._username_entry.get()
         )
         self._settings.realname = (
-            nick if self._realname_entry is None else self._realname_entry.get()
+            self._settings.nick
+            if self._realname_entry is None
+            else self._realname_entry.get()
         )
         self._settings.password = self._password_entry.get() or None
         if self._channel_entry is not None:
