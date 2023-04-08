@@ -87,12 +87,26 @@ def switch_view():
     return actually_switch_view
 
 
+def _port_6667_is_in_use() -> bool:
+    try:
+        socket.create_connection(("localhost", 6667)).close()
+    except ConnectionRefusedError:
+        return False
+    else:
+        return True
+
+
 class _IrcServer:
     def __init__(self, output_file):
         self.process = None
         self._output_file = output_file
 
     def start(self):
+        if _port_6667_is_in_use():
+            raise RuntimeError(
+                "an IRC server (or something else) is already running on port 6667"
+            )
+
         # Make sure that prints appear right away
         env = dict(os.environ)
         env["PYTHONUNBUFFERED"] = "1"
@@ -138,27 +152,32 @@ class _IrcServer:
 
         # Wait max 5sec for the server to start
         time_limit = time.monotonic() + 5
-        while True:
-            try:
-                socket.create_connection(("localhost", 6667)).close()
-                break
-            except ConnectionRefusedError:
-                assert time.monotonic() < time_limit
+        while not _port_6667_is_in_use():
+            assert time.monotonic() < time_limit
 
 
 @pytest.fixture
 def irc_server():
     with tempfile.TemporaryFile() as output_file:
         server = _IrcServer(output_file)
+        is_error = False
+
         try:
             server.start()
             yield server
+        except Exception as e:
+            is_error = True
+            raise e
         finally:
             if server.process is not None:
                 server.process.kill()
-
-        output_file.seek(0)
-        output = output_file.read()
+                server.process.wait(timeout=5)
+            output_file.seek(0)
+            output = output_file.read()
+            if is_error:
+                print("---- IRC server output begins ----")
+                print(output.decode("utf-8", errors="replace"))
+                print("---- IRC server output ends ----")
 
     if os.environ["IRC_SERVER"] == "hircd":
         # A bit of a hack, but I don't care about disconnect errors
