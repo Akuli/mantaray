@@ -84,14 +84,14 @@ class IrcWidget(ttk.PanedWindow):
         settings: config.Settings,
         log_dir: Path,
         *,
-        on_quit: Callable[[], None] | None = None,
+        after_quitting_all_servers: Callable[[], None] | None = None,
         verbose: bool = False,
     ):
         super().__init__(master, orient="horizontal")
         self.settings = settings
         self.log_manager = logs.LogManager(log_dir)
         self.verbose = verbose
-        self._on_quit = on_quit
+        self._after_quitting_all_servers = after_quitting_all_servers
 
         images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
@@ -371,10 +371,9 @@ class IrcWidget(ttk.PanedWindow):
         del self.views_by_id[server_view.view_id]
 
         if is_last:
-            if self._on_quit is None:
-                self.destroy()
-            else:
-                self._on_quit()
+            self.destroy()
+            if self._after_quitting_all_servers is not None:
+                self._after_quitting_all_servers()
 
     def _show_add_server_dialog(self) -> None:
         server_settings = config.ServerSettings()

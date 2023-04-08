@@ -277,10 +277,6 @@ class ServerView(View):
         self.last_slash_join_channel: str | None = None
 
     def _run_core(self) -> None:
-        if self.core.quitting_finished():
-            self.irc_widget.remove_server(self)
-            return
-
         self.core.run_one_step()
 
         if self.core.quitting_finished():

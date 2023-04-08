@@ -123,7 +123,7 @@ def main() -> None:
         settings,
         args.config_dir / "logs",
         verbose=args.verbose,
-        on_quit=root.destroy,
+        after_quitting_all_servers=root.destroy,
     )
     irc_widget.pack(fill="both", expand=True)
 
