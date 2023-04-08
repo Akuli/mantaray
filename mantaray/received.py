@@ -210,6 +210,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
         # settings as soon as it changes, you need to separately keep track of the
         # nick that is currently being used.
         server_view.settings.nick = new_nick
+        server_view.settings.save()
         if server_view.irc_widget.get_current_view().server_view == server_view:
             server_view.irc_widget.nickbutton.config(text=new_nick)
 
