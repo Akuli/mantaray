@@ -1,12 +1,13 @@
 """This file handles commands like /join."""
 from __future__ import annotations
+
 import inspect
 import re
-from typing import Callable
 from tkinter import messagebox
+from typing import Callable
 
-from mantaray.views import View, ChannelView, PMView
 from mantaray.backend import IrcCore
+from mantaray.views import ChannelView, PMView, View
 
 
 def _send_privmsg(

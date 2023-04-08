@@ -1,6 +1,7 @@
 # strongly inspired by xchat :)
 # hexchat is a fork of xchat, so hexchat developers didn't invent this
 from __future__ import annotations
+
 import re
 import sys
 import tkinter
@@ -8,9 +9,13 @@ from functools import partial
 from tkinter import ttk, messagebox
 from typing import Any, Callable
 from pathlib import Path
+from pathlib import Path
+from tkinter import messagebox, ttk
+from tkinter.font import Font
+from typing import Any
 
-from mantaray import config, commands, textwidget_tags, logs
-from mantaray.views import View, ServerView, ChannelView, PMView
+from mantaray import commands, config, logs, textwidget_tags
+from mantaray.views import ChannelView, PMView, ServerView, View
 
 
 def _fix_tag_coloring_bug() -> None:

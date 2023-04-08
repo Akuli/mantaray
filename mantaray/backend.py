@@ -8,17 +8,19 @@ IRC bot using this file, without having to modify it at all.
 # Most up to date irc docs I am aware of: https://modern.ircdocs.horse/
 # TODO: modernize rest of the file to be as the docs say instead of ancient RFCs
 from __future__ import annotations
+
 import collections
 import dataclasses
-import ssl
 import re
 import socket
+import ssl
 import time
-from typing import Union, Iterator
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Iterator, Union
+
+import certifi
 
 from . import config
-
 
 # https://tools.ietf.org/html/rfc2812#section-2.3.1
 # unlike in the rfc, nicks are limited to 16 characters at least on freenode
@@ -109,7 +111,7 @@ def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
     sock: _Socket
 
     if use_ssl:
-        context = ssl.create_default_context()
+        context = ssl.create_default_context(cafile=certifi.where())
         sock = context.wrap_socket(socket.socket(), server_hostname=host)
     else:
         sock = socket.socket()

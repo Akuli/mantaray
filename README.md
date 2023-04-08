@@ -105,6 +105,24 @@ Run `python3 -m mantaray --help` to see
 where it stores the configuration by default.
 
 
+## How Mantaray works
+
+When mantaray starts:
+
+1. User runs `python3 -m mantaray`. This runs `__main__.py`.
+    It is as if the user ran `python3 mantaray/__main__.py`, except that imports work the right way:
+    `from mantaray import foo` imports `mantaray/foo.py`.
+2. `__main__.py` parses command-line arguments, such as `--config-dir`.
+3. `__main__.py` calls `config.py` to load the configuration
+    or display a connecting dialog if `config.json` doesn't exist yet.
+4. `__main__.py` initializes the GUI (`gui.py`).
+    Each `ServerView` (from `views.py`) creates its own connection to the server (`IrcCore` in backend.py).
+
+Here's how the different files interact with each other once mantaray is started:
+
+![mantaray-running.png](mantaray-running.png)
+
+
 ## How IRC works
 
 Mantaray connects a TCP socket, optionally with SSL, to a server.

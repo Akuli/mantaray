@@ -5,8 +5,7 @@ from __future__ import annotations
 import re
 from base64 import b64encode
 
-from mantaray import backend, views, textwidget_tags
-
+from mantaray import backend, textwidget_tags, views
 
 RPL_WELCOME = "001"
 RPL_UNAWAY = "305"

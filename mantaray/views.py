@@ -1,20 +1,23 @@
 from __future__ import annotations
-import logging
-import time
-import sys
-import tkinter
-import subprocess
-import webbrowser
-from playsound import playsound  # type: ignore
-from tkinter import ttk
-from typing import Any, TYPE_CHECKING, IO
 
-from mantaray import backend, textwidget_tags, config, received
+import logging
+import subprocess
+import sys
+import time
+import tkinter
+import webbrowser
+from tkinter import ttk
+from typing import IO, TYPE_CHECKING, Any
+
+from playsound import playsound  # type: ignore
+
+from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
 
 if TYPE_CHECKING:
-    from mantaray.gui import IrcWidget
     from typing_extensions import Literal
+
+    from mantaray.gui import IrcWidget
 
 
 class _UserList:
