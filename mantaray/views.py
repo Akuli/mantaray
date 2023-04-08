@@ -341,25 +341,6 @@ class ServerView(View):
                 return view
         return None
 
-    # This should be called after changing the order of channels in the GUI.
-    # TODO: write a test
-    def sort_joined_channels_in_settings(self) -> None:
-        visible_channel_names = [
-            subview.channel_name
-            for subview in self.get_subviews()
-            if isinstance(subview, ChannelView)
-        ]
-        self.settings.joined_channels.sort(
-            key=(
-                lambda n: (
-                    visible_channel_names.index(n)
-                    if n in visible_channel_names
-                    else 1000000
-                )
-            )
-        )
-        self.settings.save()
-
     def show_config_dialog(self) -> None:
         assert self.view_name == self.settings.host
         old_host = self.settings.host

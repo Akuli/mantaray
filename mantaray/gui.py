@@ -6,7 +6,6 @@ import sys
 import tkinter
 from functools import partial
 from tkinter import ttk, messagebox
-from tkinter.font import Font
 from typing import Any
 from pathlib import Path
 
@@ -162,9 +161,13 @@ class IrcWidget(ttk.PanedWindow):
         return self.get_current_view().textwidget.get("1.0", "end - 1 char")
 
     def get_server_views(self) -> list[ServerView]:
-        return [
-            view for view in self.views_by_id.values() if isinstance(view, ServerView)
-        ]
+        # Return the views in same order as they show up in GUI
+        result = []
+        for server_id in self.view_selector.get_children(""):
+            view = self.views_by_id[server_id]
+            assert isinstance(view, ServerView)
+            result.append(view)
+        return result
 
     def _show_change_nick_dialog(self) -> None:
         server_view = self.get_current_view().server_view
@@ -235,7 +238,7 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.parent(view_id),
             self.view_selector.index(view_id) - 1,
         )
-        # TODO: sort_joined_channels_in_settings
+        self.sort_settings_according_to_gui()
 
     def move_view_down(self) -> None:
         view_id = self.get_current_view().view_id
@@ -244,7 +247,28 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.parent(view_id),
             self.view_selector.index(view_id) + 1,
         )
-        # TODO: sort_joined_channels_in_settings
+        self.sort_settings_according_to_gui()
+
+    # TODO: test this
+    def sort_settings_according_to_gui(self) -> None:
+        servers_in_gui = [view.settings for view in self.get_server_views()]
+        self.settings.servers.sort(key=servers_in_gui.index)
+
+        for server_view in self.get_server_views():
+            channels_in_gui = [
+                view.channel_name
+                for view in server_view.get_subviews()
+                if isinstance(view, ChannelView)
+            ]
+            server_view.settings.joined_channels.sort(
+                key=(
+                    lambda c: (
+                        channels_in_gui.index(c) if c in channels_in_gui else 1000000
+                    )
+                )
+            )
+
+        self.settings.save()
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()
@@ -399,7 +423,7 @@ class IrcWidget(ttk.PanedWindow):
                 view.server_view.settings.joined_channels.remove(view.channel_name)
             else:
                 view.server_view.settings.joined_channels.append(view.channel_name)
-                view.server_view.sort_joined_channels_in_settings()
+                self.sort_settings_according_to_gui()
             view.server_view.settings.save()
 
         def toggle_extra_notifications(*junk: object) -> None:
