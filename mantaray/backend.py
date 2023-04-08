@@ -239,7 +239,8 @@ class IrcCore:
 
             self._events.append(
                 ConnectivityMessage(
-                    f"Connecting to {self.host} port {self.settings.port}...", is_error=False
+                    f"Connecting to {self.host} port {self.settings.port}...",
+                    is_error=False,
                 )
             )
             self._connection_state = self._connect_pool.submit(

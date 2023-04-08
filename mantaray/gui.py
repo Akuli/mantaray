@@ -6,13 +6,10 @@ import re
 import sys
 import tkinter
 from functools import partial
-from tkinter import ttk, messagebox
-from typing import Any, Callable
-from pathlib import Path
 from pathlib import Path
 from tkinter import messagebox, ttk
 from tkinter.font import Font
-from typing import Any
+from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
 from mantaray.views import ChannelView, PMView, ServerView, View

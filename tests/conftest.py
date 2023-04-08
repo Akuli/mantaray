@@ -186,7 +186,8 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             settings = config.Settings(Path(name), read_only=True)
             settings.load()
             irc_widgets_dict[name] = gui.IrcWidget(
-                root_window, settings,
+                root_window,
+                settings,
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)

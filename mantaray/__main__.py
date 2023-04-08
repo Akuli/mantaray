@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from getpass import getuser
 import functools
 import sys
 import tkinter
@@ -92,13 +91,16 @@ def main() -> None:
     root = ThemedTk(theme="black")
     root.withdraw()
 
-    settings = config.Settings(config_dir=args.config_dir, read_only=(args.alice or args.bob or args.dont_save_config))
+    settings = config.Settings(
+        config_dir=args.config_dir,
+        read_only=(args.alice or args.bob or args.dont_save_config),
+    )
     try:
         settings.load()
     except FileNotFoundError:
         server_settings = config.ServerSettings()
         user_clicked_connect = config.show_connection_settings_dialog(
-            settings=server_settings, transient_to=None, connecting_to_new_server=True,
+            settings=server_settings, transient_to=None, connecting_to_new_server=True
         )
         if not user_clicked_connect:
             return
@@ -117,7 +119,11 @@ def main() -> None:
             server_view.core.quit()
 
     irc_widget = gui.IrcWidget(
-        root, settings, args.config_dir / "logs", verbose=args.verbose, on_quit=root.destroy
+        root,
+        settings,
+        args.config_dir / "logs",
+        verbose=args.verbose,
+        on_quit=root.destroy,
     )
     irc_widget.pack(fill="both", expand=True)
 

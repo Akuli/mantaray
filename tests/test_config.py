@@ -8,7 +8,8 @@ from tkinter.font import Font
 
 import pytest
 
-from mantaray.config import Settings, ServerSettings, show_connection_settings_dialog
+from mantaray.config import (ServerSettings, Settings,
+                             show_connection_settings_dialog)
 from mantaray.gui import IrcWidget
 
 
