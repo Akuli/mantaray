@@ -183,9 +183,11 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
     try:
         for name in ["alice", "bob"]:
             users_who_join_before = list(irc_widgets_dict.values())
+            settings = config.Settings(Path(name), read_only=True)
+            settings.load()
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
-                config.load_from_file(Path(name)),
+                settings,
                 Path(tempfile.mkdtemp(prefix=f"mantaray-tests-{name}-")),
             )
             irc_widgets_dict[name].pack(fill="both", expand=True)

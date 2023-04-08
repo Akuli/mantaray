@@ -135,7 +135,11 @@ def _handle_privmsg(
             text,
             pinged=pinged,
             notification=(
-                pinged or (channel_view.channel_name in server_view.extra_notifications)
+                pinged
+                or (
+                    channel_view.channel_name
+                    in server_view.settings.extra_notifications
+                )
             ),
         )
         channel_view.add_view_selector_tag("pinged" if pinged else "new_message")
@@ -173,6 +177,8 @@ def _handle_part(
 
     if parting_nick == server_view.core.nick:
         server_view.irc_widget.remove_view(channel_view)
+        if channel_view.channel_name in server_view.settings.joined_channels:
+            server_view.settings.joined_channels.remove(channel_view.channel_name)
 
     else:
         channel_view.userlist.remove_user(parting_nick)
@@ -385,7 +391,7 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
 
 
 def _handle_authenticate(server_view: views.ServerView) -> None:
-    query = f"\0{server_view.core.username}\0{server_view.core.password}"
+    query = f"\0{server_view.settings.username}\0{server_view.settings.password}"
     b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
     for i in range(0, len(b64_query), 400):
         server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
@@ -458,20 +464,29 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         ]
     )
 
+    if (
+        channel == server_view.last_slash_join_channel
+        and channel not in server_view.settings.joined_channels
+    ):
+        server_view.settings.joined_channels.append(channel)
+        server_view.last_slash_join_channel = None
+
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
     server_view.core.send(f"WHOIS {server_view.core.nick}")
 
-    if server_view.join_initially is None:
+    channel_views = [
+        v for v in server_view.get_subviews() if isinstance(v, views.ChannelView)
+    ]
+    if channel_views:
         # Reconnect after connectivity error, join whatever channels are open
         for view in server_view.get_subviews():
             if isinstance(view, views.ChannelView):
                 server_view.core.send(f"JOIN {view.channel_name}")
     else:
-        # Mantaray just started, connect according to config.json
-        for channel in server_view.join_initially:
+        # Mantaray just started, connect according to settings
+        for channel in server_view.settings.joined_channels:
             server_view.core.send(f"JOIN {channel}")
-        server_view.join_initially = None
 
 
 def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
@@ -609,6 +624,7 @@ def _handle_received_message(
     elif msg.command == RPL_WHOISUSER:
         if msg.args[0] == server_view.core.nick:
             server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
+
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
 

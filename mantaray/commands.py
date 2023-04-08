@@ -91,6 +91,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     # to calm down a bit before you continue ranting.
     def join(view: View, core: IrcCore, channel: str) -> None:
         core.send(f"JOIN {channel}")
+        view.server_view.last_slash_join_channel = channel
 
     def part(view: View, core: IrcCore, channel: str | None = None) -> None:
         if channel is not None:
@@ -103,12 +104,13 @@ def _define_commands() -> dict[str, Callable[..., None]]:
                 "Channel is needed unless you are currently on a channel.", tag="error"
             )
 
-    # TODO: add /quit, make sure it quits all servers and saves settings correctly.
+    # TODO: add /quit, make sure it quits all servers.
     # Do not support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
 
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.send(f"NICK :{new_nick}")
+        view.server_view.settings.nick = new_nick
 
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):

@@ -56,9 +56,8 @@ for line in client.makefile("rb"):
     try:
         # Modify config to connect to proxy server
         server_view = alice.get_server_views()[0]
-        config = server_view.get_current_config()
-        config["port"] = 12345
-        server_view.core.apply_config_and_reconnect(config)
+        server_view.settings.port = 12345
+        server_view.core.reconnect()
 
         wait_until(
             lambda: alice.text().count("Connecting to localhost port 12345...") == 1

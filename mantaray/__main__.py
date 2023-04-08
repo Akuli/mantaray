@@ -91,19 +91,20 @@ def main() -> None:
     root = ThemedTk(theme="black")
     root.withdraw()
 
-    file_config = config.load_from_file(args.config_dir)
-    if file_config is None:
-        server_config = config.show_connection_settings_dialog(
-            transient_to=None, initial_config=None
+    settings = config.Settings(
+        config_dir=args.config_dir,
+        read_only=(args.alice or args.bob or args.dont_save_config),
+    )
+    try:
+        settings.load()
+    except FileNotFoundError:
+        server_settings = config.ServerSettings()
+        user_clicked_connect = config.show_connection_settings_dialog(
+            settings=server_settings, transient_to=None, connecting_to_new_server=True
         )
-        if server_config is None:
+        if not user_clicked_connect:
             return
-        default_family, default_size = config.get_default_fixed_font()
-        file_config = {
-            "servers": [server_config],
-            "font_family": default_family,
-            "font_size": default_size,
-        }
+        settings.add_server(server_settings)
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
         if event.widget == root:
@@ -113,17 +114,18 @@ def main() -> None:
             # If you click the widget twice, this won't steal the focus second time
             root.after_idle(irc_widget.entry.focus)
 
-    def save_config_and_quit_all_servers() -> None:
-        if not (args.alice or args.bob or args.dont_save_config):
-            config.save_to_file(args.config_dir, irc_widget.get_current_config())
+    def quit_all_servers() -> None:
         for server_view in irc_widget.get_server_views():
             server_view.core.quit()
 
     irc_widget = gui.IrcWidget(
-        root, file_config, args.config_dir / "logs", verbose=args.verbose
+        root,
+        settings,
+        args.config_dir / "logs",
+        verbose=args.verbose,
+        after_quitting_all_servers=root.destroy,
     )
     irc_widget.pack(fill="both", expand=True)
-    irc_widget.bind("<Destroy>", lambda e: root.after_idle(root.destroy))
 
     def add_binding(binding: str, callback: Callable[[], None]) -> None:
         def actual_callback(event: object) -> str:
@@ -152,7 +154,7 @@ def main() -> None:
         )
 
     root.bind("<FocusIn>", on_any_widget_focused)
-    root.protocol("WM_DELETE_WINDOW", save_config_and_quit_all_servers)
+    root.protocol("WM_DELETE_WINDOW", quit_all_servers)
 
     update_the_title = functools.partial(update_title, root, irc_widget)
     update_the_title()

@@ -19,12 +19,85 @@ else:
         TypedDict = object
 
 
-class JoinLeaveHidingConfig(TypedDict):
+# requires tkinter root window to exist
+def get_default_fixed_font() -> tuple[str, int]:
+    font = Font(name="TkFixedFont", exists=True)
+    return (font["family"], font["size"])
+
+
+class Settings:
+    def __init__(self, config_dir: Path, *, read_only: bool = False) -> None:
+        self._config_dir = config_dir
+
+        default_family, default_size = get_default_fixed_font()
+        self.font = Font(family=default_family, size=default_size)
+        self.servers: list[ServerSettings] = []
+        self.read_only = read_only
+
+    def add_server(self, server_settings: ServerSettings) -> None:
+        assert server_settings.parent_settings_object is None
+        server_settings.parent_settings_object = self
+        self.servers.append(server_settings)
+
+    def load(self) -> None:
+        assert not self.servers  # not loaded yet
+
+        with (self._config_dir / "config.json").open("r", encoding="utf-8") as file:
+            result = json.load(file)
+
+            if "font_family" in result and "font_size" in result:
+                self.font.config(family=result["font_family"], size=result["font_size"])
+
+            for server_dict in result["servers"]:
+                # Backwards compatibility with older config.json files
+                server_dict.setdefault("ssl", True)
+                server_dict.setdefault("password", None)
+                server_dict.setdefault("extra_notifications", [])
+                server_dict.setdefault("audio_notification", False)
+                server_dict.setdefault(
+                    "join_leave_hiding",
+                    {"show_by_default": True, "exception_nicks": []},
+                )
+
+                self.servers.append(
+                    ServerSettings(
+                        dict_from_file=server_dict, parent_settings_object=self
+                    )
+                )
+
+        if not self.font.metrics("fixed"):
+            self.font.config(family=get_default_fixed_font()[0])
+            self.save()
+
+    def get_json(self) -> dict[str, Any]:
+        return {
+            "font_family": self.font["family"],
+            "font_size": self.font["size"],
+            "servers": [s.get_json() for s in self.servers],
+        }
+
+    # Please save the settings after changing them.
+    def save(self) -> None:
+        if self.read_only:
+            return
+
+        self._config_dir.mkdir(parents=True, exist_ok=True)
+        with (self._config_dir / "config.json").open("w", encoding="utf-8") as file:
+            json.dump(self.get_json(), file, indent=2)
+            file.write("\n")
+
+        # config.json contains passwords (hexchat stores them in plain text too)
+        # TODO: how do permissions work on windows?
+        if sys.platform != "win32":
+            (self._config_dir / "config.json").chmod(0o600)
+
+
+class JoinLeaveHidingSettings(TypedDict):
     show_by_default: bool
     exception_nicks: list[str]
 
 
-class ServerConfig(TypedDict):
+class ServerSettings:
     host: str
     port: int
     ssl: bool
@@ -33,54 +106,62 @@ class ServerConfig(TypedDict):
     realname: str
     password: str | None
     joined_channels: list[str]
-    extra_notifications: list[str]  # channels to notify for all messages
-    join_leave_hiding: JoinLeaveHidingConfig
+    extra_notifications: set[str]  # channel names to notify for all messages
+    join_leave_hiding: JoinLeaveHidingSettings
     audio_notification: bool
 
+    def __init__(
+        self,
+        parent_settings_object: Settings | None = None,
+        dict_from_file: dict[str, Any] | None = None,
+    ) -> None:
+        self.parent_settings_object = parent_settings_object
 
-class Config(TypedDict):
-    servers: list[ServerConfig]
-    font_family: str
-    font_size: int
+        if dict_from_file is None:
+            # This is what the user sees when running Mantaray for the first time
+            self.host = "irc.libera.chat"
+            self.port = 6697
+            self.ssl = True
+            self.nick = getuser()
+            self.username = getuser()
+            self.realname = getuser()
+            self.password = None
+            self.joined_channels = ["##learnpython"]
+            self.extra_notifications = set()
+            self.join_leave_hiding = {"show_by_default": True, "exception_nicks": []}
+            self.audio_notification = False
+        else:
+            self.host = dict_from_file["host"]
+            self.port = dict_from_file["port"]
+            self.ssl = dict_from_file["ssl"]
+            self.nick = dict_from_file["nick"]
+            self.username = dict_from_file["username"]
+            self.realname = dict_from_file["realname"]
+            self.password = dict_from_file["password"]
+            self.joined_channels = dict_from_file["joined_channels"]
+            self.extra_notifications = set(dict_from_file["extra_notifications"])
+            self.join_leave_hiding = dict_from_file["join_leave_hiding"]
+            self.audio_notification = dict_from_file["audio_notification"]
 
+    def get_json(self) -> dict[str, Any]:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "ssl": self.ssl,
+            "nick": self.nick,
+            "username": self.username,
+            "realname": self.realname,
+            "password": self.password,
+            "joined_channels": self.joined_channels,
+            "extra_notifications": list(self.extra_notifications),
+            "join_leave_hiding": self.join_leave_hiding,
+            "audio_notification": self.audio_notification,
+        }
 
-# requires tkinter root window to exist
-def get_default_fixed_font() -> tuple[str, int]:
-    font = Font(name="TkFixedFont", exists=True)
-    return (font["family"], font["size"])
-
-
-def load_from_file(config_dir: Path) -> Config | None:
-    try:
-        with (config_dir / "config.json").open("r", encoding="utf-8") as file:
-            result = json.load(file)
-            # Backwards compatibility with older config.json files
-            for server in result["servers"]:
-                server.setdefault("ssl", True)
-                server.setdefault("password", None)
-                server.setdefault("extra_notifications", [])
-                server.setdefault("audio_notification", False)
-                server.setdefault(
-                    "join_leave_hiding",
-                    {"show_by_default": True, "exception_nicks": []},
-                )
-            if "font_family" not in result or "font_size" not in result:
-                result["font_family"], result["font_size"] = get_default_fixed_font()
-            return result
-    except FileNotFoundError:
-        return None
-
-
-def save_to_file(config_dir: Path, config: Config) -> None:
-    config_dir.mkdir(parents=True, exist_ok=True)
-    with (config_dir / "config.json").open("w", encoding="utf-8") as file:
-        json.dump(config, file, indent=2)
-        file.write("\n")
-
-    # config.json contains passwords (hexchat stores them in plain text too)
-    # TODO: how do permissions work on windows?
-    if sys.platform != "win32":
-        (config_dir / "config.json").chmod(0o600)
+    # Please save the settings after changing them.
+    def save(self) -> None:
+        if self.parent_settings_object is not None:
+            self.parent_settings_object.save()
 
 
 class _EntryWithVar(ttk.Entry):
@@ -122,14 +203,14 @@ class _JoinLeaveWidget(ttk.Frame):
             self._show_these_users_entry.config(state="normal")
             self._hide_these_users_entry.config(state="disabled")
 
-    def set_from_config(self, config: JoinLeaveHidingConfig) -> None:
+    def set_from_config(self, config: JoinLeaveHidingSettings) -> None:
         self._show_by_default_var.set(config["show_by_default"])
         if config["show_by_default"]:
             self._hide_these_users_entry.var.set(" ".join(config["exception_nicks"]))
         else:
             self._show_these_users_entry.var.set(" ".join(config["exception_nicks"]))
 
-    def get_config(self) -> JoinLeaveHidingConfig:
+    def get_config(self) -> JoinLeaveHidingSettings:
         if self._show_by_default_var.get():
             exceptions = self._hide_these_users_entry.get().split()
         else:
@@ -144,12 +225,12 @@ class _DialogContent(ttk.Frame):
     def __init__(
         self,
         master: tkinter.Misc,
-        initial_config: ServerConfig,
+        settings: ServerSettings,
         connecting_to_new_server: bool,
     ):
         super().__init__(master)
-        self._initial_config = initial_config
-        self.result: ServerConfig | None = None
+        self._settings = settings
+        self.user_clicked_connect_or_reconnect = False
 
         self._rownumber = 0
         self.grid_columnconfigure(0, minsize=60)
@@ -206,7 +287,7 @@ class _DialogContent(ttk.Frame):
             )
             self._rownumber += 1
 
-        self._audio_var = tkinter.BooleanVar(value=initial_config["audio_notification"])
+        self._audio_var = tkinter.BooleanVar(value=settings.audio_notification)
         if connecting_to_new_server:
             self.audio_notification_checkbox = None
         else:
@@ -257,20 +338,20 @@ class _DialogContent(ttk.Frame):
         self._connectbutton.pack(side="right")
 
         # now everything's ready for _validate()
-        self._server_entry.var.set(initial_config["host"])
-        self._ssl_var.set(initial_config["ssl"])  # must be before port
-        self._port_entry.var.set(str(initial_config["port"]))
+        self._server_entry.var.set(settings.host)
+        self._ssl_var.set(settings.ssl)  # must be before port
+        self._port_entry.var.set(str(settings.port))
         if self._nick_entry is not None:
-            self._nick_entry.var.set(initial_config["nick"])
+            self._nick_entry.var.set(settings.nick)
         if self._username_entry is not None:
-            self._username_entry.var.set(initial_config["username"])
+            self._username_entry.var.set(settings.username)
         if self._realname_entry is not None:
-            self._realname_entry.var.set(initial_config["realname"])
-        self._password_entry.var.set(initial_config["password"] or "")
+            self._realname_entry.var.set(settings.realname)
+        self._password_entry.var.set(settings.password or "")
         if self._channel_entry is not None:
-            self._channel_entry.var.set(" ".join(initial_config["joined_channels"]))
+            self._channel_entry.var.set(" ".join(settings.joined_channels))
         if self._join_part_quit is not None:
-            self._join_part_quit.set_from_config(initial_config["join_leave_hiding"])
+            self._join_part_quit.set_from_config(settings.join_leave_hiding)
 
     def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
         entry = _EntryWithVar(self, **kwargs)
@@ -343,68 +424,49 @@ class _DialogContent(ttk.Frame):
 
     def connect_clicked(self, junk_event: object = None) -> None:
         assert self._validate()
-        if self._nick_entry is None:
-            nick = self._initial_config["nick"]
-        else:
-            nick = self._nick_entry.get()
 
-        self.result = {
-            "host": self._server_entry.get(),
-            "port": int(self._port_entry.get()),
-            "ssl": self._ssl_var.get(),
-            "nick": nick,
-            "username": (
-                nick if self._username_entry is None else self._username_entry.get()
-            ),
-            "realname": (
-                nick if self._realname_entry is None else self._realname_entry.get()
-            ),
-            "password": self._password_entry.get() or None,
-            "joined_channels": (
-                self._initial_config["joined_channels"]
-                if self._channel_entry is None
-                else self._channel_entry.get().split()
-            ),
-            "extra_notifications": self._initial_config["extra_notifications"],
-            "audio_notification": self._audio_var.get(),
-            "join_leave_hiding": (
-                self._initial_config["join_leave_hiding"]
-                if self._join_part_quit is None
-                else self._join_part_quit.get_config()
-            ),
-        }
+        self._settings.host = self._server_entry.get()
+        self._settings.port = int(self._port_entry.get())
+        self._settings.ssl = self._ssl_var.get()
+        if self._nick_entry is not None:
+            self._settings.nick = self._nick_entry.get()
+        self._settings.username = (
+            self._settings.nick
+            if self._username_entry is None
+            else self._username_entry.get()
+        )
+        self._settings.realname = (
+            self._settings.nick
+            if self._realname_entry is None
+            else self._realname_entry.get()
+        )
+        self._settings.password = self._password_entry.get() or None
+        if self._channel_entry is not None:
+            self._settings.joined_channels = self._channel_entry.get().split()
+        self._settings.audio_notification = self._audio_var.get()
+        if self._join_part_quit is not None:
+            self._settings.join_leave_hiding = self._join_part_quit.get_config()
+
+        self._settings.save()
+        self.user_clicked_connect_or_reconnect = True
         self.winfo_toplevel().destroy()
 
 
-# returns None if user cancel
+# Returns True when user clicks connect/reconnect, False if cancel (settings unchanged).
 def show_connection_settings_dialog(
+    settings: ServerSettings,
+    connecting_to_new_server: bool,
     transient_to: tkinter.Tk | tkinter.Toplevel | None,
-    initial_config: ServerConfig | None,
-) -> ServerConfig | None:
+) -> bool:
     dialog = tkinter.Toplevel()
+    content = _DialogContent(
+        dialog, settings, connecting_to_new_server=connecting_to_new_server
+    )
 
-    if initial_config is None:
-        content = _DialogContent(
-            dialog,
-            initial_config={
-                "host": "irc.libera.chat",
-                "port": 6697,
-                "ssl": True,
-                "nick": getuser(),
-                "username": getuser(),
-                "realname": getuser(),
-                "password": None,
-                "joined_channels": ["##learnpython"],
-                "extra_notifications": [],
-                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
-                "audio_notification": False,
-            },
-            connecting_to_new_server=True,
-        )
+    if connecting_to_new_server:
         dialog.title("Connect to an IRC server")
         dialog.minsize(450, 200)
     else:
-        content = _DialogContent(dialog, initial_config, connecting_to_new_server=False)
         dialog.title("Server settings")
         dialog.minsize(450, 300)
 
@@ -412,4 +474,4 @@ def show_connection_settings_dialog(
     if transient_to is not None:
         dialog.transient(transient_to)
     dialog.wait_window()
-    return content.result
+    return content.user_clicked_connect_or_reconnect
