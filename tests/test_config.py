@@ -59,19 +59,12 @@ def test_old_config_format(tmp_path, root_window):
         }
 
 
-def reconnect_with_change(server_view, mocker, key, old, new):
-    new_config = vars(server_view.settings)  # FIXME: hack
-    assert new_config[key] == old
-    new_config[key] = new
-    mocker.patch(
-        "mantaray.config.show_connection_settings_dialog"
-    ).return_value = new_config
-    server_view.show_config_dialog()
-
-
 def test_changing_host(alice, mocker, wait_until):
     server_view = alice.get_server_views()[0]
-    reconnect_with_change(server_view, mocker, "host", old="localhost", new="127.0.0.1")
+
+    assert server_view.settings.host == "localhost"
+    server_view.settings.host = "127.0.0.1"
+    server_view.core.reconnect()
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
 
     assert alice.view_selector.item(server_view.view_id, "text") == "127.0.0.1"
@@ -290,8 +283,9 @@ def test_generate_nickmask(alice, mocker, wait_until):
     else:
         assert server_view.core.get_nickmask() == "Foo!AliceUsr@127.0.0.1"
 
-    reconnect_with_change(server_view, mocker, "username", old="AliceUsr", new="FooUsr")
-
+    assert server_view.settings.username == "AliceUsr"
+    server_view.settings.username = "FooUsr"
+    server_view.core.reconnect()
     wait_until(lambda: alice.text().count("The topic of #autojoin is:") == 2)
 
     if os.environ["IRC_SERVER"] == "hircd":
