@@ -168,6 +168,7 @@ def irc_server():
         finally:
             if server.process is not None:
                 server.process.kill()
+                server.process.wait(timeout=5)
             output_file.seek(0)
             output = output_file.read()
             if is_error:
