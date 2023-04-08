@@ -81,20 +81,15 @@ class IrcWidget(ttk.PanedWindow):
     def __init__(
         self,
         master: tkinter.Misc,
-        file_config: config.Config,
+        settings: config.Settings,
         log_dir: Path,
         *,
         verbose: bool = False,
     ):
         super().__init__(master, orient="horizontal")
+        self.settings = settings
         self.log_manager = logs.LogManager(log_dir)
         self.verbose = verbose
-
-        self.font = Font(
-            family=file_config["font_family"], size=file_config["font_size"]
-        )
-        if not self.font.metrics("fixed"):
-            self.font.config(family=config.get_default_fixed_font()[0])
 
         images_dir = Path(__file__).absolute().parent / "images"
         self.channel_image = tkinter.PhotoImage(
@@ -143,7 +138,7 @@ class IrcWidget(ttk.PanedWindow):
 
         self.entry = tkinter.Entry(
             entryframe,
-            font=self.font,
+            font=self.settings.font,
             fg=textwidget_tags.FOREGROUND,
             bg=textwidget_tags.BACKGROUND,
             insertbackground=textwidget_tags.FOREGROUND,
@@ -155,7 +150,7 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Next>", self._scroll_down)
 
         self.views_by_id: dict[str, View] = {}
-        for server_config in file_config["servers"]:
+        for server_config in self.settings.servers:
             self._create_and_add_server_view(server_config)
 
     def get_current_view(self) -> View:
@@ -172,10 +167,11 @@ class IrcWidget(ttk.PanedWindow):
         ]
 
     def _show_change_nick_dialog(self) -> None:
-        core = self.get_current_view().server_view.core
-        new_nick = ask_new_nick(self.winfo_toplevel(), core.nick)
-        if new_nick != core.nick:
-            core.send(f"NICK {new_nick}")
+        server_view = self.get_current_view().server_view
+        new_nick = ask_new_nick(self.winfo_toplevel(), server_view.core.nick)
+        if new_nick != server_view.core.nick:
+            server_view.core.send(f"NICK {new_nick}")
+            server_view.settings.nick = new_nick
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
@@ -189,11 +185,13 @@ class IrcWidget(ttk.PanedWindow):
         self.get_current_view().textwidget.yview_scroll(1, "pages")
 
     def bigger_font_size(self) -> None:
-        self.font["size"] += 1
+        self.settings.font["size"] += 1
+        self.settings.save()
 
     def smaller_font_size(self) -> None:
-        if self.font["size"] > 3:
-            self.font["size"] -= 1
+        if self.settings.font["size"] > 3:
+            self.settings.font["size"] -= 1
+            self.settings.save()
 
     def _get_flat_list_of_item_ids(self) -> list[str]:
         result = []
@@ -237,6 +235,7 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.parent(view_id),
             self.view_selector.index(view_id) - 1,
         )
+        # TODO: sort_joined_channels_in_settings
 
     def move_view_down(self) -> None:
         view_id = self.get_current_view().view_id
@@ -245,6 +244,7 @@ class IrcWidget(ttk.PanedWindow):
             self.view_selector.parent(view_id),
             self.view_selector.index(view_id) + 1,
         )
+        # TODO: sort_joined_channels_in_settings
 
     def _tab_event_handler(self, junk_event: object) -> str:
         self.autocomplete()
@@ -315,8 +315,8 @@ class IrcWidget(ttk.PanedWindow):
         self.views_by_id[view.view_id] = view
         self.view_selector.selection_set(view.view_id)
 
-    def _create_and_add_server_view(self, server_config: config.ServerConfig) -> None:
-        view = ServerView(self, server_config)
+    def _create_and_add_server_view(self, settings: config.ServerSettings) -> None:
+        view = ServerView(self, settings)
         self.add_view(view)
         view.start_running()  # Must be after add_view()
 
@@ -342,25 +342,31 @@ class IrcWidget(ttk.PanedWindow):
             del self.views_by_id[server_view.view_id]
 
     def _show_add_server_dialog(self) -> None:
-        server_config = config.show_connection_settings_dialog(
-            transient_to=self.winfo_toplevel(), initial_config=None
+        server_settings = config.ServerSettings()
+        user_clicked_connect = config.show_connection_settings_dialog(
+            transient_to=self.winfo_toplevel(),
+            settings=server_settings,
+            connecting_to_new_server=True,
         )
-        if server_config is not None:
-            self._create_and_add_server_view(server_config)
+        if user_clicked_connect:
+            self.settings.add_server(server_settings)
+            self._create_and_add_server_view(server_settings)
 
     def _leave_server(self, view: ServerView) -> None:
         wont_remember = []
-        wont_remember.append(f"the host and port ({view.core.host} {view.core.port})")
-        wont_remember.append(f"your nick ({view.core.nick})")
-        if view.core.username != view.core.nick:
-            wont_remember.append(f"your username ({view.core.username})")
-        if view.core.password is not None:
+        wont_remember.append(
+            f"the host and port ({view.settings.host} {view.settings.port})"
+        )
+        wont_remember.append(f"your nick ({view.settings.nick})")
+        if view.settings.username != view.settings.nick:
+            wont_remember.append(f"your username ({view.settings.username})")
+        if view.settings.password is not None:
             wont_remember.append("your password")
         wont_remember.append("what channels you joined")
 
         if messagebox.askyesno(
             "Leave server",
-            f"Are you sure you want to leave {view.core.host}?",
+            f"Are you sure you want to leave {view.settings.host}?",
             detail=(
                 f"You can reconnect later, but if you decide to do so,"
                 f" Mantaray won't remember things like"
@@ -368,6 +374,7 @@ class IrcWidget(ttk.PanedWindow):
             ),
             default="no",
         ):
+            # TODO: make sure it's forgotten from settings
             view.core.quit()
 
     def _fill_menu_for_server(self, view: ServerView | None) -> None:
@@ -388,14 +395,22 @@ class IrcWidget(ttk.PanedWindow):
 
     def _fill_menu_for_channel(self, view: ChannelView) -> None:
         def toggle_autojoin(*junk: object) -> None:
-            view.join_on_startup = not view.join_on_startup
+            if view.channel_name in view.server_view.settings.joined_channels:
+                view.server_view.settings.joined_channels.remove(view.channel_name)
+            else:
+                view.server_view.settings.joined_channels.append(view.channel_name)
+                view.server_view.sort_joined_channels_in_settings()
+            view.server_view.settings.save()
 
         def toggle_extra_notifications(*junk: object) -> None:
-            view.server_view.extra_notifications ^= {view.channel_name}
+            view.server_view.settings.extra_notifications ^= {view.channel_name}
+            view.server_view.settings.save()
 
-        autojoin_var = tkinter.BooleanVar(value=view.join_on_startup)
+        autojoin_var = tkinter.BooleanVar(
+            value=(view.channel_name in view.server_view.settings.joined_channels)
+        )
         extra_notif_var = tkinter.BooleanVar(
-            value=(view.channel_name in view.server_view.extra_notifications)
+            value=(view.channel_name in view.server_view.settings.extra_notifications)
         )
 
         autojoin_var.trace_add("write", toggle_autojoin)
@@ -440,13 +455,3 @@ class IrcWidget(ttk.PanedWindow):
             self._fill_menu_for_pm(view)
 
         self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
-
-    def get_current_config(self) -> config.Config:
-        return {
-            "servers": [
-                server_view.get_current_config()
-                for server_view in self.get_server_views()
-            ],
-            "font_family": self.font["family"],
-            "font_size": self.font["size"],
-        }

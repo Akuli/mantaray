@@ -88,7 +88,7 @@ class View:
             irc_widget.textwidget_container,
             width=1,  # minimum, can stretch bigger
             height=1,  # minimum, can stretch bigger
-            font=irc_widget.font,
+            font=irc_widget.settings.font,
             state="disabled",
             takefocus=True,
             tabs=(150, "right", 160, "left"),
@@ -153,7 +153,7 @@ class View:
         self.notification_count += 1
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
-        if self.server_view.audio_notification:
+        if self.server_view.settings.audio_notification:
             try:
                 playsound("mantaray/audio/notify.mp3", False)
             except Exception:
@@ -262,21 +262,19 @@ class View:
 
 
 class ServerView(View):
-    # no idea why mypy need these
+    # no idea why mypy needs this
     core: backend.IrcCore
-    audio_notification: bool
 
-    def __init__(self, irc_widget: IrcWidget, server_config: config.ServerConfig):
-        super().__init__(irc_widget, server_config["host"])
-        self.core = backend.IrcCore(server_config, verbose=irc_widget.verbose)
-        self.extra_notifications = set(server_config["extra_notifications"])
-        self.audio_notification = server_config["audio_notification"]
-        self._join_leave_hiding_config = server_config["join_leave_hiding"]
+    def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
+        super().__init__(irc_widget, settings.host)
+        self.settings = settings
+        self.core = backend.IrcCore(settings, verbose=irc_widget.verbose)
 
-        # Used once and set to None after creating the channel views.
-        # If you reconnect, we join all currently opened channels.
-        self.join_initially: list[str] | None = server_config["joined_channels"]
-        assert self.join_initially is not None
+        # A bit weird, but "/join #foo" causes mantaray to join #foo automatically
+        # when started only if joining a channel named #foo succeeds. This only
+        # applies to the /join command, because if you use the GUI to join a channel,
+        # you likely want to also use the GUI to configure automatic joining.
+        self.last_slash_join_channel: str | None = None
 
     def _run_core(self) -> None:
         if self.core.quitting_finished():
@@ -313,9 +311,9 @@ class ServerView(View):
 
     def should_show_join_leave_message(self, nick: str) -> bool:
         is_exceptional = nick.lower() in (
-            n.lower() for n in self._join_leave_hiding_config["exception_nicks"]
+            n.lower() for n in self.settings.join_leave_hiding["exception_nicks"]
         )
-        return self._join_leave_hiding_config["show_by_default"] ^ is_exceptional
+        return self.settings.join_leave_hiding["show_by_default"] ^ is_exceptional
 
     def get_subviews(self, *, include_server: bool = False) -> list[View]:
         result: list[View] = []
@@ -343,40 +341,42 @@ class ServerView(View):
                 return view
         return None
 
-    def get_current_config(self) -> config.ServerConfig:
-        return {
-            "host": self.core.host,
-            "port": self.core.port,
-            "ssl": self.core.ssl,
-            "nick": self.core.nick,
-            "username": self.core.username,
-            "realname": self.core.realname,
-            "password": self.core.password,
-            "joined_channels": [
-                view.channel_name
-                for view in self.get_subviews()
-                if isinstance(view, ChannelView) and view.join_on_startup
-            ],
-            "extra_notifications": list(self.extra_notifications),
-            "join_leave_hiding": self._join_leave_hiding_config,
-            "audio_notification": self.audio_notification,
-        }
+    # This should be called after changing the order of channels in the GUI.
+    # TODO: write a test
+    def sort_joined_channels_in_settings(self) -> None:
+        visible_channel_names = [
+            subview.channel_name
+            for subview in self.get_subviews()
+            if isinstance(subview, ChannelView)
+        ]
+        self.settings.joined_channels.sort(
+            key=(
+                lambda n: (
+                    visible_channel_names.index(n)
+                    if n in visible_channel_names
+                    else 1000000
+                )
+            )
+        )
+        self.settings.save()
 
     def show_config_dialog(self) -> None:
-        new_config = config.show_connection_settings_dialog(
+        assert self.view_name == self.settings.host
+        old_host = self.settings.host
+
+        user_clicked_reconnect = config.show_connection_settings_dialog(
             transient_to=self.irc_widget.winfo_toplevel(),
-            initial_config=self.get_current_config(),
+            settings=self.settings,
+            connecting_to_new_server=False,
         )
-        if new_config is not None:
-            self._join_leave_hiding_config = new_config["join_leave_hiding"]
-            self.core.apply_config_and_reconnect(new_config)
-            self.audio_notification = new_config["audio_notification"]
+
+        if user_clicked_reconnect:
+            self.core.reconnect()
 
 
 class ChannelView(View):
     # no idea why these are needed to avoid mypy error
     userlist: _UserList
-    join_on_startup: bool
 
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
@@ -387,8 +387,6 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
-
-        self.join_on_startup = True
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot

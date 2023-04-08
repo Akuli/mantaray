@@ -143,9 +143,17 @@ def _flush_and_close_socket(sock: _Socket) -> None:
 
 
 class IrcCore:
-    def __init__(self, server_config: config.ServerConfig, *, verbose: bool):
+    def __init__(self, settings: config.ServerSettings, *, verbose: bool):
+        self.settings = settings
         self._verbose = verbose
-        self._apply_config(server_config)
+
+        # The nick stored in self is the actual nick that the user has right now.
+        # The nick in settings represents what the user would like to have.
+        #
+        # These can be different if the server changes the user's nick to something
+        # like Guest1234. Also in the future we might handle nick name in use errors
+        # by trying f"{settings.nick}_" or similar.
+        self.nick = settings.nick
 
         self._send_queue: collections.deque[
             tuple[bytes, SentPrivmsg | _Quit | None]
@@ -168,7 +176,7 @@ class IrcCore:
         # (asyncio calls getaddrinfo() in a separate thread, and manages
         # to do it in a way that makes connecting slow on my system)
         self._connect_pool = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix=f"connect-{self.nick}-{hex(id(self))}"
+            max_workers=1, thread_name_prefix=f"connect-{self.settings.host}-{hex(id(self))}"
         )
 
         # Possible states:
@@ -186,15 +194,6 @@ class IrcCore:
         self._last_receive_time = time.monotonic()
 
         self._nickmask: str | None = None
-
-    def _apply_config(self, server_config: config.ServerConfig) -> None:
-        self.host = server_config["host"]
-        self.port = server_config["port"]
-        self.ssl = server_config["ssl"]
-        self.nick = server_config["nick"]
-        self.username = server_config["username"]
-        self.realname = server_config["realname"]
-        self.password = server_config["password"]
 
     def get_events(self) -> list[IrcEvent]:
         result = self._events.copy()
@@ -231,11 +230,11 @@ class IrcCore:
 
             self._events.append(
                 ConnectivityMessage(
-                    f"Connecting to {self.host} port {self.port}...", is_error=False
+                    f"Connecting to {self.settings.host} port {self.settings.port}...", is_error=False
                 )
             )
             self._connection_state = self._connect_pool.submit(
-                _create_connection, self.host, self.port, self.ssl
+                _create_connection, self.settings.host, self.settings.port, self.settings.ssl
             )
 
         elif isinstance(self._connection_state, Future):
@@ -259,7 +258,7 @@ class IrcCore:
 
             self._connection_state.setblocking(False)
 
-            if self.password is not None:
+            if self.settings.password is not None:
                 self.cap_req.append("sasl")
             self.cap_req.append("away-notify")
 
@@ -269,7 +268,7 @@ class IrcCore:
 
             # TODO: what if nick or user are in use? use alternatives?
             self.send(f"NICK {self.nick}")
-            self.send(f"USER {self.username} 0 * :{self.realname}")
+            self.send(f"USER {self.settings.username} 0 * :{self.settings.realname}")
 
         else:
             # Connected
@@ -398,15 +397,11 @@ class IrcCore:
         else:
             return MessageFromServer(server=sender, command=command, args=args)
 
-    def apply_config_and_reconnect(self, server_config: config.ServerConfig) -> None:
+    # Reconnecting is needed e.g. after changing settings.
+    def reconnect(self) -> None:
         if self._connection_state is None:
             # we are trying to reconnect but already quitting???
             return
-
-        assert self.nick == server_config["nick"]
-
-        old_host = self.host
-        self._apply_config(server_config)
 
         if isinstance(self._connection_state, float):
             # A reconnect is already scheduled, that can be ignored
@@ -417,9 +412,6 @@ class IrcCore:
         else:
             self._connection_state.close()
         self._connection_state = time.monotonic()  # reconnect asap
-
-        if old_host != self.host:
-            self._events.append(HostChanged(old_host, self.host))
 
     def send_privmsg(
         self, nick_or_channel: str, text: str, *, history_id: int | None = None

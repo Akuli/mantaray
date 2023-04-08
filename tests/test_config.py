@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 import sys
 from pathlib import Path
@@ -7,7 +8,7 @@ from tkinter.font import Font
 
 import pytest
 
-from mantaray.config import load_from_file, show_connection_settings_dialog
+from mantaray.config import Settings, ServerSettings, show_connection_settings_dialog
 
 
 def test_old_config_format(tmp_path, root_window):
@@ -29,29 +30,36 @@ def test_old_config_format(tmp_path, root_window):
         }
         """
     )
-    assert load_from_file(tmp_path) == {
-        "servers": [
-            {
-                "host": "irc.libera.chat",
-                "port": 6697,
-                "ssl": True,
-                "nick": "Akuli2",
-                "username": "Akuli2",
-                "realname": "Akuli2",
-                "password": None,
-                "joined_channels": ["##learnpython"],
-                "extra_notifications": [],
-                "audio_notification": False,
-                "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
-            }
-        ],
-        "font_family": Font(name="TkFixedFont", exists=True)["family"],
-        "font_size": Font(name="TkFixedFont", exists=True)["size"],
-    }
+    settings = Settings(tmp_path)
+    settings.load()
+    settings.save()
+    with (tmp_path / "config.json").open("r") as file:
+        assert json.load(file) == {
+            "servers": [
+                {
+                    "host": "irc.libera.chat",
+                    "port": 6697,
+                    "ssl": True,
+                    "nick": "Akuli2",
+                    "username": "Akuli2",
+                    "realname": "Akuli2",
+                    "password": None,
+                    "joined_channels": ["##learnpython"],
+                    "extra_notifications": [],
+                    "audio_notification": False,
+                    "join_leave_hiding": {
+                        "show_by_default": True,
+                        "exception_nicks": [],
+                    },
+                }
+            ],
+            "font_family": Font(name="TkFixedFont", exists=True)["family"],
+            "font_size": Font(name="TkFixedFont", exists=True)["size"],
+        }
 
 
 def reconnect_with_change(server_view, mocker, key, old, new):
-    new_config = server_view.get_current_config().copy()
+    new_config = vars(server_view.settings)  # FIXME: hack
     assert new_config[key] == old
     new_config[key] = new
     mocker.patch(
@@ -101,15 +109,22 @@ def test_reconnect(alice, mocker, monkeypatch, wait_until):
     wait_until(lambda: alice.text().count("The topic of #autojoin is") == 2)
 
 
-def test_nothing_changes_if_you_only_click_reconnect(root_window, monkeypatch):
+def test_nothing_changes_if_you_only_click_reconnect(root_window, mocker, monkeypatch):
+    settings = Settings(Path("alice"))
+    settings.load()
+    old_json = copy.deepcopy(settings.get_json())
+    settings.save = mocker.Mock()
     monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Reconnect"))
-    sample_config = load_from_file(Path("alice"))["servers"][0]
-    assert (
-        show_connection_settings_dialog(
-            transient_to=root_window, initial_config=sample_config
-        )
-        == sample_config
+
+    return_value = show_connection_settings_dialog(
+        transient_to=root_window,
+        connecting_to_new_server=False,
+        settings=settings.servers[0],
     )
+
+    assert return_value is True
+    assert settings.get_json() == old_json
+    settings.save.assert_called_once()
 
 
 def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
@@ -161,11 +176,8 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
     wait_until(lambda: len(alice.get_current_config()["servers"]) == 1)
 
 
-def test_default_settings(root_window, monkeypatch):
-    monkeypatch.setattr("tkinter.Toplevel.wait_window", lambda w: click(w, "Connect!"))
-    config = show_connection_settings_dialog(
-        transient_to=root_window, initial_config=None
-    )
+def test_default_settings():
+    config = ServerSettings().get_json()
     assert config.pop("nick") == config.pop("username") == config.pop("realname")
     assert config == {
         "host": "irc.libera.chat",
@@ -191,10 +203,9 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     wait_until(lambda: "The topic of #lol is:" in bob.text())
 
     # Configure Bob to ignore Alice joining/quitting
-    def bob_config(transient_to, initial_config):
-        new_config = copy.deepcopy(initial_config)
-        new_config["join_leave_hiding"]["exception_nicks"].append("aLiCe")
-        return new_config
+    def bob_config(settings, connecting_to_new_server, transient_to):
+        settings.join_leave_hiding["exception_nicks"].append("aLiCe")
+        return True
 
     monkeypatch.setattr("mantaray.config.show_connection_settings_dialog", bob_config)
     bob.get_server_views()[0].show_config_dialog()
@@ -222,6 +233,22 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     assert "left" not in bob.text()
     assert "parted" not in bob.text()
     assert "quit" not in bob.text()
+
+
+def test_nick_change_saved(alice, mocker):
+    # Settings update immediately, so that even if the nick is not available,
+    # mantaray will try to use that nick later.
+    #
+    # TODO: This only makes sense if we try other nicks when a nick is in use,
+    #       but that isn't implemented yet.
+
+    alice.entry.insert(0, "/nick foo")
+    alice.on_enter_pressed()
+    assert alice.get_server_views()[0].settings.nick == "foo"
+
+    mocker.patch("mantaray.gui.ask_new_nick", return_value="bar")
+    alice.nickbutton.invoke()
+    assert alice.get_server_views()[0].settings.nick == "bar"
 
 
 def test_generate_nickmask(alice, mocker, wait_until):
@@ -253,17 +280,33 @@ def test_generate_nickmask(alice, mocker, wait_until):
         assert server_view.core.get_nickmask() == "Foo!FooUsr@127.0.0.1"
 
 
-def test_autojoin(alice, wait_until, monkeypatch):
+def test_autojoin_setting(alice, wait_until, monkeypatch):
+    assert "#lol" not in alice.get_server_views()[0].settings.joined_channels
+
+    # We set the channel to autojoin when the server says that Alice has joined
+    # it, not when Alice types /join. This way the autojoin list doesn't end up
+    # containing channels that cannot be joined.
+    alice.entry.insert(0, "/join #lol")
+    alice.on_enter_pressed()
+    assert "#lol" not in alice.get_server_views()[0].settings.joined_channels
+    wait_until(lambda: "The topic of #lol is:" in alice.text())
+    assert "#lol" in alice.get_server_views()[0].settings.joined_channels
+
+    # /part immediately removes from autojoin list
+    alice.entry.insert(0, "/part #lol")
+    alice.on_enter_pressed()
+    assert "#lol" not in alice.get_server_views()[0].settings.joined_channels
+
+
+def test_autojoin_after_connection_error(alice, wait_until, monkeypatch):
     alice.entry.insert(0, "/join #lol")
     alice.on_enter_pressed()
     wait_until(lambda: "The topic of #lol is:" in alice.text())
 
     server_view = alice.get_server_views()[0]
 
-    # Uncheck "Join when Mantaray starts" for #lol. Should not affect anything.
-    assert server_view.find_channel("#autojoin").join_on_startup
-    assert server_view.find_channel("#lol").join_on_startup
-    server_view.find_channel("#lol").join_on_startup = False
+    # Uncheck "Join when Mantaray starts" for #lol.
+    server_view.settings.joined_channels.remove("#lol")
 
     # Force a reconnect
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 1)
@@ -283,5 +326,5 @@ def test_autojoin(alice, wait_until, monkeypatch):
         == 2
     )
 
-    # But not when mantaray is later started from the settings
-    assert server_view.get_current_config()["joined_channels"] == ["#autojoin"]
+    # But next time mantaray starts we will not join #lol
+    assert server_view.settings.joined_channels == ["#autojoin"]
