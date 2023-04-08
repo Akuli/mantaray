@@ -381,7 +381,6 @@ def show_connection_settings_dialog(
     transient_to: tkinter.Tk | tkinter.Toplevel | None,
     initial_config: ServerConfig | None,
 ) -> ServerConfig | None:
-
     dialog = tkinter.Toplevel()
 
     if initial_config is None:
