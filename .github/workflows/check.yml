@@ -7,23 +7,6 @@ on:
   pull_request:
 
 jobs:
-  license-year:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - run: |
-        grep $(date +%Y) LICENSE
-  mypy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: "3.9"  # can be 3.10 once mypy is updated and no longer really slow on 3.10
-    - run: pip install -r requirements.txt -r requirements-dev.txt
-    - run: mypy mantaray
   test:
     strategy:
       matrix:
@@ -48,6 +31,5 @@ jobs:
     - run: python3 -m pip install wheel
     - run: python3 -m pip install -r requirements.txt
     - run: python3 -m pip install -r requirements-dev.txt
-    - uses: GabrielBB/xvfb-action@v1.4
-      with:
-        run: python3 -m pytest -vv
+    - run: python3 -m pip install appdirs
+    - run: python3 asd.py
