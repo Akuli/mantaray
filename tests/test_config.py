@@ -251,12 +251,16 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
 
 
 def test_nick_change_saved(alice, mocker, wait_until):
+    # New nick is saved to settings when the server says that changing nick succeeded.
+    # This way, if changing nick fails (e.g. already in use), nothing will happen.
     alice.entry.insert(0, "/nick foo")
     alice.on_enter_pressed()
+    assert alice.get_server_views()[0].settings.nick == "Alice"
     wait_until(lambda: alice.get_server_views()[0].settings.nick == "foo")
 
     mocker.patch("mantaray.gui.ask_new_nick", return_value="bar")
     alice.nickbutton.invoke()
+    assert alice.get_server_views()[0].settings.nick == "foo"
     wait_until(lambda: alice.get_server_views()[0].settings.nick == "bar")
 
 
