@@ -3,12 +3,12 @@ from __future__ import annotations
 import argparse
 import functools
 import sys
+import time
 import tkinter
 import traceback
 from functools import partial
 from pathlib import Path
-from typing import Callable, cast
-import time
+from typing import Callable
 
 from . import config, gui
 
@@ -132,7 +132,8 @@ def main() -> None:
             # somewhere else than the text entry. Let's focus the entry instead. If
             # you actually want to focus something else, you can click it twice.
             #
-            # Don't know why this is the only way I got this to work reliably...
+            # I tried other ways to do this before resorting to time. They worked most
+            # of the time but not reliably. You should probably not touch this code.
             irc_widget.entry.focus()
 
     def quit_all_servers() -> None:
