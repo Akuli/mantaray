@@ -1,8 +1,9 @@
-import os,re
+import os
+import re
 
 import pytest
 
-from mantaray.views import ServerView,PMView
+from mantaray.views import PMView, ServerView
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
@@ -149,7 +150,7 @@ def test_me(alice, bob, wait_until):
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support WHOIS"
 )
-def test_whois(alice, bob,wait_until):
+def test_whois(alice, bob, wait_until):
     alice.entry.insert(0, "/whois bob")
     alice.on_enter_pressed()
     wait_until(lambda: "End of /WHOIS list." in alice.text())
