@@ -5,7 +5,6 @@ import subprocess
 import sys
 import time
 import tkinter
-import traceback
 import webbrowser
 from tkinter import ttk
 from typing import IO, TYPE_CHECKING, Any, Callable
@@ -21,7 +20,9 @@ if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
 
 
-def bind_right_click(widget: ttk.Treeview, callback: Callable[[tkinter.Event[ttk.Treeview]], None]) -> None:
+def bind_right_click(
+    widget: ttk.Treeview, callback: Callable[[tkinter.Event[ttk.Treeview]], None]
+) -> None:
     if sys.platform == "darwin":
         widget.bind("<Button-2>", callback)
         widget.bind("<Control-Button-1>", callback)
@@ -378,10 +379,13 @@ class ChannelView(View):
     def _populate_userlist_right_click_menu(self, nick: str) -> None:
         self._userlist_right_click_menu.delete(0, "end")
         self._userlist_right_click_menu.add_command(
-            label=f"Send private message to {nick}", command=(lambda: self._send_pm(nick))
+            label=f"Send private message to {nick}",
+            command=(lambda: self._send_pm(nick)),
         )
 
-    def _show_userlist_right_click_menu(self, event: tkinter.Event[ttk.Treeview]) -> None:
+    def _show_userlist_right_click_menu(
+        self, event: tkinter.Event[ttk.Treeview]
+    ) -> None:
         nick = event.widget.identify_row(event.y)
         if nick:
             event.widget.selection_set(nick)

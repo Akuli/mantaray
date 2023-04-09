@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import sys
 import tkinter
 from functools import partial
 from pathlib import Path
@@ -11,8 +10,7 @@ from tkinter import messagebox, ttk
 from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
-from mantaray.views import ChannelView, PMView, ServerView, View
-from mantaray.views import bind_right_click
+from mantaray.views import ChannelView, PMView, ServerView, View, bind_right_click
 
 
 def _fix_tag_coloring_bug() -> None:
