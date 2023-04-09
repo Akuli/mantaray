@@ -77,6 +77,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
                 " Are you sure you want to do it?"
             ),
         )
+        view.irc_widget.entry.focus()
         if not result:
             return
 
