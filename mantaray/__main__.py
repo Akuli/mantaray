@@ -77,9 +77,6 @@ def main() -> None:
     if args.config_dir != default_config_dir and not args.config_dir.is_dir():
         parser.error("the specified --config-dir must exist and be a directory")
 
-    print("Settings:", args.config_dir / "config.json")
-    print("Logs:", args.config_dir / "logs")
-
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
     root = ThemedTk(theme="black")
@@ -89,6 +86,12 @@ def main() -> None:
         config_dir=args.config_dir,
         read_only=(args.alice or args.bob or args.dont_save_config),
     )
+    if settings.read_only:
+        print("Settings (read-only):", args.config_dir / "config.json")
+    else:
+        print("Settings:", args.config_dir / "config.json")
+    print("Logs:", args.config_dir / "logs")
+
     try:
         settings.load()
     except FileNotFoundError:
