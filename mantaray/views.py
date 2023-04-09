@@ -51,7 +51,7 @@ class _UserList:
         # "OldNick (away: foo bar)" --> "NewNick (away: foo bar)"
         old_text = self.treeview.item(old_nick, "text")
         assert old_text.startswith(old_nick)
-        new_text = old_text.replace(old_nick, new_nick, 1)
+        new_text = new_nick + old_text[len(old_nick) :]
         tags = self.treeview.item(old_nick, "tags")
 
         self.remove_user(old_nick)
@@ -73,7 +73,7 @@ class _UserList:
                 # Away, but for unknown reason.
                 #
                 # It is possible to query the reason by sending WHOIS, but we would
-                # need to do it for every user on the channel. Bad idea when there
+                # need to do it for every away user on the channel. Bad idea when there
                 # are many users.
                 text = f"{nick} (away)"
             else:

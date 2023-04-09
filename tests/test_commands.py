@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from mantaray.views import PMView, ServerView, ChannelView
+from mantaray.views import ChannelView, PMView, ServerView
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
