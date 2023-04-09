@@ -10,7 +10,6 @@ import pytest
 
 from mantaray import right_click_menus
 from mantaray.config import ServerSettings, Settings, show_connection_settings_dialog
-from mantaray.gui import IrcWidget
 
 
 def test_old_config_format(tmp_path, root_window):

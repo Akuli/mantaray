@@ -43,7 +43,9 @@ def _show_menu(menu: tkinter.Menu, event: _AnyEvent) -> None:
     menu.tk_popup(event.x_root + 5, event.y_root)
 
 
-def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView | None) -> None:
+def server_right_click(
+    event: _AnyEvent, irc_widget: IrcWidget, view: ServerView | None
+) -> None:
     menu = get_menu(clear=True)
 
     if view is not None:
@@ -98,9 +100,7 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
 
 def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
     menu = get_menu(clear=True)
-    menu.add_command(
-        label="Close", command=(lambda: view.irc_widget.remove_view(view))
-    )
+    menu.add_command(label="Close", command=(lambda: view.irc_widget.remove_view(view)))
     _show_menu(menu, event)
 
 
