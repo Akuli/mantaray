@@ -7,10 +7,24 @@ from base64 import b64encode
 
 from mantaray import backend, textwidget_tags, views
 
+# Most of these are from https://modern.ircdocs.horse/
 RPL_WELCOME = "001"
 RPL_UNAWAY = "305"
 RPL_NOWAWAY = "306"
+RPL_WHOISCERTFP = "276"
+RPL_WHOISREGNICK = "307"
 RPL_WHOISUSER = "311"
+RPL_WHOISSERVER = "312"
+RPL_WHOISOPERATOR = "313"
+RPL_WHOISIDLE = "317"
+RPL_WHOISCHANNELS = "319"
+RPL_WHOISSPECIAL = "320"
+RPL_WHOISACCOUNT = "330"
+RPL_WHOISACTUALLY = "338"
+RPL_WHOISHOST = "378"
+RPL_WHOISMODES = "379"
+RPL_WHOISSECURE = "671"
+RPL_ENDOFWHOIS = "318"
 RPL_ENDOFMOTD = "376"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
@@ -21,6 +35,23 @@ RPL_LOGGEDIN = "900"
 RPL_TOPIC = "332"
 
 ERR_SASLFAIL = "904"
+
+WHOIS_REPLY_CODES = {
+    RPL_WHOISCERTFP,
+    RPL_WHOISREGNICK,
+    RPL_WHOISUSER,
+    RPL_WHOISSERVER,
+    RPL_WHOISOPERATOR,
+    RPL_WHOISIDLE,
+    RPL_WHOISCHANNELS,
+    RPL_WHOISSPECIAL,
+    RPL_WHOISACCOUNT,
+    RPL_WHOISACTUALLY,
+    RPL_WHOISHOST,
+    RPL_WHOISMODES,
+    RPL_WHOISSECURE,
+    RPL_ENDOFWHOIS,
+}
 
 
 def _get_views_relevant_for_nick(
@@ -413,6 +444,24 @@ def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) ->
     join.topic = topic
 
 
+def _handle_whois_reply(server_view: views.ServerView, msg: backend.MessageFromServer):
+    nick = msg.args[1]
+
+    if msg.command == RPL_WHOISACCOUNT:
+        # msg.args=["Alice", "foo", "bar", "is logged in as"] --> "foo is logged in as bar"
+        assert len(msg.args) == 4
+        text = f"{msg.command} {nick} {msg.args[3]} {msg.args[2]}"
+    else:
+        text = f"{msg.command} {nick} {' '.join(msg.args[2:])}"
+
+    if nick == server_view.settings.nick:
+        if msg.command == RPL_WHOISUSER:
+            server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
+        server_view.add_message(text)
+    else:
+        server_view.find_or_open_pm(nick, select_existing=True).add_message(text)
+
+
 def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: wtf are the first 2 args?
     # rfc1459 doesn't mention them, but freenode
@@ -622,9 +671,9 @@ def _handle_received_message(
     elif msg.command == RPL_TOPIC:
         _handle_numeric_rpl_topic(server_view, msg.args)
 
-    elif msg.command == RPL_WHOISUSER:
-        if msg.args[0] == server_view.settings.nick:
-            server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
+    elif msg.command in WHOIS_REPLY_CODES:
+        assert isinstance(msg, backend.MessageFromServer)
+        _handle_whois_reply(server_view, msg)
 
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
