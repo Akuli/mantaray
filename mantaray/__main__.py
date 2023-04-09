@@ -37,6 +37,7 @@ def is_parent_widget(parent: tkinter.Misc | str, child: tkinter.Misc) -> bool:
         if str(w) == str(parent):
             return True
         w = w.master
+    return False
 
 
 def main() -> None:
@@ -115,7 +116,7 @@ def main() -> None:
             return
         settings.add_server(server_settings)
 
-    last_root_focus = 0
+    last_root_focus = 0.0
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
         nonlocal last_root_focus
