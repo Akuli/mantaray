@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import sys
 import re
 import tkinter
 from functools import partial
@@ -122,16 +122,9 @@ def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
         search_start = f"{match_end} + 1 char"
 
 
-if TYPE_CHECKING:
-    ClickableTag = Literal["url", "other-nick"]
-else:
-    # The value doesn't matter, but avoid errors e.g. when importing
-    ClickableTag = None
-
-
 def _on_link_clicked(
-    tag: ClickableTag,
-    link_click_callback: Callable[[ClickableTag, str], None],
+    tag: str,
+    callback: Callable[[tkinter.Event[tkinter.Text], str, str], None],
     event: tkinter.Event[tkinter.Text],
 ) -> None:
     # To test this, set up 3 URLs, and try clicking first and last char of middle URL.
@@ -140,11 +133,23 @@ def _on_link_clicked(
     assert tag_range
     start, end = tag_range
     text = event.widget.get(start, end)
-    link_click_callback(tag, text)
+    callback(event, tag, text)
+
+
+if sys.platform == "darwin":
+    RIGHT_CLICK_BINDINGS = ["<Button-2>", "<Control-Button-1>"]
+else:
+    RIGHT_CLICK_BINDINGS = ["<Button-3>"]
 
 
 def config_tags(
-    textwidget: tkinter.Text, link_click_callback: Callable[[ClickableTag, str], None]
+    textwidget: tkinter.Text,
+    left_click_callback: Callable[
+        [tkinter.Event[tkinter.Text], str, str], None
+    ],
+    right_click_callback: Callable[
+        [tkinter.Event[tkinter.Text], str, str], None
+    ],
 ) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
@@ -171,10 +176,17 @@ def config_tags(
         textwidget.tag_raise(f"foreground-{number}", "privmsg")
         textwidget.tag_raise(f"background-{number}", "privmsg")
 
+    for right_click in RIGHT_CLICK_BINDINGS:
+        textwidget.tag_bind(
+            "other-nick",
+            right_click,
+            partial(_on_link_clicked, "other-nick", right_click_callback),
+        )
+
     default_cursor = textwidget["cursor"]
     for tag in ["url", "other-nick"]:
         textwidget.tag_bind(
-            tag, "<Button-1>", partial(_on_link_clicked, tag, link_click_callback)
+            tag, "<Button-1>", partial(_on_link_clicked, tag, left_click_callback)
         )
         textwidget.tag_bind(
             tag, "<Enter>", (lambda e: textwidget.config(cursor="hand2"))

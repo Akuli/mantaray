@@ -10,7 +10,8 @@ from tkinter import messagebox, ttk
 from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
-from mantaray.views import ChannelView, PMView, ServerView, View, bind_right_click
+from mantaray.textwidget_tags import RIGHT_CLICK_BINDINGS
+from mantaray.views import ChannelView, PMView, ServerView, View
 
 
 def _fix_tag_coloring_bug() -> None:
@@ -119,7 +120,8 @@ class IrcWidget(ttk.PanedWindow):
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
-        bind_right_click(self.view_selector, self.on_view_selector_right_click)
+        for right_click in RIGHT_CLICK_BINDINGS:
+            self.view_selector.bind(right_click, self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
@@ -470,8 +472,14 @@ class IrcWidget(ttk.PanedWindow):
             label="Close", command=(lambda: self.remove_view(view))
         )
 
+    def _fill_menu_for_nick(self, server_view: ServerView, nick: str) -> None:
+        self.contextmenu.add_command(
+            label=f"Send private message to {nick}",
+            command=(lambda: server_view.find_or_open_pm(nick, select=True)),
+        )
+
     def on_view_selector_right_click(
-        self, event: tkinter.Event[tkinter.ttk.Treeview]
+        self, event: tkinter.Event[ttk.Treeview]
     ) -> None:
         item_id = self.view_selector.identify_row(event.y)
         if item_id:
@@ -484,11 +492,26 @@ class IrcWidget(ttk.PanedWindow):
 
         if view is None or isinstance(view, ServerView):
             self._fill_menu_for_server(view)
-        if isinstance(view, ChannelView):
+        elif isinstance(view, ChannelView):
             self._fill_menu_for_channel(view)
-        if isinstance(view, PMView):
+        elif isinstance(view, PMView):
             self._fill_menu_for_pm(view)
+        else:
+            raise NotImplementedError(view)
 
+        self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
+
+    def on_user_list_right_click(self, server_view: ServerView, event: tkinter.Event[ttk.Treeview]) -> None:
+        nick = event.widget.identify_row(event.y)
+        if nick:
+            event.widget.selection_set(nick)
+            self.contextmenu.delete(0, "end")
+            self._fill_menu_for_nick(server_view, nick)
+            self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
+
+    def show_nick_right_click_menu(self, event: tkinter.Event [Any], server_view: ServerView, nick: str) -> None:
+        self.contextmenu.delete(0, "end")
+        self._fill_menu_for_nick(server_view, nick)
         self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
 
     def _save_widths(self, junk_event: object = None) -> None:

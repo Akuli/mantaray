@@ -12,6 +12,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable
 from playsound import playsound  # type: ignore
 
 from mantaray import backend, config, received, textwidget_tags
+from mantaray.textwidget_tags import RIGHT_CLICK_BINDINGS
 from mantaray.history import History
 
 if TYPE_CHECKING:
@@ -20,20 +21,12 @@ if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
 
 
-def bind_right_click(
-    widget: ttk.Treeview, callback: Callable[[tkinter.Event[ttk.Treeview]], None]
-) -> None:
-    if sys.platform == "darwin":
-        widget.bind("<Button-2>", callback)
-        widget.bind("<Control-Button-1>", callback)
-    else:
-        widget.bind("<Button-3>", callback)
-
-
 class _UserList:
-    def __init__(self, irc_widget: IrcWidget):
-        self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
+    def __init__(self, server_view: ServerView) -> None:
+        self.treeview = ttk.Treeview(server_view.irc_widget, show="tree", selectmode="extended")
         self.treeview.tag_configure("away", foreground="#95968c")
+        for right_click in RIGHT_CLICK_BINDINGS:
+            self.treeview.bind(right_click, (lambda e: server_view.irc_widget.on_user_list_right_click(server_view, e)))
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -108,18 +101,24 @@ class View:
         )
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
-        textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
+        textwidget_tags.config_tags(self.textwidget, self._on_link_leftclick, self._on_link_rightclick)
 
         self.history = History(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
 
-    def _on_link_clicked(self, tag: textwidget_tags.ClickableTag, text: str) -> None:
+    def _on_link_leftclick(self, event: tkinter.Event[tkinter.Text], tag: str, text: str) -> None:
         if tag == "url":
             webbrowser.open(text)
-        if tag == "other-nick":
+        elif tag == "other-nick":
             self.server_view.find_or_open_pm(text, select=True)
+        else:
+            raise NotImplementedError(tag)
+
+    def _on_link_rightclick(self, event: tkinter.Event[tkinter.Text], tag: str, text: str) -> None:
+        assert tag == "other-nick"
+        self.irc_widget.show_nick_right_click_menu(event, self.server_view, text)
 
     def get_log_name(self) -> str:
         raise NotImplementedError
@@ -370,30 +369,8 @@ class ChannelView(View):
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.channel_image
         )
-        self.userlist = _UserList(server_view.irc_widget)
+        self.userlist = _UserList(server_view)
         self.userlist.set_nicks(nicks)
-
-        self._userlist_right_click_menu = tkinter.Menu(tearoff=False)
-        bind_right_click(self.userlist.treeview, self._show_userlist_right_click_menu)
-
-    def _populate_userlist_right_click_menu(self, nick: str) -> None:
-        self._userlist_right_click_menu.delete(0, "end")
-        self._userlist_right_click_menu.add_command(
-            label=f"Send private message to {nick}",
-            command=(lambda: self._send_pm(nick)),
-        )
-
-    def _show_userlist_right_click_menu(
-        self, event: tkinter.Event[ttk.Treeview]
-    ) -> None:
-        nick = event.widget.identify_row(event.y)
-        if nick:
-            event.widget.selection_set(nick)
-            self._populate_userlist_right_click_menu(nick)
-            self._userlist_right_click_menu.tk_popup(event.x_root + 5, event.y_root)
-
-    def _send_pm(self, nick: str) -> None:
-        self.server_view.find_or_open_pm(nick, select=True)
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot
