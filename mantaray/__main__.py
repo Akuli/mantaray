@@ -7,7 +7,8 @@ import tkinter
 import traceback
 from functools import partial
 from pathlib import Path
-from typing import Callable
+from typing import Callable, cast
+import time
 
 from . import config, gui
 
@@ -28,6 +29,14 @@ def update_title(
 ) -> None:
     number = sum(v.notification_count for v in irc_widget.views_by_id.values())
     root.title("Mantaray" if number == 0 else f"({number}) Mantaray")
+
+
+def is_parent_widget(parent: tkinter.Misc | str, child: tkinter.Misc) -> bool:
+    w: tkinter.Misc | None = child
+    while w is not None:
+        if str(w) == str(parent):
+            return True
+        w = w.master
 
 
 def main() -> None:
@@ -106,13 +115,26 @@ def main() -> None:
             return
         settings.add_server(server_settings)
 
+    last_root_focus = 0
+
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
+        nonlocal last_root_focus
+
         if event.widget == root:
             irc_widget.get_current_view().mark_seen()
+            # Focus the entry, even if a different widget is clicked.
+            # To actually focus a different widget you can click it twice.
+            last_root_focus = time.monotonic()
 
-            # Focus the entry, even if a different widget is clicked
-            # If you click the widget twice, this won't steal the focus second time
-            root.after_idle(irc_widget.entry.focus)
+        if time.monotonic() - last_root_focus < 0.1 and not is_parent_widget(
+            event.widget, irc_widget.entry
+        ):
+            # User just clicked into the mantaray window, and the focus is going to
+            # somewhere else than the text entry. That's a Bad Thing!
+            #
+            # Don't know why this is the only way I got this to work reliably...
+            print("Steal focus from", event.widget)
+            irc_widget.entry.focus()
 
     def quit_all_servers() -> None:
         for server_view in irc_widget.get_server_views():
