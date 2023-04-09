@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import re
 import tkinter
-from functools import partial
 from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
-from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, server_right_click, channel_view_right_click, pm_view_right_click
+from mantaray.right_click_menus import (
+    RIGHT_CLICK_BINDINGS,
+    channel_view_right_click,
+    pm_view_right_click,
+    server_right_click,
+)
 from mantaray.views import ChannelView, PMView, ServerView, View
 
 

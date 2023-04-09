@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import re
 import tkinter
 from functools import partial
 from typing import Callable, Iterator
+
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS
 
 # https://www.mirc.com/colors.html
