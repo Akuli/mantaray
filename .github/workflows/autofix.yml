@@ -20,7 +20,7 @@ jobs:
         path: ./pr
     - uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: pip
     - run: pip install wheel
     # Be careful to not install arbitrary dependencies, install only the dependencies we really need and trust
