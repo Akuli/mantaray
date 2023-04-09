@@ -1,8 +1,8 @@
-import os
+import os,re
 
 import pytest
 
-from mantaray.views import ServerView
+from mantaray.views import ServerView,PMView
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
@@ -144,6 +144,23 @@ def test_me(alice, bob, wait_until):
     alice.entry.insert(0, "/me does something")
     alice.on_enter_pressed()
     wait_until(lambda: "\t*\tAlice does something" in bob.text())
+
+
+@pytest.mark.skipif(
+    os.environ["IRC_SERVER"] == "hircd", reason="hircd doesn't support WHOIS"
+)
+def test_whois(alice, bob,wait_until):
+    alice.entry.insert(0, "/whois bob")
+    alice.on_enter_pressed()
+    wait_until(lambda: "End of /WHOIS list." in alice.text())
+
+    assert isinstance(alice.get_current_view(), PMView)
+    assert alice.get_current_view().nick_of_other_user == "Bob"
+    assert re.sub(r".*\t", "", alice.text()).splitlines() == [
+        # mantatail sends only 311 and 318, although we support many more whois responses
+        "311 Bob BobUsr 127.0.0.1 * Bob's real name",
+        "318 Bob End of /WHOIS list.",
+    ]
 
 
 @pytest.mark.skipif(
