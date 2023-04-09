@@ -48,10 +48,20 @@ class _UserList:
         self.treeview.delete(nick)
 
     def change_nick(self, old: str, new: str) -> None:
-        tags = self.treeview.item(old, "tags")
+        away_status = self.get_away(old)
+        
+        old_text = self.treeview.item(old, "text")
         self.remove_user(old)
+
+        # Preserve away reason: "oldnick [away: <reason>]" --> "newnick [away: reason]"
+        if old_text.startswith(old + " [away: ") and old_text.endswith("]"):
+            away_reason = old_text.split(" ", 2)[3][:-1]
+        else:
+            
+
+        # Preserve away color: if grayed out before, it will be grayed out now.
         self.add_user(new)
-        self.treeview.item(new, tags=tags)
+        self.treeview.item(new, text=old_text.replace(old, new, 1), tags=tags)
 
     def get_nicks(self) -> tuple[str, ...]:
         return self.treeview.get_children("")
@@ -61,11 +71,33 @@ class _UserList:
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
 
-    def set_away(self, nick: str, away: bool) -> None:
-        if away:
-            self.treeview.item(nick, tags=["away"])
+    def set_away_status(self, nick: str, status: tuple[bool, str | None]) -> None:
+        is_away, reason = status
+        if is_away:
+            if reason is None:
         else:
-            self.treeview.item(nick, tags=[])
+            assert reason is None
+            self.treeview.item(nick, text=nick, tags=[])
+        elif reason == "":
+            # away, but for unknown reason
+            self.treeview.item(nick, text=nick, tags=["away"])
+        else:
+            self.treeview.item(nick, text=f"{nick} [Away: {reason}]", tags=["away"])
+
+    def get_away_status(self, nick: str) -> str | None:
+        text = self.treeview.item(nick, "text")
+        if text == nick:
+            return None  # not away
+        if text == nick + " [away]":
+            return ""  # away, but for unknown reason
+        return 
+        if "away" not in :
+            return None
+
+        if self.treeview.item(nick, "text") == f"{nick} [away]":
+            return ""  # away but for unknown reason
+
+        assert 
 
 
 def _show_popup(title: str, text: str) -> None:
