@@ -188,6 +188,8 @@ def test_urls(alice, bob, wait_until):
         0, "this is lol https://en.wikipedia.org/wiki/Whitespace_(programming_language)"
     )
     alice.on_enter_pressed()
+    alice.entry.insert(0, "https://example.com/\xa0no-break space after URL")
+    alice.on_enter_pressed()
     alice.entry.insert(0, "google.com is not a valid URL, it's just a hostname")
     alice.on_enter_pressed()
     alice.entry.insert(0, "last message")
@@ -208,6 +210,7 @@ def test_urls(alice, bob, wait_until):
         "https://stackoverflow.com/",
         "https://stackoverflow.com/",
         "https://en.wikipedia.org/wiki/Whitespace_(programming_language)",
+        "https://example.com/",
     ]
 
 

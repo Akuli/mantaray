@@ -104,7 +104,7 @@ def find_and_tag_urls(textwidget: tkinter.Text, start: str, end: str) -> None:
 
         url = textwidget.get(match_start, f"{match_start} lineend")
 
-        url = url.split(" ")[0]
+        url = url.split()[0]
         url = url.split("'")[0]
         url = url.split('"')[0]
         url = url.split("`")[0]
