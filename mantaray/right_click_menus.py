@@ -51,7 +51,7 @@ def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView
         menu.add_command(label="Server settings...", command=view.show_config_dialog)
         menu.add_command(
             label="Leave this server",
-            command=(lambda: irc_widget.leave_server(view)),
+            command=partial(irc_widget.leave_server, view),
             # To leave the last server, you need to close window instead
             state=("disabled" if len(irc_widget.get_server_views()) == 1 else "normal"),
         )
@@ -108,6 +108,6 @@ def nick_right_click(event: _AnyEvent, server_view: ServerView, nick: str) -> No
     menu = get_menu(clear=True)
     menu.add_command(
         label=f"Send private message to {nick}",
-        command=(lambda: server_view.find_or_open_pm(nick, select=True)),
+        command=(lambda: server_view.find_or_open_pm(nick, select_existing=True)),
     )
     _show_menu(menu, event)

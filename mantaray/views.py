@@ -125,7 +125,7 @@ class View:
         if tag == "url":
             webbrowser.open(text)
         elif tag == "other-nick":
-            self.server_view.find_or_open_pm(text, select=True)
+            self.server_view.find_or_open_pm(text, select_existing=True)
         else:
             raise NotImplementedError(tag)
 
@@ -361,7 +361,7 @@ class ServerView(View):
     def find_or_open_pm(self, nick: str, *, select_existing: bool = False) -> PMView:
         existing_view = self.find_pm(nick)
         if existing_view is not None:
-            if select:
+            if select_existing:
                 self.irc_widget.view_selector.selection_set(existing_view.view_id)
             return existing_view
 
