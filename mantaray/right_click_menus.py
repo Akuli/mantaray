@@ -51,7 +51,7 @@ def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView
         menu.add_command(label="Server settings...", command=view.show_config_dialog)
         menu.add_command(
             label="Leave this server",
-            command=partial(irc_widget.leave_server, view),
+            command=(lambda: irc_widget.leave_server(view)),
             # To leave the last server, you need to close window instead
             state=("disabled" if len(irc_widget.get_server_views()) == 1 else "normal"),
         )
