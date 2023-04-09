@@ -9,7 +9,7 @@ import webbrowser
 from tkinter import ttk
 from typing import IO, TYPE_CHECKING, Any, Callable
 
-import playsound
+from playsound import playsound  # type: ignore
 
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
