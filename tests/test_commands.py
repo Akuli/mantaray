@@ -313,10 +313,18 @@ def test_away_status(alice, bob, wait_until):
     assert "Alice (away)" in userlist(alice)
     assert "Alice (away: foo bar baz)" in userlist(bob)
 
+    # Nick changes preserve away status
+    alice.entry.insert(0, "/nick Alice2")
+    alice.on_enter_pressed()
+    wait_until(lambda: "You are now known as Alice2" in alice.text())
+    wait_until(lambda: "Alice is now known as Alice2" in bob.text())
+    assert userlist(alice) == ["Alice2 (away)", "Bob"]
+    assert userlist(bob) == ["Alice2 (away: foo bar baz)", "Bob"]
+
     alice.entry.insert(0, "/back")
     alice.on_enter_pressed()
-    wait_until(lambda: "Alice" in userlist(alice))
-    wait_until(lambda: "Alice" in userlist(bob))
+    wait_until(lambda: "Alice2" in userlist(alice))
+    wait_until(lambda: "Alice2" in userlist(bob))
     assert "You are no longer marked as being away\n" in alice.text()
 
 
