@@ -121,16 +121,15 @@ def main() -> None:
         nonlocal last_root_focus
 
         if event.widget == root:
-            irc_widget.get_current_view().mark_seen()
-            # Focus the entry, even if a different widget is clicked.
-            # To actually focus a different widget you can click it twice.
             last_root_focus = time.monotonic()
+            irc_widget.get_current_view().mark_seen()
 
-        if time.monotonic() - last_root_focus < 0.1 and not is_parent_widget(
+        if time.monotonic() - last_root_focus < 0.05 and not is_parent_widget(
             event.widget, irc_widget.entry
         ):
             # User just clicked into the mantaray window, and the focus is going to
-            # somewhere else than the text entry. That's a Bad Thing!
+            # somewhere else than the text entry. Let's focus the entry instead. If
+            # you actually want to focus something else, you can click it twice.
             #
             # Don't know why this is the only way I got this to work reliably...
             print("Steal focus from", event.widget)
