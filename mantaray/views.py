@@ -12,7 +12,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable
 from playsound import playsound  # type: ignore
 
 from mantaray import backend, config, received, textwidget_tags
-from mantaray.textwidget_tags import RIGHT_CLICK_BINDINGS
+from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 from mantaray.history import History
 
 if TYPE_CHECKING:
@@ -23,10 +23,17 @@ if TYPE_CHECKING:
 
 class _UserList:
     def __init__(self, server_view: ServerView) -> None:
+        self._server_view = server_view
         self.treeview = ttk.Treeview(server_view.irc_widget, show="tree", selectmode="extended")
         self.treeview.tag_configure("away", foreground="#95968c")
         for right_click in RIGHT_CLICK_BINDINGS:
-            self.treeview.bind(right_click, (lambda e: server_view.irc_widget.on_user_list_right_click(server_view, e)))
+            self.treeview.bind(right_click, self._on_right_click)
+
+    def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        nick = self.treeview.identify_row(event.y)
+        if nick:
+            self.treeview.selection_set(nick)
+            nick_right_click(event, self._server_view, nick)
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -117,8 +124,8 @@ class View:
             raise NotImplementedError(tag)
 
     def _on_link_rightclick(self, event: tkinter.Event[tkinter.Text], tag: str, text: str) -> None:
-        assert tag == "other-nick"
-        self.irc_widget.show_nick_right_click_menu(event, self.server_view, text)
+        if tag == "other-nick":
+            nick_right_click(event, self.server_view, text)
 
     def get_log_name(self) -> str:
         raise NotImplementedError
@@ -268,6 +275,9 @@ class View:
 
 
 class ServerView(View):
+    # help mypy with some weird errors...
+    core: backend.IrcCore
+
     def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
         super().__init__(irc_widget, settings.host)
         self.settings = settings

@@ -1,12 +1,9 @@
 from __future__ import annotations
-import sys
 import re
 import tkinter
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Iterator
-
-if TYPE_CHECKING:
-    from typing_extensions import Literal
+from typing import Callable, Iterator
+from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS
 
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
@@ -136,20 +133,10 @@ def _on_link_clicked(
     callback(event, tag, text)
 
 
-if sys.platform == "darwin":
-    RIGHT_CLICK_BINDINGS = ["<Button-2>", "<Control-Button-1>"]
-else:
-    RIGHT_CLICK_BINDINGS = ["<Button-3>"]
-
-
 def config_tags(
     textwidget: tkinter.Text,
-    left_click_callback: Callable[
-        [tkinter.Event[tkinter.Text], str, str], None
-    ],
-    right_click_callback: Callable[
-        [tkinter.Event[tkinter.Text], str, str], None
-    ],
+    left_click_callback: Callable[[tkinter.Event[tkinter.Text], str, str], None],
+    right_click_callback: Callable[[tkinter.Event[tkinter.Text], str, str], None],
 ) -> None:
     textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
 
@@ -176,18 +163,15 @@ def config_tags(
         textwidget.tag_raise(f"foreground-{number}", "privmsg")
         textwidget.tag_raise(f"background-{number}", "privmsg")
 
-    for right_click in RIGHT_CLICK_BINDINGS:
-        textwidget.tag_bind(
-            "other-nick",
-            right_click,
-            partial(_on_link_clicked, "other-nick", right_click_callback),
-        )
-
     default_cursor = textwidget["cursor"]
     for tag in ["url", "other-nick"]:
         textwidget.tag_bind(
             tag, "<Button-1>", partial(_on_link_clicked, tag, left_click_callback)
         )
+        for right_click in RIGHT_CLICK_BINDINGS:
+            textwidget.tag_bind(
+                tag, right_click, partial(_on_link_clicked, tag, right_click_callback)
+            )
         textwidget.tag_bind(
             tag, "<Enter>", (lambda e: textwidget.config(cursor="hand2"))
         )
