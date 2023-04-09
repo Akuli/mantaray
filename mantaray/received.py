@@ -361,7 +361,8 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
 def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     subcommand = args[1]
     if subcommand == "ACK":
-        acknowledged = set(args[-1].split())
+        acknowledged = args[-1].split()
+        server_view.core.pending_cap_count -= len(acknowledged)
 
         if "sasl" in acknowledged:
             server_view.core.send("AUTHENTICATE PLAIN")
@@ -370,7 +371,8 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
             server_view.core.cap_list.add(capability)
 
     elif subcommand == "NAK":
-        rejected = set(args[-1].split())
+        rejected = args[-1].split()
+        server_view.core.pending_cap_count -= len(rejected)
         if "sasl" in rejected:
             # TODO: this good?
             raise ValueError("The server does not support SASL.")
@@ -378,9 +380,6 @@ def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
     else:
         server_view.core.send("CAP END")
         raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
-
-    # Currently we get only one capability at a time in ACK or NAK
-    server_view.core.pending_cap_count -= 1
 
     # If we use SASL, we can't send CAP END until all SASL stuff is done.
     # If "sasl" is in cap_list, Mantaray sends CAP END after the server

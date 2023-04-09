@@ -9,7 +9,7 @@ import webbrowser
 from tkinter import ttk
 from typing import IO, TYPE_CHECKING, Any, Callable
 
-from playsound import playsound  # type: ignore
+from playsound import playsound
 
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
