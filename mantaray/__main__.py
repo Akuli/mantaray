@@ -3,12 +3,12 @@ from __future__ import annotations
 import argparse
 import functools
 import sys
+import time
 import tkinter
 import traceback
 from functools import partial
 from pathlib import Path
-from typing import Callable, cast
-import time
+from typing import Callable
 
 from . import config, gui
 
