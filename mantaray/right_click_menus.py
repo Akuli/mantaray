@@ -98,8 +98,18 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
     _show_menu(menu, event)
 
 
+def _add_whois(menu: tkinter.Menu, server_view: ServerView, nick: str) -> None:
+    menu.add_command(
+        label=f"Show user info (/whois {nick})",
+        command=(lambda: server_view.core.send(f"WHOIS {nick}")),
+        # Discourage running /whois on the current user
+        state=("disabled" if nick == server_view.settings.nick else "normal"),
+    )
+
+
 def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
     menu = get_menu(clear=True)
+    _add_whois(menu, view.server_view, view.nick_of_other_user)
     menu.add_command(label="Close", command=(lambda: view.irc_widget.remove_view(view)))
     _show_menu(menu, event)
 
@@ -107,7 +117,8 @@ def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
 def nick_right_click(event: _AnyEvent, server_view: ServerView, nick: str) -> None:
     menu = get_menu(clear=True)
     menu.add_command(
-        label=f"Send private message to {nick}",
+        label=f"Send a private message to {nick}",
         command=(lambda: server_view.find_or_open_pm(nick, select_existing=True)),
     )
+    _add_whois(menu, server_view, nick)
     _show_menu(menu, event)
