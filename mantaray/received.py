@@ -466,6 +466,7 @@ def _handle_whois_reply(
         server_view.find_or_open_pm(nick, select_existing=True).add_message(text)
 
 
+# This can be part of a WHOIS response or it can appear separately.
 def _handle_other_user_away_reply(
     server_view: views.ServerView, args: list[str]
 ) -> None:
