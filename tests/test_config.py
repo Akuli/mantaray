@@ -8,6 +8,7 @@ from tkinter.font import Font
 
 import pytest
 
+from mantaray import right_click_menus
 from mantaray.config import ServerSettings, Settings, show_connection_settings_dialog
 from mantaray.gui import IrcWidget
 
@@ -123,7 +124,7 @@ def test_nothing_changes_if_you_only_click_reconnect(root_window, mocker, monkey
     settings.save.assert_called_once()
 
 
-def test_multiple_servers(alice: IrcWidget, bob, mocker, monkeypatch, wait_until):
+def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
     def dialog_callback(dialog):
         [content] = dialog.winfo_children()
         content._server_entry.delete(0, "end")
@@ -141,7 +142,7 @@ def test_multiple_servers(alice: IrcWidget, bob, mocker, monkeypatch, wait_until
     mocker.patch("tkinter.Menu.tk_popup")
     alice.on_view_selector_right_click(event)
     monkeypatch.setattr("tkinter.Toplevel.wait_window", dialog_callback)
-    alice.contextmenu.invoke("Connect to a new server...")
+    right_click_menus.get_menu(clear=False).invoke("Connect to a new server...")
 
     wait_until(lambda: len(alice.get_server_views()) == 2)
     wait_until(
@@ -179,9 +180,8 @@ def test_multiple_servers(alice: IrcWidget, bob, mocker, monkeypatch, wait_until
     alice.on_view_selector_right_click(event)
 
     # Leave the server by clicking that option in the right-click menu
-    askyesno = mocker.patch("tkinter.messagebox.askyesno")
-    askyesno.return_value = True
-    alice.contextmenu.invoke("Leave this server")
+    askyesno = mocker.patch("tkinter.messagebox.askyesno", return_value=True)
+    right_click_menus.get_menu(clear=False).invoke("Leave this server")
     askyesno.assert_called_once()
     assert askyesno.call_args.kwargs["detail"] == (
         "You can reconnect later, but if you decide to do so, Mantaray won't"

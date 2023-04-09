@@ -23,11 +23,13 @@ else:
 _global_menu: tkinter.Menu | None = None
 
 
-def _clear_and_get_menu() -> tkinter.Menu:
+def get_menu(clear: bool) -> tkinter.Menu:
     global _global_menu
     if _global_menu is None:
         _global_menu = tkinter.Menu(tearoff=False)
-    _global_menu.delete(0, "end")
+
+    if clear:
+        _global_menu.delete(0, "end")
     return _global_menu
 
 
@@ -42,7 +44,7 @@ def _show_menu(menu: tkinter.Menu, event: _AnyEvent) -> None:
 
 
 def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView | None) -> None:
-    menu = _clear_and_get_menu()
+    menu = get_menu(clear=True)
 
     if view is not None:
         assert view.irc_widget == irc_widget
@@ -85,7 +87,7 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
     autojoin_var.trace_add("write", toggle_autojoin)
     extra_notif_var.trace_add("write", toggle_extra_notifications)
 
-    menu = _clear_and_get_menu()
+    menu = get_menu(clear=True)
     menu._garbage_collection_is_lol = (autojoin_var, extra_notif_var)  # type: ignore
     menu.add_checkbutton(
         label="Join when Mantaray starts", variable=autojoin_var
@@ -101,7 +103,7 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
 
 
 def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
-    menu = _clear_and_get_menu()
+    menu = get_menu(clear=True)
     menu.add_command(
         label="Close", command=(lambda: view.irc_widget.remove_view(view))
     )
@@ -109,7 +111,7 @@ def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
 
 
 def nick_right_click(event: _AnyEvent, server_view: ServerView, nick: str) -> None:
-    menu = _clear_and_get_menu()
+    menu = get_menu(clear=True)
     menu.add_command(
         label=f"Send private message to {nick}",
         command=(lambda: server_view.find_or_open_pm(nick, select=True)),

@@ -120,7 +120,7 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
         for right_click in RIGHT_CLICK_BINDINGS:
-            self.view_selector.bind(right_click, self._on_view_selector_right_click)
+            self.view_selector.bind(right_click, self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
@@ -414,7 +414,7 @@ class IrcWidget(ttk.PanedWindow):
             self.settings.servers.remove(view.settings)
             self.settings.save()
 
-    def _on_view_selector_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
+    def on_view_selector_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         item_id = self.view_selector.identify_row(event.y)
         if item_id:
             self.view_selector.selection_set(item_id)
