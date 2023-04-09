@@ -163,6 +163,9 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def back(view: View, core: IrcCore) -> None:
         core.send("AWAY")
 
+    def raw(view: View, core: IrcCore, command: str) -> None:
+        core.send(command)
+
     return {
         "/join": join,
         "/part": part,
@@ -181,6 +184,7 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/kick": kick,
         "/away": away,
         "/back": back,
+        "/raw": raw,
     }
 
 
