@@ -47,57 +47,41 @@ class _UserList:
     def remove_user(self, nick: str) -> None:
         self.treeview.delete(nick)
 
-    def change_nick(self, old: str, new: str) -> None:
-        away_status = self.get_away(old)
-        
-        old_text = self.treeview.item(old, "text")
-        self.remove_user(old)
+    def change_nick(self, old_nick: str, new_nick: str) -> None:
+        # "OldNick (away: foo bar)" --> "NewNick (away: foo bar)"
+        old_text = self.treeview.item(old_nick, "text")
+        assert old_text.startswith(old_nick)
+        new_text = old_text.replace(old_nick , new_nick , 1)
+        tags = self.treeview.item(old_nick, "tags")
 
-        # Preserve away reason: "oldnick [away: <reason>]" --> "newnick [away: reason]"
-        if old_text.startswith(old + " [away: ") and old_text.endswith("]"):
-            away_reason = old_text.split(" ", 2)[3][:-1]
-        else:
-            
-
-        # Preserve away color: if grayed out before, it will be grayed out now.
-        self.add_user(new)
-        self.treeview.item(new, text=old_text.replace(old, new, 1), tags=tags)
+        self.remove_user(old_nick)
+        self.add_user(new_nick)
+        self.treeview.item(new_nick, text=new_text, tags=tags)
 
     def get_nicks(self) -> tuple[str, ...]:
         return self.treeview.get_children("")
 
+    # Does not preserve away statuses
     def set_nicks(self, nicks: list[str]) -> None:
         self.treeview.delete(*self.treeview.get_children(""))
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
 
-    def set_away_status(self, nick: str, status: tuple[bool, str | None]) -> None:
-        is_away, reason = status
+    def set_away(self, nick: str, is_away: bool, reason: str | None = None) -> None:
         if is_away:
             if reason is None:
+                # Away, but for unknown reason.
+                #
+                # It is possible to query the reason by sending WHOIS, but we would
+                # need to do it for every user on the channel. Bad idea when there
+                # are many users.
+                text = f"{nick} (away)"
+            else:
+                text = f"{nick} (away: {reason})"
+            self.treeview.item(nick, text=text, tags=["away"])
         else:
             assert reason is None
             self.treeview.item(nick, text=nick, tags=[])
-        elif reason == "":
-            # away, but for unknown reason
-            self.treeview.item(nick, text=nick, tags=["away"])
-        else:
-            self.treeview.item(nick, text=f"{nick} [Away: {reason}]", tags=["away"])
-
-    def get_away_status(self, nick: str) -> str | None:
-        text = self.treeview.item(nick, "text")
-        if text == nick:
-            return None  # not away
-        if text == nick + " [away]":
-            return ""  # away, but for unknown reason
-        return 
-        if "away" not in :
-            return None
-
-        if self.treeview.item(nick, "text") == f"{nick} [away]":
-            return ""  # away but for unknown reason
-
-        assert 
 
 
 def _show_popup(title: str, text: str) -> None:

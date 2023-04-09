@@ -26,6 +26,7 @@ RPL_WHOISMODES = "379"
 RPL_WHOISSECURE = "671"
 RPL_ENDOFWHOIS = "318"
 RPL_ENDOFMOTD = "376"
+RPL_AWAY = "301"
 RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
 RPL_WHOREPLY = "352"
@@ -299,10 +300,10 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
     for view in _get_views_relevant_for_nick(server_view, nick):
         if isinstance(view, views.ChannelView):
-            if not args or not args[0]:
-                view.userlist.set_away(nick, False)
+            if args and args[0]:
+                view.userlist.set_away(nick, is_away=True, reason=args[0])
             else:
-                view.userlist.set_away(nick, True)
+                view.userlist.set_away(nick, is_away=False)
 
 
 def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
@@ -465,6 +466,15 @@ def _handle_whois_reply(
         server_view.find_or_open_pm(nick, select_existing=True).add_message(text)
 
 
+def _handle_other_user_away_reply(server_view: views.ServerView, args: list[str]) -> None:
+    nick, reason = args[1:]
+    for view in _get_views_relevant_for_nick(server_view, nick):
+        if isinstance(view, views.PMView):
+            view.add_message(f"{nick} is marked as being away: {reason}")
+        else:
+            view.userlist.set_away(nick, is_away=True, reason=reason)
+
+
 def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: wtf are the first 2 args?
     # rfc1459 doesn't mention them, but freenode
@@ -552,7 +562,9 @@ def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
     assert away_status.lower() == "g" or away_status.lower() == "h"
 
     if away_status.lower() == "g":
-        view.userlist.set_away(nick, True)
+        # The WHO reply contains info about whether the user is away or not, but
+        # not the reason/message why they are away
+        view.userlist.set_away(nick, is_away=True, reason=None)
 
 
 def _handle_endofwho(server_view: views.ServerView) -> None:
@@ -678,6 +690,9 @@ def _handle_received_message(
         assert isinstance(msg, backend.MessageFromServer)
         _handle_whois_reply(server_view, msg)
 
+    elif msg.command == RPL_AWAY:
+        _handle_other_user_away_reply(server_view, msg.args)
+
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
 
@@ -696,6 +711,7 @@ def _handle_received_message(
         for user_view in server_view.get_subviews(include_server=True):
             user_view.add_message(away_notification)
             if isinstance(user_view, views.ChannelView):
+                # TODO: remember the current user's away reason in /away and add it here
                 user_view.userlist.set_away(server_view.settings.nick, True)
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
