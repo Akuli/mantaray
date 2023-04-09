@@ -5,11 +5,12 @@ import subprocess
 import sys
 import time
 import tkinter
+import traceback
 import webbrowser
 from tkinter import ttk
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, Callable
 
-from playsound import playsound  # type: ignore
+import playsound
 
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
@@ -18,6 +19,14 @@ if TYPE_CHECKING:
     from typing_extensions import Literal
 
     from mantaray.gui import IrcWidget
+
+
+def bind_right_click(widget: ttk.Treeview, callback: Callable[[tkinter.Event[ttk.Treeview]], None]) -> None:
+    if sys.platform == "darwin":
+        widget.bind("<Button-2>", callback)
+        widget.bind("<Control-Button-1>", callback)
+    else:
+        widget.bind("<Button-3>", callback)
 
 
 class _UserList:
@@ -109,12 +118,7 @@ class View:
         if tag == "url":
             webbrowser.open(text)
         if tag == "other-nick":
-            # text is a nickname being clicked
-            existing_view = self.server_view.find_pm(text)
-            if existing_view is None:
-                self.irc_widget.add_view(PMView(self.server_view, text))
-            else:
-                self.irc_widget.view_selector.selection_set(existing_view.view_id)
+            self.server_view.find_or_open_pm(text, select=True)
 
     def get_log_name(self) -> str:
         raise NotImplementedError
@@ -336,6 +340,17 @@ class ServerView(View):
                 return view
         return None
 
+    def find_or_open_pm(self, nick: str, *, select: bool = False) -> PMView:
+        existing_view = self.find_pm(nick)
+        if existing_view is not None:
+            if select:
+                self.irc_widget.view_selector.selection_set(existing_view.view_id)
+            return existing_view
+
+        new_view = PMView(self, nick)
+        self.irc_widget.add_view(new_view)  # selects the view
+        return new_view
+
     def show_config_dialog(self) -> None:
         user_clicked_reconnect = config.show_connection_settings_dialog(
             transient_to=self.irc_widget.winfo_toplevel(),
@@ -356,6 +371,25 @@ class ChannelView(View):
         )
         self.userlist = _UserList(server_view.irc_widget)
         self.userlist.set_nicks(nicks)
+
+        self._userlist_right_click_menu = tkinter.Menu(tearoff=False)
+        bind_right_click(self.userlist.treeview, self._show_userlist_right_click_menu)
+
+    def _populate_userlist_right_click_menu(self, nick: str) -> None:
+        self._userlist_right_click_menu.delete(0, "end")
+        self._userlist_right_click_menu.add_command(
+            label=f"Send private message to {nick}", command=(lambda: self._send_pm(nick))
+        )
+
+    def _show_userlist_right_click_menu(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        nick = event.widget.identify_row(event.y)
+        if nick:
+            event.widget.selection_set(nick)
+            self._populate_userlist_right_click_menu(nick)
+            self._userlist_right_click_menu.tk_popup(event.x_root + 5, event.y_root)
+
+    def _send_pm(self, nick: str) -> None:
+        self.server_view.find_or_open_pm(nick, select=True)
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'
     # Same as view_name, but only channels have this attribute, can clarify things a lot

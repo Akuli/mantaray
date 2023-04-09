@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
 from mantaray.views import ChannelView, PMView, ServerView, View
+from mantaray.views import bind_right_click
 
 
 def _fix_tag_coloring_bug() -> None:
@@ -120,13 +121,7 @@ class IrcWidget(ttk.PanedWindow):
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
-        if sys.platform == "darwin":
-            self.view_selector.bind("<Button-2>", self.on_view_selector_right_click)
-            self.view_selector.bind(
-                "<Control-Button-1>", self.on_view_selector_right_click
-            )
-        else:
-            self.view_selector.bind("<Button-3>", self.on_view_selector_right_click)
+        bind_right_click(self.view_selector, self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
