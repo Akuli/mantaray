@@ -334,6 +334,7 @@ class IrcWidget(ttk.PanedWindow):
         self._previous_view = new_view
 
         self.nickbutton.config(text=new_view.server_view.settings.nick)
+        self.entry.focus()
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id
