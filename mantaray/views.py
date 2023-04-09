@@ -358,7 +358,7 @@ class ServerView(View):
                 return view
         return None
 
-    def find_or_open_pm(self, nick: str, *, select: bool = False) -> PMView:
+    def find_or_open_pm(self, nick: str, *, select_existing: bool = False) -> PMView:
         existing_view = self.find_pm(nick)
         if existing_view is not None:
             if select:
