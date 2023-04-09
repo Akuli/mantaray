@@ -13,6 +13,7 @@ from playsound import playsound
 
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
+from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -21,9 +22,20 @@ if TYPE_CHECKING:
 
 
 class _UserList:
-    def __init__(self, irc_widget: IrcWidget):
-        self.treeview = ttk.Treeview(irc_widget, show="tree", selectmode="extended")
+    def __init__(self, server_view: ServerView) -> None:
+        self._server_view = server_view
+        self.treeview = ttk.Treeview(
+            server_view.irc_widget, show="tree", selectmode="extended"
+        )
         self.treeview.tag_configure("away", foreground="#95968c")
+        for right_click in RIGHT_CLICK_BINDINGS:
+            self.treeview.bind(right_click, self._on_right_click)
+
+    def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        nick = self.treeview.identify_row(event.y)
+        if nick:
+            self.treeview.selection_set(nick)
+            nick_right_click(event, self._server_view, nick)
 
     def add_user(self, nick: str) -> None:
         nicks = list(self.get_nicks())
@@ -98,23 +110,30 @@ class View:
         )
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
-        textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
+        textwidget_tags.config_tags(
+            self.textwidget, self._on_link_leftclick, self._on_link_rightclick
+        )
 
         self.history = History(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
 
-    def _on_link_clicked(self, tag: textwidget_tags.ClickableTag, text: str) -> None:
+    def _on_link_leftclick(
+        self, event: tkinter.Event[tkinter.Text], tag: str, text: str
+    ) -> None:
         if tag == "url":
             webbrowser.open(text)
+        elif tag == "other-nick":
+            self.server_view.find_or_open_pm(text, select_existing=True)
+        else:
+            raise NotImplementedError(tag)
+
+    def _on_link_rightclick(
+        self, event: tkinter.Event[tkinter.Text], tag: str, text: str
+    ) -> None:
         if tag == "other-nick":
-            # text is a nickname being clicked
-            existing_view = self.server_view.find_pm(text)
-            if existing_view is None:
-                self.irc_widget.add_view(PMView(self.server_view, text))
-            else:
-                self.irc_widget.view_selector.selection_set(existing_view.view_id)
+            nick_right_click(event, self.server_view, text)
 
     def get_log_name(self) -> str:
         raise NotImplementedError
@@ -264,6 +283,9 @@ class View:
 
 
 class ServerView(View):
+    # help mypy with some weird errors...
+    core: backend.IrcCore
+
     def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
         super().__init__(irc_widget, settings.host)
         self.settings = settings
@@ -336,6 +358,17 @@ class ServerView(View):
                 return view
         return None
 
+    def find_or_open_pm(self, nick: str, *, select_existing: bool = False) -> PMView:
+        existing_view = self.find_pm(nick)
+        if existing_view is not None:
+            if select_existing:
+                self.irc_widget.view_selector.selection_set(existing_view.view_id)
+            return existing_view
+
+        new_view = PMView(self, nick)
+        self.irc_widget.add_view(new_view)  # selects the view
+        return new_view
+
     def show_config_dialog(self) -> None:
         user_clicked_reconnect = config.show_connection_settings_dialog(
             transient_to=self.irc_widget.winfo_toplevel(),
@@ -354,7 +387,7 @@ class ChannelView(View):
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.channel_image
         )
-        self.userlist = _UserList(server_view.irc_widget)
+        self.userlist = _UserList(server_view)
         self.userlist.set_nicks(nicks)
 
     # Includes the '#' character(s), e.g. '#devuan' or '##learnpython'

@@ -104,18 +104,15 @@ def _add_privmsg_to_view(
                 view.add_notification(text)
 
 
+# privmsg can be a message to a channel or a PM (actual Private Message directly to the user)
 def _handle_privmsg(
     server_view: views.ServerView, sender: str, args: list[str]
 ) -> None:
     # recipient is server or nick
     recipient, text = args
 
-    if recipient == server_view.settings.nick:  # PM
-        pm_view = server_view.find_pm(sender)
-        if pm_view is None:
-            # start of a new PM conversation
-            pm_view = views.PMView(server_view, sender)
-            server_view.irc_widget.add_view(pm_view)
+    if recipient == server_view.settings.nick:  # actual PM
+        pm_view = server_view.find_or_open_pm(sender)
         _add_privmsg_to_view(pm_view, sender, text, notification=True)
         pm_view.add_view_selector_tag("new_message")
 
@@ -675,11 +672,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             assert not re.fullmatch(
                 backend.CHANNEL_REGEX, event.nick_or_channel
             ), event.nick_or_channel
-            pm_view = server_view.find_pm(event.nick_or_channel)
-            if pm_view is None:
-                # start of a new PM conversation
-                pm_view = views.PMView(server_view, event.nick_or_channel)
-                server_view.irc_widget.add_view(pm_view)
+            pm_view = server_view.find_or_open_pm(event.nick_or_channel)
 
             # /msg NickServ identify <password>   --> hide password
             text = event.text

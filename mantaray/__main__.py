@@ -10,7 +10,7 @@ from functools import partial
 from pathlib import Path
 from typing import Callable
 
-from . import config, gui
+from mantaray import config, gui
 
 try:
     import platformdirs

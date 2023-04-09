@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
-import sys
 import tkinter
-from functools import partial
 from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
 from mantaray import commands, config, logs, textwidget_tags
+from mantaray.right_click_menus import (
+    RIGHT_CLICK_BINDINGS,
+    channel_view_right_click,
+    pm_view_right_click,
+    server_right_click,
+)
 from mantaray.views import ChannelView, PMView, ServerView, View
 
 
@@ -115,18 +119,12 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.tag_configure("pinged", foreground="#00ff00")
         self.view_selector.tag_configure("new_message", foreground="#ffcc66")
         self.add(self.view_selector, weight=0)  # don't stretch
-        self.contextmenu = tkinter.Menu(tearoff=False)
 
         self._previous_view: View | None = None
         self.view_selector.bind("<<TreeviewSelect>>", self._current_view_changed)
 
-        if sys.platform == "darwin":
-            self.view_selector.bind("<Button-2>", self.on_view_selector_right_click)
-            self.view_selector.bind(
-                "<Control-Button-1>", self.on_view_selector_right_click
-            )
-        else:
-            self.view_selector.bind("<Button-3>", self.on_view_selector_right_click)
+        for right_click in RIGHT_CLICK_BINDINGS:
+            self.view_selector.bind(right_click, self.on_view_selector_right_click)
 
         self.textwidget_container = ttk.Frame(self)
         self.add(self.textwidget_container, weight=1)  # always stretch
@@ -382,7 +380,7 @@ class IrcWidget(ttk.PanedWindow):
             if self._after_quitting_all_servers is not None:
                 self._after_quitting_all_servers()
 
-    def _show_add_server_dialog(self) -> None:
+    def add_server(self) -> None:
         server_settings = config.ServerSettings()
         user_clicked_connect = config.show_connection_settings_dialog(
             transient_to=self.winfo_toplevel(),
@@ -391,9 +389,10 @@ class IrcWidget(ttk.PanedWindow):
         )
         if user_clicked_connect:
             self.settings.add_server(server_settings)
+            self.settings.save()
             self._create_and_add_server_view(server_settings)
 
-    def _leave_server(self, view: ServerView) -> None:
+    def leave_server(self, view: ServerView) -> None:
         wont_remember = []
         wont_remember.append(
             f"the host and port ({view.settings.host} {view.settings.port})"
@@ -419,67 +418,7 @@ class IrcWidget(ttk.PanedWindow):
             self.settings.servers.remove(view.settings)
             self.settings.save()
 
-    def _fill_menu_for_server(self, view: ServerView | None) -> None:
-        if view is not None:
-            self.contextmenu.add_command(
-                label="Server settings...", command=view.show_config_dialog
-            )
-            self.contextmenu.add_command(
-                label="Leave this server",
-                command=partial(self._leave_server, view),
-                # To leave the last server, you need to close window instead
-                state=("disabled" if len(self.get_server_views()) == 1 else "normal"),
-            )
-
-        self.contextmenu.add_command(
-            label="Connect to a new server...", command=self._show_add_server_dialog
-        )
-
-    def _fill_menu_for_channel(self, view: ChannelView) -> None:
-        def toggle_autojoin(*junk: object) -> None:
-            if view.channel_name in view.server_view.settings.joined_channels:
-                view.server_view.settings.joined_channels.remove(view.channel_name)
-            else:
-                view.server_view.settings.joined_channels.append(view.channel_name)
-                self.sort_settings_according_to_gui()
-            view.server_view.settings.save()
-
-        def toggle_extra_notifications(*junk: object) -> None:
-            view.server_view.settings.extra_notifications ^= {view.channel_name}
-            view.server_view.settings.save()
-
-        autojoin_var = tkinter.BooleanVar(
-            value=(view.channel_name in view.server_view.settings.joined_channels)
-        )
-        extra_notif_var = tkinter.BooleanVar(
-            value=(view.channel_name in view.server_view.settings.extra_notifications)
-        )
-
-        autojoin_var.trace_add("write", toggle_autojoin)
-        extra_notif_var.trace_add("write", toggle_extra_notifications)
-
-        self.contextmenu.add_checkbutton(
-            label="Join when Mantaray starts", variable=autojoin_var
-        )
-        self.contextmenu.add_checkbutton(
-            label="Show notifications for all messages", variable=extra_notif_var
-        )
-
-        self._garbage_collection_is_lol = (autojoin_var, extra_notif_var)
-
-        self.contextmenu.add_command(
-            label="Part this channel",
-            command=(lambda: view.server_view.core.send(f"PART {view.channel_name}")),
-        )
-
-    def _fill_menu_for_pm(self, view: PMView) -> None:
-        self.contextmenu.add_command(
-            label="Close", command=(lambda: self.remove_view(view))
-        )
-
-    def on_view_selector_right_click(
-        self, event: tkinter.Event[tkinter.ttk.Treeview]
-    ) -> None:
+    def on_view_selector_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         item_id = self.view_selector.identify_row(event.y)
         if item_id:
             self.view_selector.selection_set(item_id)
@@ -487,16 +426,14 @@ class IrcWidget(ttk.PanedWindow):
         else:
             view = None
 
-        self.contextmenu.delete(0, "end")
-
         if view is None or isinstance(view, ServerView):
-            self._fill_menu_for_server(view)
-        if isinstance(view, ChannelView):
-            self._fill_menu_for_channel(view)
-        if isinstance(view, PMView):
-            self._fill_menu_for_pm(view)
-
-        self.contextmenu.tk_popup(event.x_root + 5, event.y_root)
+            server_right_click(event, self, view)
+        elif isinstance(view, ChannelView):
+            channel_view_right_click(event, view)
+        elif isinstance(view, PMView):
+            pm_view_right_click(event, view)
+        else:
+            raise NotImplementedError(view)
 
     def _save_widths(self, junk_event: object = None) -> None:
         self.settings.view_selector_width = self.sashpos(0)
