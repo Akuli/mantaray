@@ -31,7 +31,7 @@ jobs:
         irc-server: ["hircd", "mantatail"]
         os: ["ubuntu-latest", "windows-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20  # windows is slow
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
     steps:
