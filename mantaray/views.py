@@ -73,7 +73,7 @@ class _UserList:
                 # Away, but for unknown reason.
                 #
                 # It is possible to query the reason by sending WHOIS, but we would
-                # need to do it for every user on the channel. Bad idea when there
+                # need to do it for every away user on the channel. Bad idea when there
                 # are many users.
                 text = f"{nick} (away)"
             else:
