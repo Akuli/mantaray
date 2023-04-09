@@ -22,6 +22,7 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: "3.11"
+        cache: pip
     - run: pip install -r requirements.txt -r requirements-dev.txt
     - run: mypy mantaray
   test:
@@ -43,6 +44,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
+        cache: pip
     - run: git submodule update --init
     # wheels seem to speed up other things on windows
     - run: python3 -m pip install wheel
