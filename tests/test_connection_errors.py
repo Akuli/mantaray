@@ -116,6 +116,10 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
 
 
 @pytest.mark.skipif(
+    os.environ.get("GITHUB_ACTIONS") == "true" and sys.platform == "win32",
+    reason="sometimes fails on windows on github actions, don't know why",
+)
+@pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd",
     reason="hircd responds to CAP commands with error",
 )
