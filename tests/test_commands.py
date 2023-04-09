@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from mantaray.views import PMView, ServerView
+from mantaray.views import ChannelView, PMView, ServerView
 
 # https://stackoverflow.com/a/30575822
 params = ["/part", "/part #lol"]
@@ -260,6 +260,15 @@ def test_memoserv(alice, bob, wait_until):
     wait_until(lambda: "send Bob hello there\n" in bob.text())
 
 
+def userlist(irc_widget):
+    view = irc_widget.get_current_view()
+    if not isinstance(view, ChannelView):
+        return []
+    return [
+        view.userlist.treeview.item(nick, "text") for nick in view.userlist.get_nicks()
+    ]
+
+
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd",
     reason="hircd doesn't support away notifications",
@@ -267,39 +276,57 @@ def test_memoserv(alice, bob, wait_until):
 def test_away_status(alice, bob, wait_until):
     alice.entry.insert(0, "/away foo bar baz")
     alice.on_enter_pressed()
+    wait_until(lambda: "away" in str(userlist(alice)) and "away" in str(userlist(bob)))
 
-    # Server view
+    # Server view (Alice only)
     wait_until(
-        lambda: "You have been marked as being away\n"
-        in alice.get_server_views()[0].get_text()
+        lambda: (
+            "You have been marked as being away\n"
+            in alice.get_server_views()[0].get_text()
+        )
     )
 
-    # Channel view
-    wait_until(lambda: "You have been marked as being away\n" in alice.text())
+    # Channel view (Alice and Bob)
+    assert "You have been marked as being away\n" in alice.text()
+    assert userlist(alice) == ["Alice (away: foo bar baz)", "Bob"]
+    assert userlist(bob) == ["Alice (away: foo bar baz)", "Bob"]
 
-    assert "away" in alice.get_current_view().userlist.treeview.item("Alice")["tags"]
+    # When joining a channel that already has people marked as away, we know who is
+    # away but we don't know their away reasons yet.
+    bob.entry.insert(0, "/part #autojoin")
+    bob.on_enter_pressed()
+    wait_until(lambda: bob.get_server_views()[0].find_channel("#autojoin") is None)
+    bob.entry.insert(0, "/join #autojoin")
+    bob.on_enter_pressed()
+    wait_until(lambda: "away" in str(userlist(bob)))
+    assert userlist(alice) == ["Alice (away: foo bar baz)", "Bob"]
+    assert userlist(bob) == ["Alice (away)", "Bob"]  # unknown away reason
 
-    wait_until(
-        lambda: "away" in bob.get_current_view().userlist.treeview.item("Alice")["tags"]
-    )
+    # The server tells Bob why Alice is away when Bob messages Alice.
+    bob.entry.insert(0, "/msg Alice hi")
+    bob.on_enter_pressed()
+    wait_until(lambda: "Alice is marked as being away: foo bar baz" in bob.text())
 
+    # Now that the server told the away reason to Bob, it's also shown in his user list
+    alice.remove_view(alice.get_current_view())
+    bob.remove_view(bob.get_current_view())
+    alice.update()  # Handle selected view changed events
+    assert userlist(bob) == ["Alice (away: foo bar baz)", "Bob"]
+
+    # Nick changes preserve away status
     alice.entry.insert(0, "/nick Alice2")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as Alice2" in alice.text())
     wait_until(lambda: "Alice is now known as Alice2" in bob.text())
-    assert "away" in alice.get_current_view().userlist.treeview.item("Alice2")["tags"]
-    assert "away" in bob.get_current_view().userlist.treeview.item("Alice2")["tags"]
+    assert userlist(alice) == ["Alice2 (away: foo bar baz)", "Bob"]
+    assert userlist(bob) == ["Alice2 (away: foo bar baz)", "Bob"]
 
     alice.entry.insert(0, "/back")
     alice.on_enter_pressed()
-    wait_until(lambda: "You are no longer marked as being away\n" in alice.text())
-    assert (
-        "away" not in alice.get_current_view().userlist.treeview.item("Alice2")["tags"]
-    )
-    wait_until(
-        lambda: "away"
-        not in bob.get_current_view().userlist.treeview.item("Alice2")["tags"]
-    )
+    wait_until(lambda: "Alice2" in userlist(alice) and "Alice2" in userlist(bob))
+    assert userlist(alice) == ["Alice2", "Bob"]
+    assert userlist(bob) == ["Alice2", "Bob"]
+    assert "You are no longer marked as being away\n" in alice.text()
 
 
 @pytest.mark.skipif(
@@ -323,7 +350,7 @@ def test_who_on_join(alice, bob, wait_until, sharing_channels):
     wait_until(lambda: "topic" in alice.text())
 
     wait_until(
-        lambda: "away" in alice.get_current_view().userlist.treeview.item("Bob")["tags"]
+        lambda: "away" in alice.get_current_view().userlist.treeview.item("Bob", "tags")
     )
 
 

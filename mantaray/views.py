@@ -47,25 +47,41 @@ class _UserList:
     def remove_user(self, nick: str) -> None:
         self.treeview.delete(nick)
 
-    def change_nick(self, old: str, new: str) -> None:
-        tags = self.treeview.item(old, "tags")
-        self.remove_user(old)
-        self.add_user(new)
-        self.treeview.item(new, tags=tags)
+    def change_nick(self, old_nick: str, new_nick: str) -> None:
+        # "OldNick (away: foo bar)" --> "NewNick (away: foo bar)"
+        old_text = self.treeview.item(old_nick, "text")
+        assert old_text.startswith(old_nick)
+        new_text = new_nick + old_text[len(old_nick) :]
+        tags = self.treeview.item(old_nick, "tags")
+
+        self.remove_user(old_nick)
+        self.add_user(new_nick)
+        self.treeview.item(new_nick, text=new_text, tags=tags)
 
     def get_nicks(self) -> tuple[str, ...]:
         return self.treeview.get_children("")
 
+    # Does not preserve away statuses
     def set_nicks(self, nicks: list[str]) -> None:
         self.treeview.delete(*self.treeview.get_children(""))
         for nick in sorted(nicks, key=str.casefold):
             self.treeview.insert("", "end", nick, text=nick)
 
-    def set_away(self, nick: str, away: bool) -> None:
-        if away:
-            self.treeview.item(nick, tags=["away"])
+    def set_away(self, nick: str, is_away: bool, reason: str | None = None) -> None:
+        if is_away:
+            if reason is None:
+                # Away, but for unknown reason.
+                #
+                # It is possible to query the reason by sending WHOIS, but we would
+                # need to do it for every away user on the channel. Bad idea when there
+                # are many users.
+                text = f"{nick} (away)"
+            else:
+                text = f"{nick} (away: {reason})"
+            self.treeview.item(nick, text=text, tags=["away"])
         else:
-            self.treeview.item(nick, tags=[])
+            assert reason is None
+            self.treeview.item(nick, text=nick, tags=[])
 
 
 def _show_popup(title: str, text: str) -> None:
@@ -296,6 +312,10 @@ class ServerView(View):
         # applies to the /join command, because if you use the GUI to join a channel,
         # you likely want to also use the GUI to configure automatic joining.
         self.last_slash_join_channel: str | None = None
+
+        # Similarly, we display the resulting status of "/away <status>" when the
+        # server tells us that it successfully marked the user as away.
+        self.last_away_status: str | None = None
 
     def _run_core(self) -> None:
         self.core.run_one_step()
