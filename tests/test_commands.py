@@ -276,8 +276,9 @@ def userlist(irc_widget):
 def test_away_status(alice, bob, wait_until):
     alice.entry.insert(0, "/away foo bar baz")
     alice.on_enter_pressed()
+    wait_until(lambda: "away" in str(userlist(alice)) and "away" in str(userlist(bob)))
 
-    # Server view
+    # Server view (Alice only)
     wait_until(
         lambda: (
             "You have been marked as being away\n"
@@ -285,12 +286,10 @@ def test_away_status(alice, bob, wait_until):
         )
     )
 
-    # Channel view
+    # Channel view (Alice and Bob)
     assert "You have been marked as being away\n" in alice.text()
-    assert "Alice (away)" in userlist(alice)  # TODO: display reason to Alice
-
-    # Bob sees Alice's away reason
-    wait_until(lambda: "Alice (away: foo bar baz)" in userlist(bob))
+    assert userlist(alice) == ["Alice (away: foo bar baz)", "Bob"]
+    assert userlist(bob) == ["Alice (away: foo bar baz)", "Bob"]
 
     # When joining a channel that already has people marked as away, we know who is
     # away but we don't know their away reasons yet.
@@ -299,32 +298,34 @@ def test_away_status(alice, bob, wait_until):
     wait_until(lambda: bob.get_server_views()[0].find_channel("#autojoin") is None)
     bob.entry.insert(0, "/join #autojoin")
     bob.on_enter_pressed()
-    wait_until(lambda: "Alice (away)" in userlist(bob))  # unknown away reason
+    wait_until(lambda: "away" in str(userlist(bob)))
+    assert userlist(alice) == ["Alice (away: foo bar baz)", "Bob"]
+    assert userlist(bob) == ["Alice (away)", "Bob"]  # unknown away reason
 
     # The server tells Bob why Alice is away when Bob messages Alice.
-    # After that Bob also sees the reason in his user list.
     bob.entry.insert(0, "/msg Alice hi")
     bob.on_enter_pressed()
     wait_until(lambda: "Alice is marked as being away: foo bar baz" in bob.text())
 
+    # Now that the server told the away reason to Bob, it's also shown in his user list
     alice.remove_view(alice.get_current_view())
     bob.remove_view(bob.get_current_view())
     alice.update()  # Handle selected view changed events
-    assert "Alice (away)" in userlist(alice)
-    assert "Alice (away: foo bar baz)" in userlist(bob)
+    assert userlist(bob) == ["Alice (away: foo bar baz)", "Bob"]
 
     # Nick changes preserve away status
     alice.entry.insert(0, "/nick Alice2")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as Alice2" in alice.text())
     wait_until(lambda: "Alice is now known as Alice2" in bob.text())
-    assert userlist(alice) == ["Alice2 (away)", "Bob"]
+    assert userlist(alice) == ["Alice2 (away: foo bar baz)", "Bob"]
     assert userlist(bob) == ["Alice2 (away: foo bar baz)", "Bob"]
 
     alice.entry.insert(0, "/back")
     alice.on_enter_pressed()
-    wait_until(lambda: "Alice2" in userlist(alice))
-    wait_until(lambda: "Alice2" in userlist(bob))
+    wait_until(lambda: "Alice2" in userlist(alice) and "Alice2" in userlist(bob))
+    assert userlist(alice) == ["Alice2", "Bob"]
+    assert userlist(bob) == ["Alice2", "Bob"]
     assert "You are no longer marked as being away\n" in alice.text()
 
 

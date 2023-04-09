@@ -714,8 +714,11 @@ def _handle_received_message(
         for user_view in server_view.get_subviews(include_server=True):
             user_view.add_message(away_notification)
             if isinstance(user_view, views.ChannelView):
-                # TODO: remember the current user's away reason in /away and add it here
-                user_view.userlist.set_away(server_view.settings.nick, True)
+                user_view.userlist.set_away(
+                    server_view.settings.nick,
+                    is_away=True,
+                    reason=server_view.last_away_status,
+                )
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
