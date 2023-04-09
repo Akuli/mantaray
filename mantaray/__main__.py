@@ -12,7 +12,7 @@ from typing import Callable
 from . import config, gui
 
 try:
-    import appdirs
+    import platformdirs
     from ttkthemes import ThemedTk
 except ImportError:
     traceback.print_exc()
@@ -31,8 +31,7 @@ def update_title(
 
 
 def main() -> None:
-    default_config_dir = Path(appdirs.user_config_dir("mantaray", "Akuli"))
-    legacy_config_dir = Path(appdirs.user_config_dir("irc-client", "Akuli"))
+    default_config_dir = platformdirs.user_config_path("mantaray", "Akuli")
 
     parser = argparse.ArgumentParser()
 
@@ -77,14 +76,6 @@ def main() -> None:
 
     if args.config_dir != default_config_dir and not args.config_dir.is_dir():
         parser.error("the specified --config-dir must exist and be a directory")
-
-    if (
-        args.config_dir == default_config_dir
-        and legacy_config_dir.exists()
-        and not default_config_dir.exists()
-    ):
-        print("Renaming:", legacy_config_dir, "-->", default_config_dir)
-        legacy_config_dir.rename(default_config_dir)
 
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
