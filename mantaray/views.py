@@ -51,7 +51,7 @@ class _UserList:
         # "OldNick (away: foo bar)" --> "NewNick (away: foo bar)"
         old_text = self.treeview.item(old_nick, "text")
         assert old_text.startswith(old_nick)
-        new_text = old_text.replace(old_nick , new_nick , 1)
+        new_text = old_text.replace(old_nick, new_nick, 1)
         tags = self.treeview.item(old_nick, "tags")
 
         self.remove_user(old_nick)

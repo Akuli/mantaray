@@ -466,7 +466,9 @@ def _handle_whois_reply(
         server_view.find_or_open_pm(nick, select_existing=True).add_message(text)
 
 
-def _handle_other_user_away_reply(server_view: views.ServerView, args: list[str]) -> None:
+def _handle_other_user_away_reply(
+    server_view: views.ServerView, args: list[str]
+) -> None:
     nick, reason = args[1:]
     for view in _get_views_relevant_for_nick(server_view, nick):
         if isinstance(view, views.PMView):
