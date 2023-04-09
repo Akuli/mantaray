@@ -132,7 +132,6 @@ def main() -> None:
             # you actually want to focus something else, you can click it twice.
             #
             # Don't know why this is the only way I got this to work reliably...
-            print("Steal focus from", event.widget)
             irc_widget.entry.focus()
 
     def quit_all_servers() -> None:
