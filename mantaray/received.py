@@ -455,6 +455,7 @@ def _handle_whois_reply(server_view: views.ServerView, msg: backend.MessageFromS
         text = f"{msg.command} {nick} {' '.join(msg.args[2:])}"
 
     if nick == server_view.settings.nick:
+        # This is a reply to running WHOIS on the current user.
         if msg.command == RPL_WHOISUSER:
             server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
         server_view.add_message(text)
