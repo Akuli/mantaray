@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import functools
 import sys
+import time
 import tkinter
 import traceback
 from functools import partial
@@ -28,6 +29,15 @@ def update_title(
 ) -> None:
     number = sum(v.notification_count for v in irc_widget.views_by_id.values())
     root.title("Mantaray" if number == 0 else f"({number}) Mantaray")
+
+
+def is_parent_widget(parent: tkinter.Misc | str, child: tkinter.Misc) -> bool:
+    w: tkinter.Misc | None = child
+    while w is not None:
+        if str(w) == str(parent):
+            return True
+        w = w.master
+    return False
 
 
 def main() -> None:
@@ -103,13 +113,25 @@ def main() -> None:
             return
         settings.add_server(server_settings)
 
+    last_root_focus = 0.0
+
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
+        nonlocal last_root_focus
+
         if event.widget == root:
+            last_root_focus = time.monotonic()
             irc_widget.get_current_view().mark_seen()
 
-            # Focus the entry, even if a different widget is clicked
-            # If you click the widget twice, this won't steal the focus second time
-            root.after_idle(irc_widget.entry.focus)
+        if time.monotonic() - last_root_focus < 0.05 and not is_parent_widget(
+            event.widget, irc_widget.entry
+        ):
+            # User just clicked into the mantaray window, and the focus is going to
+            # somewhere else than the text entry. Let's focus the entry instead. If
+            # you actually want to focus something else, you can click it twice.
+            #
+            # I tried other ways to do this before resorting to time. They worked most
+            # of the time but not reliably. You should probably not touch this code.
+            irc_widget.entry.focus()
 
     def quit_all_servers() -> None:
         for server_view in irc_widget.get_server_views():

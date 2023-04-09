@@ -98,7 +98,6 @@ class View:
         )
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
-        self.textwidget.bind("<Button-1>", (lambda e: self.textwidget.focus()))
         textwidget_tags.config_tags(self.textwidget, self._on_link_clicked)
 
         self.history = History(self.textwidget)
