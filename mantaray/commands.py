@@ -110,7 +110,6 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def nick(view: View, core: IrcCore, new_nick: str) -> None:
         core.send(f"NICK :{new_nick}")
-        view.server_view.settings.nick = new_nick
 
     def topic(view: View, core: IrcCore, new_topic: str) -> None:
         if isinstance(view, ChannelView):

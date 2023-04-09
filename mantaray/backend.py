@@ -149,17 +149,8 @@ class IrcCore:
         self.settings = settings
         self._verbose = verbose
 
-        # The nick stored in self is the actual nick that the user has right now.
-        # The nick in settings represents what the user would like to have.
-        #
-        # These can be different if the server changes the user's nick to something
-        # like Guest1234. Also in the future we might handle nick name in use errors
-        # by trying f"{settings.nick}_" or similar.
-        self.nick = settings.nick
-
-        # Similar to nick this is where we are actually connected to.
-        # Most of the time this is same as settings.host, because we
-        # reconnect shortly after changing the host in settings.
+        # This is where we are actually connected to. When the settings
+        # change, we reconnect shortly after and that's when this updates.
         self.host = settings.host
 
         self._send_queue: collections.deque[
@@ -210,7 +201,7 @@ class IrcCore:
     def get_nickmask(self) -> str | None:
         if self._nickmask is None:
             return None
-        return self.nick + self._nickmask
+        return self.settings.nick + self._nickmask
 
     def set_nickmask(self, user: str, host: str) -> None:
         self._nickmask = f"!{user}@{host}"
@@ -278,7 +269,7 @@ class IrcCore:
             for capability in self.cap_req:
                 self.send(f"CAP REQ {capability}")
 
-            self.send(f"NICK {self.nick}")
+            self.send(f"NICK {self.settings.nick}")
             self.send(f"USER {self.settings.username} 0 * :{self.settings.realname}")
 
         else:
