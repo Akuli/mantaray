@@ -444,7 +444,7 @@ def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) ->
     join.topic = topic
 
 
-def _handle_whois_reply(server_view: views.ServerView, msg: backend.MessageFromServer):
+def _handle_whois_reply(server_view: views.ServerView, msg: backend.MessageFromServer) -> None:
     nick = msg.args[1]
 
     if msg.command == RPL_WHOISACCOUNT:
