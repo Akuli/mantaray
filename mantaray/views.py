@@ -7,13 +7,13 @@ import time
 import tkinter
 import webbrowser
 from tkinter import ttk
-from typing import IO, TYPE_CHECKING, Any, Callable
+from typing import IO, TYPE_CHECKING, Any
 
 from playsound import playsound
 
 from mantaray import backend, config, received, textwidget_tags
-from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 from mantaray.history import History
+from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -24,7 +24,9 @@ if TYPE_CHECKING:
 class _UserList:
     def __init__(self, server_view: ServerView) -> None:
         self._server_view = server_view
-        self.treeview = ttk.Treeview(server_view.irc_widget, show="tree", selectmode="extended")
+        self.treeview = ttk.Treeview(
+            server_view.irc_widget, show="tree", selectmode="extended"
+        )
         self.treeview.tag_configure("away", foreground="#95968c")
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
@@ -108,14 +110,18 @@ class View:
         )
         # TODO: a vertical line you can drag, like in hexchat
         self.textwidget.tag_config("text", lmargin2=160)
-        textwidget_tags.config_tags(self.textwidget, self._on_link_leftclick, self._on_link_rightclick)
+        textwidget_tags.config_tags(
+            self.textwidget, self._on_link_leftclick, self._on_link_rightclick
+        )
 
         self.history = History(self.textwidget)
 
         self.log_file: IO[str] | None = None
         self.reopen_log_file()
 
-    def _on_link_leftclick(self, event: tkinter.Event[tkinter.Text], tag: str, text: str) -> None:
+    def _on_link_leftclick(
+        self, event: tkinter.Event[tkinter.Text], tag: str, text: str
+    ) -> None:
         if tag == "url":
             webbrowser.open(text)
         elif tag == "other-nick":
@@ -123,7 +129,9 @@ class View:
         else:
             raise NotImplementedError(tag)
 
-    def _on_link_rightclick(self, event: tkinter.Event[tkinter.Text], tag: str, text: str) -> None:
+    def _on_link_rightclick(
+        self, event: tkinter.Event[tkinter.Text], tag: str, text: str
+    ) -> None:
         if tag == "other-nick":
             nick_right_click(event, self.server_view, text)
 

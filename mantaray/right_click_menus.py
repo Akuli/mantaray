@@ -1,15 +1,15 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-import tkinter,sys
 
+import sys
+import tkinter
 from functools import partial
-from tkinter import messagebox, ttk
-from typing import Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mantaray.views  import ServerView, ChannelView, PMView
-    from mantaray.gui import IrcWidget
     from typing_extensions import TypeAlias
+
+    from mantaray.gui import IrcWidget
+    from mantaray.views import ChannelView, PMView, ServerView
 
 
 if sys.platform == "darwin":
@@ -38,17 +38,17 @@ if TYPE_CHECKING:
 
 
 def _show_menu(menu: tkinter.Menu, event: _AnyEvent) -> None:
-        menu.tk_popup(event.x_root + 5, event.y_root)
+    menu.tk_popup(event.x_root + 5, event.y_root)
 
 
-def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView | None) -> None:
+def server_right_click(
+    event: _AnyEvent, irc_widget: IrcWidget, view: ServerView | None
+) -> None:
     menu = _clear_and_get_menu()
 
     if view is not None:
         assert view.irc_widget == irc_widget
-        menu.add_command(
-            label="Server settings...", command=view.show_config_dialog
-        )
+        menu.add_command(label="Server settings...", command=view.show_config_dialog)
         menu.add_command(
             label="Leave this server",
             command=partial(irc_widget.leave_server, view),
@@ -56,9 +56,7 @@ def server_right_click(event: _AnyEvent, irc_widget: IrcWidget, view: ServerView
             state=("disabled" if len(irc_widget.get_server_views()) == 1 else "normal"),
         )
 
-    menu.add_command(
-        label="Connect to a new server...", command=irc_widget.add_server
-    )
+    menu.add_command(label="Connect to a new server...", command=irc_widget.add_server)
     _show_menu(menu, event)
 
 
@@ -87,9 +85,7 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
 
     menu = _clear_and_get_menu()
     menu._garbage_collection_is_lol = (autojoin_var, extra_notif_var)  # type: ignore
-    menu.add_checkbutton(
-        label="Join when Mantaray starts", variable=autojoin_var
-    )
+    menu.add_checkbutton(label="Join when Mantaray starts", variable=autojoin_var)
     menu.add_checkbutton(
         label="Show notifications for all messages", variable=extra_notif_var
     )
@@ -102,9 +98,7 @@ def channel_view_right_click(event: _AnyEvent, view: ChannelView) -> None:
 
 def pm_view_right_click(event: _AnyEvent, view: PMView) -> None:
     menu = _clear_and_get_menu()
-    menu.add_command(
-        label="Close", command=(lambda: view.irc_widget.remove_view(view))
-    )
+    menu.add_command(label="Close", command=(lambda: view.irc_widget.remove_view(view)))
     _show_menu(menu, event)
 
 
