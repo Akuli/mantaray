@@ -79,6 +79,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         )
         if not result:
             return
+        view.irc_widget.entry.focus()
 
     for line in lines:
         _send_privmsg(view, core, line, history_id=history_id)
