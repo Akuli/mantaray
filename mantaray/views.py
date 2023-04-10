@@ -7,6 +7,7 @@ import time
 import tkinter
 import webbrowser
 from tkinter import ttk
+from tkinter.font import Font
 from typing import IO, TYPE_CHECKING, Any
 
 from playsound import playsound
@@ -22,14 +23,21 @@ if TYPE_CHECKING:
 
 
 class _UserList:
+    _AWAY_COLOR = "#95968c"
+
     def __init__(self, server_view: ServerView) -> None:
         self._server_view = server_view
         self.treeview = ttk.Treeview(
             server_view.irc_widget, show="tree", selectmode="extended"
         )
-        self.treeview.tag_configure("away", foreground="#95968c")
+        self.treeview.tag_configure("away", foreground=self._AWAY_COLOR)
+
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
+
+        self.treeview.bind("<Motion>", self._on_mouse_move)
+        self._hover_timeout_id: str | None = None
+        self._hover_popup: tkinter.Toplevel | None = None
 
     def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         nick = self.treeview.identify_row(event.y)
@@ -82,6 +90,58 @@ class _UserList:
         else:
             assert reason is None
             self.treeview.item(nick, text=nick, tags=[])
+
+    def _destroy_popup(self, junk_event: object = None) -> None:
+        if self._hover_popup is not None:
+            self._hover_popup.destroy()
+            self._hover_popup = None
+
+    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        self._destroy_popup()
+        if self._hover_timeout_id is not None:
+            self.treeview.after_cancel(self._hover_timeout_id)
+            self._hover_timeout_id = None
+
+        hovered_nick = self.treeview.identify_row(event.y)
+        if hovered_nick:
+            self._hover_timeout_id = self.treeview.after(500, self._show_hover, hovered_nick)
+
+    def _show_hover(self, nick: str) -> None:
+        # Figure out how the treeview is showing the item.
+        run_tcl_code = self.treeview.tk.eval
+        if nick in self.treeview.selection():
+            # Selected items are never grayed out
+            fg = run_tcl_code("ttk::style lookup Treeview -foreground selected")
+            bg = run_tcl_code("ttk::style lookup Treeview -background selected")
+        else:
+            fg = run_tcl_code("ttk::style lookup Treeview -foreground")
+            bg = run_tcl_code("ttk::style lookup Treeview -background")
+            if "away" in self.treeview.item(nick, "tags"):
+                fg = self._AWAY_COLOR
+
+        font = run_tcl_code("ttk::style lookup Treeview -font")
+        text = self.treeview.item(nick, "text")
+
+        bbox = self.treeview.bbox(nick)
+        assert bbox
+        x, y, width, height = bbox
+
+        if Font(name=font, exists=True).measure(text) < width:
+            # the entire text is already shown
+            print("It fits already")
+            return
+
+        x += 17  # TODO: figure out how to query the right offset from tk
+        x += self.treeview.winfo_rootx()
+        y += self.treeview.winfo_rooty()
+
+        self._destroy_popup()
+        self._hover_popup = tkinter.Toplevel()
+        self._hover_popup.bind("<Motion>", self._destroy_popup)
+        self._hover_popup.bind("<Button>", self._destroy_popup)  # any mouse button
+        self._hover_popup.overrideredirect(True)
+        tkinter.Label(self._hover_popup, borderwidth=0, text=text, font=font, fg=fg, bg=bg).pack()
+        self._hover_popup.geometry(f"+{x}+{y}")
 
 
 def _show_popup(title: str, text: str) -> None:
