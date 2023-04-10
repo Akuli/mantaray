@@ -35,20 +35,20 @@ class _UserList:
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
 
-        self._hover_timeout_id: str | None = None
-        self._hover_popup = tkinter.Label(
-            self.treeview
-        )
+        self._tooltip_timeout_id: str | None = None
+        self._tooltip = tkinter.Label(self.treeview)
 
-        self._hover_popup.bind("<Motion>", self._stop_hovering)
-        self._hover_popup.bind("<Button>", self._stop_hovering) # any mouse button
-        self.treeview.bind("<Motion>", self._on_mouse_move)
+        # <Button> = any mouse button
+        self._tooltip.bind("<Button>", self._hide_and_cancel_tooltip)
+        self._tooltip.bind("<Motion>", self._hide_and_cancel_tooltip)
+
+        self.treeview.bind("<Motion>", self._show_tooltip_soon)
         # <Leave> binding prevents a bug where popup can show with mouse not
         # on the treeview. Can happen if you move the mouse fast.
         #
         # <Leave> is also generated when the popup appears, so we can't hide
         # the popup when that happens.
-        self.treeview.bind("<Leave>", self._cancel_next_popup)
+        self.treeview.bind("<Leave>", self._cancel_next_tooltip)
 
     def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         nick = self.treeview.identify_row(event.y)
@@ -102,24 +102,24 @@ class _UserList:
             assert reason is None
             self.treeview.item(nick, text=nick, tags=[])
 
-    def _cancel_next_popup(self, junk_event: object = None) -> None:
-        if self._hover_timeout_id is not None:
-            self.treeview.after_cancel(self._hover_timeout_id)
-            self._hover_timeout_id = None
+    def _cancel_next_tooltip(self, junk_event: object = None) -> None:
+        if self._tooltip_timeout_id is not None:
+            self.treeview.after_cancel(self._tooltip_timeout_id)
+            self._tooltip_timeout_id = None
 
-    def _stop_hovering(self, junk_event: object = None) -> None:
-        self._hover_popup.place_forget()
-        self._cancel_next_popup()
+    def _hide_and_cancel_tooltip(self, junk_event: object = None) -> None:
+        self._tooltip.place_forget()
+        self._cancel_next_tooltip()
 
-    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
-        self._stop_hovering()
+    def _show_tooltip_soon(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        self._hide_and_cancel_tooltip()
         hovered_nick = self.treeview.identify_row(event.y)
         if hovered_nick:
-            self._hover_timeout_id = self.treeview.after(
-                500, self._show_hover, hovered_nick
+            self._tooltip_timeout_id = self.treeview.after(
+                500, self._show_tooltip, hovered_nick
             )
 
-    def _show_hover(self, nick: str) -> None:
+    def _show_tooltip(self, nick: str) -> None:
         # Figure out how the treeview is showing the item.
         run_tcl_code = self.treeview.tk.eval
         if nick in self.treeview.selection():
@@ -151,11 +151,19 @@ class _UserList:
         # Add space for 1px border
         x -= 1
         y -= 1
-        self._hover_popup.config(borderwidth=1, relief="raised", wraplength=width, text=text, font=font, fg=fg, bg=bg)
+        self._tooltip.config(
+            borderwidth=1,
+            relief="raised",
+            wraplength=width,
+            text=text,
+            font=font,
+            fg=fg,
+            bg=bg,
+        )
 
         # If it doesn't fit directly below the item, place it to the bottom of the treeview
-        y_limit = self.treeview.winfo_height() - self._hover_popup.winfo_reqheight()
-        self._hover_popup.place(x=x, y=min(y, y_limit))
+        y_limit = self.treeview.winfo_height() - self._tooltip.winfo_reqheight()
+        self._tooltip.place(x=x, y=min(y, y_limit))
 
 
 def _show_popup(title: str, text: str) -> None:
