@@ -36,6 +36,9 @@ class _UserList:
             self.treeview.bind(right_click, self._on_right_click)
 
         self.treeview.bind("<Motion>", self._on_mouse_move)
+        # <Leave> binding prevents a bug where popup can show with mouse not
+        # on the treeview. Can happen if you move the mouse fast.
+        self.treeview.bind("<Leave>", self._cancel_next_popup)
         self._hover_timeout_id: str | None = None
         self._hover_popup: tkinter.Toplevel | None = None
 
@@ -96,15 +99,20 @@ class _UserList:
             self._hover_popup.destroy()
             self._hover_popup = None
 
-    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
-        self._destroy_popup()
+    def _cancel_next_popup(self, junk_event: object = None) -> None:
         if self._hover_timeout_id is not None:
             self.treeview.after_cancel(self._hover_timeout_id)
             self._hover_timeout_id = None
 
+    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        self._destroy_popup()
+        self._cancel_next_popup()
+
         hovered_nick = self.treeview.identify_row(event.y)
         if hovered_nick:
-            self._hover_timeout_id = self.treeview.after(500, self._show_hover, hovered_nick)
+            self._hover_timeout_id = self.treeview.after(
+                500, self._show_hover, hovered_nick
+            )
 
     def _show_hover(self, nick: str) -> None:
         # Figure out how the treeview is showing the item.
@@ -137,10 +145,15 @@ class _UserList:
 
         self._destroy_popup()
         self._hover_popup = tkinter.Toplevel()
-        self._hover_popup.bind("<Motion>", self._destroy_popup)
-        self._hover_popup.bind("<Button>", self._destroy_popup)  # any mouse button
         self._hover_popup.overrideredirect(True)
-        tkinter.Label(self._hover_popup, borderwidth=0, text=text, font=font, fg=fg, bg=bg).pack()
+
+        for binding in ["<Motion>", "<Button>"]:  # <Button> means any mouse button
+            self._hover_popup.bind(binding, self._destroy_popup)
+            self._hover_popup.bind(binding, self._cancel_next_popup, add=True)
+
+        tkinter.Label(
+            self._hover_popup, borderwidth=0, text=text, font=font, fg=fg, bg=bg
+        ).pack()
         self._hover_popup.geometry(f"+{x}+{y}")
 
 
