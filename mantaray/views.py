@@ -35,12 +35,20 @@ class _UserList:
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
 
+        self._hover_timeout_id: str | None = None
+        self._hover_popup = tkinter.Label(
+            self.treeview
+        )
+
+        self._hover_popup.bind("<Motion>", self._stop_hovering)
+        self._hover_popup.bind("<Button>", self._stop_hovering) # any mouse button
         self.treeview.bind("<Motion>", self._on_mouse_move)
         # <Leave> binding prevents a bug where popup can show with mouse not
         # on the treeview. Can happen if you move the mouse fast.
+        #
+        # <Leave> is also generated when the popup appears, so we can't hide
+        # the popup when that happens.
         self.treeview.bind("<Leave>", self._cancel_next_popup)
-        self._hover_timeout_id: str | None = None
-        self._hover_popup: tkinter.Toplevel | None = None
 
     def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         nick = self.treeview.identify_row(event.y)
@@ -94,20 +102,17 @@ class _UserList:
             assert reason is None
             self.treeview.item(nick, text=nick, tags=[])
 
-    def _destroy_popup(self, junk_event: object = None) -> None:
-        if self._hover_popup is not None:
-            self._hover_popup.destroy()
-            self._hover_popup = None
-
     def _cancel_next_popup(self, junk_event: object = None) -> None:
         if self._hover_timeout_id is not None:
             self.treeview.after_cancel(self._hover_timeout_id)
             self._hover_timeout_id = None
 
-    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
-        self._destroy_popup()
+    def _stop_hovering(self, junk_event: object = None) -> None:
+        self._hover_popup.place_forget()
         self._cancel_next_popup()
 
+    def _on_mouse_move(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        self._stop_hovering()
         hovered_nick = self.treeview.identify_row(event.y)
         if hovered_nick:
             self._hover_timeout_id = self.treeview.after(
@@ -134,27 +139,23 @@ class _UserList:
         assert bbox
         x, y, width, height = bbox
 
+        # Text starts 17 pixels from the left of the item.
+        # TODO: figure out how to query the right offset from tk
+        x += 17
+        width -= 17
+
         if Font(name=font, exists=True).measure(text) < width:
             # the entire text is already shown
-            print("It fits already")
             return
 
-        x += 17  # TODO: figure out how to query the right offset from tk
-        x += self.treeview.winfo_rootx()
-        y += self.treeview.winfo_rooty()
+        # Add space for 1px border
+        x -= 1
+        y -= 1
+        self._hover_popup.config(borderwidth=1, relief="raised", wraplength=width, text=text, font=font, fg=fg, bg=bg)
 
-        self._destroy_popup()
-        self._hover_popup = tkinter.Toplevel()
-        self._hover_popup.overrideredirect(True)
-
-        for binding in ["<Motion>", "<Button>"]:  # <Button> means any mouse button
-            self._hover_popup.bind(binding, self._destroy_popup)
-            self._hover_popup.bind(binding, self._cancel_next_popup, add=True)
-
-        tkinter.Label(
-            self._hover_popup, borderwidth=0, text=text, font=font, fg=fg, bg=bg
-        ).pack()
-        self._hover_popup.geometry(f"+{x}+{y}")
+        # If it doesn't fit directly below the item, place it to the bottom of the treeview
+        y_limit = self.treeview.winfo_height() - self._hover_popup.winfo_reqheight()
+        self._hover_popup.place(x=x, y=min(y, y_limit))
 
 
 def _show_popup(title: str, text: str) -> None:
