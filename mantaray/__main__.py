@@ -10,9 +10,9 @@ from functools import partial
 from pathlib import Path
 from typing import Callable
 
-from mantaray import config, gui
-
 try:
+    from mantaray import config, gui
+
     import platformdirs
     from ttkthemes import ThemedTk
 except ImportError:
