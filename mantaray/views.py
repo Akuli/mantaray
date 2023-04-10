@@ -136,7 +136,11 @@ class _UserList:
         text = self.treeview.item(nick, "text")
 
         bbox = self.treeview.bbox(nick)
-        assert bbox
+        if not bbox:
+            # The nick is no longer visible. Can happen if you switched
+            # channels, for example.
+            return
+
         x, y, width, height = bbox
 
         # Text starts 17 pixels from the left of the item.
