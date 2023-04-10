@@ -37,6 +37,14 @@ def _fix_tag_coloring_bug() -> None:
     )
 
 
+# The "black" theme in ttkthemes uses a different background color for unused space
+# than for background of treeview items. ThePhilgrim doesn't like that (see #99)
+def _use_item_background_in_blank_parts_of_treeviews() -> None:
+    style = ttk.Style()
+    item_bg = style.lookup("Treeview", "background")
+    style.configure("Treeview", fieldbackground=item_bg)
+
+
 def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
@@ -110,6 +118,7 @@ class IrcWidget(ttk.PanedWindow):
         self.bind("<Destroy>", (lambda e: setattr(self, "pm_image", None)), add=True)
 
         _fix_tag_coloring_bug()
+        _use_item_background_in_blank_parts_of_treeviews()
 
         # https://stackoverflow.com/q/62824799
         self.tk.eval("ttk::style configure ViewSelector.Treeview -indent -5")
