@@ -7,6 +7,7 @@ import time
 import tkinter
 import webbrowser
 from tkinter import ttk
+from tkinter.font import Font
 from typing import IO, TYPE_CHECKING, Any
 
 from playsound import playsound
@@ -22,14 +23,32 @@ if TYPE_CHECKING:
 
 
 class _UserList:
+    _AWAY_COLOR = "#95968c"
+
     def __init__(self, server_view: ServerView) -> None:
         self._server_view = server_view
         self.treeview = ttk.Treeview(
             server_view.irc_widget, show="tree", selectmode="extended"
         )
-        self.treeview.tag_configure("away", foreground="#95968c")
+        self.treeview.tag_configure("away", foreground=self._AWAY_COLOR)
+
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
+
+        self._tooltip_timeout_id: str | None = None
+        self._tooltip = tkinter.Label(self.treeview)
+
+        # <Button> = any mouse button
+        self._tooltip.bind("<Button>", self._hide_and_cancel_tooltip)
+        self._tooltip.bind("<Motion>", self._hide_and_cancel_tooltip)
+
+        self.treeview.bind("<Motion>", self._show_tooltip_soon)
+        # <Leave> binding prevents a bug where popup can show with mouse not
+        # on the treeview. Can happen if you move the mouse fast.
+        #
+        # <Leave> is also generated when the popup appears, so we can't hide
+        # the popup when that happens.
+        self.treeview.bind("<Leave>", self._cancel_next_tooltip)
 
     def _on_right_click(self, event: tkinter.Event[ttk.Treeview]) -> None:
         nick = self.treeview.identify_row(event.y)
@@ -82,6 +101,69 @@ class _UserList:
         else:
             assert reason is None
             self.treeview.item(nick, text=nick, tags=[])
+
+    def _cancel_next_tooltip(self, junk_event: object = None) -> None:
+        if self._tooltip_timeout_id is not None:
+            self.treeview.after_cancel(self._tooltip_timeout_id)
+            self._tooltip_timeout_id = None
+
+    def _hide_and_cancel_tooltip(self, junk_event: object = None) -> None:
+        self._tooltip.place_forget()
+        self._cancel_next_tooltip()
+
+    def _show_tooltip_soon(self, event: tkinter.Event[ttk.Treeview]) -> None:
+        self._hide_and_cancel_tooltip()
+        hovered_nick = self.treeview.identify_row(event.y)
+        if hovered_nick:
+            self._tooltip_timeout_id = self.treeview.after(
+                500, self._show_tooltip, hovered_nick
+            )
+
+    def _show_tooltip(self, nick: str) -> None:
+        # Figure out how the treeview is showing the item.
+        run_tcl_code = self.treeview.tk.eval
+        if nick in self.treeview.selection():
+            # Selected items are never grayed out
+            fg = run_tcl_code("ttk::style lookup Treeview -foreground selected")
+            bg = run_tcl_code("ttk::style lookup Treeview -background selected")
+        else:
+            fg = run_tcl_code("ttk::style lookup Treeview -foreground")
+            bg = run_tcl_code("ttk::style lookup Treeview -background")
+            if "away" in self.treeview.item(nick, "tags"):
+                fg = self._AWAY_COLOR
+
+        font = run_tcl_code("ttk::style lookup Treeview -font")
+        text = self.treeview.item(nick, "text")
+
+        bbox = self.treeview.bbox(nick)
+        assert bbox
+        x, y, width, height = bbox
+
+        # Text starts 17 pixels from the left of the item.
+        # TODO: figure out how to query the right offset from tk
+        x += 17
+        width -= 17
+
+        if Font(name=font, exists=True).measure(text) < width:
+            # the entire text is already shown
+            return
+
+        # Add space for 1px border
+        x -= 1
+        y -= 1
+        self._tooltip.config(
+            borderwidth=1,
+            relief="raised",
+            wraplength=width,
+            text=text,
+            font=font,
+            fg=fg,
+            bg=bg,
+        )
+
+        # If it doesn't fit directly below the item, place it to the bottom of the treeview
+        y_limit = self.treeview.winfo_height() - self._tooltip.winfo_reqheight()
+        self._tooltip.place(x=x, y=min(y, y_limit))
 
 
 def _show_popup(title: str, text: str) -> None:
