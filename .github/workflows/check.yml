@@ -25,6 +25,16 @@ jobs:
         cache: pip
     - run: pip install -r requirements.txt -r requirements-dev.txt
     - run: mypy mantaray
+  dependencies-not-installed-error:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    - run: (python3 -m mantaray || true) 2>&1 | tee output.txt
+    - run: grep "You need to create a venv and install the dependencies into it with pip" output.txt
   test:
     strategy:
       matrix:
