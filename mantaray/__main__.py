@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Callable
 
 try:
-    from mantaray import config, gui
-
     import platformdirs
     from ttkthemes import ThemedTk
+
+    from mantaray import config, gui
 except ImportError:
     traceback.print_exc()
     print()
