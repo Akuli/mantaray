@@ -9,17 +9,20 @@ import sv_ttk
 
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS
 
+
 def get_foreground() -> str:
     if sv_ttk.get_theme() == "light":
         return "black"
     else:
         return "white"
 
+
 def get_background() -> str:
     if sv_ttk.get_theme() == "light":
         return "#eeeeee"
     else:
         return "#242424"
+
 
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
