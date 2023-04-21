@@ -6,10 +6,11 @@ import subprocess
 import sys
 import tempfile
 import time
+import tkinter
 from pathlib import Path
 
 import pytest
-from ttkthemes import ThemedTk
+import sv_ttk
 
 from mantaray import config, gui
 
@@ -36,7 +37,8 @@ def check_no_errors_logged(request):
 
 @pytest.fixture(scope="session")
 def root_window():
-    root = ThemedTk(theme="black")
+    root = tkinter.Tk()
+    sv_ttk.use_dark_theme()
     root.geometry("800x500")
     root.report_callback_exception = lambda *args: logging.error(
         "error in tkinter callback", exc_info=args
