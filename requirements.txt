@@ -1,5 +1,5 @@
 certifi  # DO NOT use fixed version, certs must be up to date
 platformdirs==3.2.0
-ttkthemes==3.2.2
+sv-ttk==2.4.3
 playsound==1.3.0
 PyObjC==9.0.1; sys_platform == "darwin"  # Needed for playsound to work on MacOS
