@@ -116,7 +116,7 @@ def main() -> None:
         settings.save()
 
     if settings.theme != "dark":
-        sv_ttk.set_theme(settings.theme)  # can be the default theme
+        sv_ttk.set_theme(settings.theme)
 
     last_root_focus = 0.0
 
