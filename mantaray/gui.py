@@ -133,7 +133,7 @@ class IrcWidget(ttk.PanedWindow):
         entryframe.pack(side="bottom", fill="x")
 
         # TODO: add a tooltip to the button, it's not very obvious
-        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
+        self.nickbutton = ttk.Button(entryframe, width=8, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
 
         self.entry = tkinter.Entry(
