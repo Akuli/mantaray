@@ -5,7 +5,7 @@ import tkinter
 from functools import partial
 from typing import Callable, Iterator
 
-import sv_ttk
+import sv_ttk  # type: ignore
 
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS
 
