@@ -113,6 +113,7 @@ def main() -> None:
         if not user_clicked_connect:
             return
         settings.add_server(server_settings)
+        settings.save()
 
     last_root_focus = 0.0
 
