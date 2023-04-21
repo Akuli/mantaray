@@ -58,6 +58,7 @@ def test_old_config_format(tmp_path, root_window):
             "font_size": Font(name="TkFixedFont", exists=True)["size"],
             "view_selector_width": 200,
             "userlist_width": 150,
+            "theme": "dark",
         }
 
 
