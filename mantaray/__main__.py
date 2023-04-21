@@ -12,7 +12,7 @@ from typing import Callable
 
 try:
     import platformdirs
-    from ttkthemes import ThemedTk
+    import sv_ttk
 
     from mantaray import config, gui
 except ImportError:
@@ -89,7 +89,8 @@ def main() -> None:
 
     # tkinter must have one global root window, but server configging creates dialog
     # solution: hide root window temporarily
-    root = ThemedTk(theme="black")
+    root = tkinter.Tk()
+    sv_ttk.use_dark_theme()
     root.withdraw()
 
     settings = config.Settings(
