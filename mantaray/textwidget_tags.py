@@ -158,7 +158,6 @@ def config_tags(
 
     textwidget.tag_configure("url", underline=True)
     textwidget.tag_configure("underline", underline=True)
-
     textwidget.tag_configure("pinged", foreground="#a1e37b")
     textwidget.tag_configure("error", foreground="#bd2f2f")
     textwidget.tag_configure("info", foreground="#FFE6C7")
