@@ -115,6 +115,9 @@ def main() -> None:
         settings.add_server(server_settings)
         settings.save()
 
+    if settings.theme != "dark":
+        sv_ttk.set_theme(settings.theme)
+
     last_root_focus = 0.0
 
     def on_any_widget_focused(event: tkinter.Event[tkinter.Misc]) -> None:
