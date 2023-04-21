@@ -113,6 +113,10 @@ def main() -> None:
         if not user_clicked_connect:
             return
         settings.add_server(server_settings)
+        settings.save()
+
+    if settings.theme != "dark":
+        sv_ttk.set_theme(settings.theme)  # can be the default theme
 
     last_root_focus = 0.0
 

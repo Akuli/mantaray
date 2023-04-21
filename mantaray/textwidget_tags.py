@@ -5,7 +5,21 @@ import tkinter
 from functools import partial
 from typing import Callable, Iterator
 
+import sv_ttk
+
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS
+
+def get_foreground() -> str:
+    if sv_ttk.get_theme() == "light":
+        return "black"
+    else:
+        return "white"
+
+def get_background() -> str:
+    if sv_ttk.get_theme() == "light":
+        return "#eeeeee"
+    else:
+        return "#242424"
 
 # https://www.mirc.com/colors.html
 _MIRC_COLORS = {
@@ -26,9 +40,6 @@ _MIRC_COLORS = {
     14: "#7f7f7f",
     15: "#d2d2d2",
 }
-
-FOREGROUND = _MIRC_COLORS[0]
-BACKGROUND = "#242323"
 
 
 def parse_text(text: str) -> Iterator[tuple[str, list[str]]]:
@@ -140,10 +151,11 @@ def config_tags(
     left_click_callback: Callable[[tkinter.Event[tkinter.Text], str, str], None],
     right_click_callback: Callable[[tkinter.Event[tkinter.Text], str, str], None],
 ) -> None:
-    textwidget.config(fg=FOREGROUND, bg=BACKGROUND)
+    textwidget.config(fg=get_foreground(), bg=get_background())
 
     textwidget.tag_configure("url", underline=True)
     textwidget.tag_configure("underline", underline=True)
+
     textwidget.tag_configure("pinged", foreground="#a1e37b")
     textwidget.tag_configure("error", foreground="#bd2f2f")
     textwidget.tag_configure("info", foreground="#FFE6C7")
@@ -152,7 +164,19 @@ def config_tags(
     textwidget.tag_configure("topic", foreground="#a2e0de")
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
-    textwidget.tag_configure("privmsg", foreground=FOREGROUND)
+    textwidget.tag_configure("privmsg", foreground=textwidget["fg"])
+
+    if sv_ttk.get_theme() == "light":
+        # Used only if the user enables the light theme by editing json.
+        # You can probably ignore all this.
+        textwidget.tag_configure("pinged", foreground="#06B21D")
+        textwidget.tag_configure("error", foreground="#DD0000")
+        textwidget.tag_configure("info", foreground="#316A6A")
+        textwidget.tag_configure("history-selection", background="#CCCCCC")
+        textwidget.tag_configure("channel", foreground="#992F9A")
+        textwidget.tag_configure("topic", foreground="#2D3CBD")
+        textwidget.tag_configure("self-nick", foreground="#C15700")
+        textwidget.tag_configure("other-nick", foreground="#AC8B00")
 
     for lower_tag in ["info", "error", "privmsg"]:
         textwidget.tag_lower(lower_tag, "pinged")

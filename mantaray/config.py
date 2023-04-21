@@ -35,6 +35,7 @@ class Settings:
         self.servers: list[ServerSettings] = []
         self.view_selector_width = 200
         self.userlist_width = 150
+        self.theme = "dark"
 
     def add_server(self, server_settings: ServerSettings) -> None:
         assert server_settings.parent_settings_object is None
@@ -53,6 +54,8 @@ class Settings:
                 self.view_selector_width = result["view_selector_width"]
             if "userlist_width" in result:
                 self.userlist_width = result["userlist_width"]
+            if "theme" in result:
+                self.theme = result["theme"]
 
             for server_dict in result["servers"]:
                 # Backwards compatibility with older config.json files
@@ -82,6 +85,7 @@ class Settings:
             "servers": [s.get_json() for s in self.servers],
             "view_selector_width": self.view_selector_width,
             "userlist_width": self.userlist_width,
+            "theme": self.theme,
         }
 
     # Please save the settings after changing them.

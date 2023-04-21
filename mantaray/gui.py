@@ -139,9 +139,9 @@ class IrcWidget(ttk.PanedWindow):
         self.entry = tkinter.Entry(
             entryframe,
             font=self.settings.font,
-            fg=textwidget_tags.FOREGROUND,
-            bg=textwidget_tags.BACKGROUND,
-            insertbackground=textwidget_tags.FOREGROUND,
+            fg=textwidget_tags.get_foreground(),
+            bg=textwidget_tags.get_background(),
+            insertbackground=textwidget_tags.get_foreground(),
         )
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
