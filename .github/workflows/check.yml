@@ -23,7 +23,7 @@ jobs:
       with:
         python-version: "3.11"
         cache: pip
-    - run: pip install wheel
+    - run: pip install wheel  # needed for sv-ttk to work
     - run: pip install -r requirements.txt -r requirements-dev.txt
     - run: mypy mantaray
   dependencies-not-installed-error:
@@ -57,10 +57,8 @@ jobs:
         python-version: "3.11"
         cache: pip
     - run: git submodule update --init
-    # wheels seem to speed up other things on windows
-    - run: python3 -m pip install wheel
-    - run: python3 -m pip install -r requirements.txt
-    - run: python3 -m pip install -r requirements-dev.txt
+    - run: python3 -m pip install wheel  # needed for sv-ttk to work
+    - run: python3 -m pip install -r requirements.txt -r requirements-dev.txt
     - uses: GabrielBB/xvfb-action@v1.4
       with:
         run: python3 -m pytest -vv
