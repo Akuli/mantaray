@@ -15,7 +15,7 @@ from mantaray.right_click_menus import (
     pm_view_right_click,
     server_right_click,
 )
-from mantaray.views import ChannelView, PMView, ServerView, View
+from mantaray.views import ChannelView, PMView, ServerView, View, AWAY_COLOR
 
 
 def _fix_tag_coloring_bug() -> None:
@@ -135,6 +135,9 @@ class IrcWidget(ttk.PanedWindow):
         # TODO: add a tooltip to the button, it's not very obvious
         self._nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self._nickbutton.pack(side="left")
+
+        # When the user is away, display the nick as gray in the button
+        self.tk.call("ttk::style", "configure", "Away.TButton", "-foreground", AWAY_COLOR)
 
         self.entry = tkinter.Entry(
             entryframe,
@@ -335,7 +338,11 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.focus()
 
     def update_nickbutton(self) -> None:
-        self._nickbutton.config(text=self.get_current_view().server_view.settings.nick)
+        server_view = self.get_current_view().server_view
+        self._nickbutton.config(
+            text=server_view.settings.nick,
+            style=("Away.TButton" if server_view.is_away else ""),
+        )
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id

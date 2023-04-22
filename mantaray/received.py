@@ -708,6 +708,9 @@ def _handle_received_message(
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
+        server_view.is_away = False
+        server_view.irc_widget.update_nickbutton()
+
     elif msg.command == RPL_NOWAWAY:
         away_notification = msg.args[1]
         for user_view in server_view.get_subviews(include_server=True):
@@ -718,6 +721,9 @@ def _handle_received_message(
                     is_away=True,
                     reason=server_view.last_away_status,
                 )
+
+        server_view.is_away = True
+        server_view.irc_widget.update_nickbutton()
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
