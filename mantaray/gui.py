@@ -339,10 +339,14 @@ class IrcWidget(ttk.PanedWindow):
 
     def update_nickbutton(self) -> None:
         server_view = self.get_current_view().server_view
-        self._nickbutton.config(
-            text=server_view.settings.nick,
-            style=("Away.TButton" if server_view.is_away else ""),
-        )
+        if server_view.is_away:
+            self._nickbutton.config(
+                text=server_view.settings.nick + " (away)", style="Away.TButton"
+            )
+        else:
+            self._nickbutton.config(
+                text=server_view.settings.nick, style=""
+            )
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id

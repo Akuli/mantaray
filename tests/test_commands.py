@@ -274,6 +274,7 @@ def userlist(irc_widget):
     reason="hircd doesn't support away notifications",
 )
 def test_away_status(alice, bob, wait_until):
+    assert alice._nickbutton["text"] == "Alice"
     assert str(alice._nickbutton["style"]) == ""
 
     alice.entry.insert(0, "/away foo bar baz")
@@ -292,6 +293,7 @@ def test_away_status(alice, bob, wait_until):
     assert "You have been marked as being away\n" in alice.text()
     assert userlist(alice) == ["Alice (away: foo bar baz)", "Bob"]
     assert userlist(bob) == ["Alice (away: foo bar baz)", "Bob"]
+    assert alice._nickbutton["text"] == "Alice (away)"
     assert str(alice._nickbutton["style"]) == "Away.TButton"
 
     # When joining a channel that already has people marked as away, we know who is
@@ -323,6 +325,8 @@ def test_away_status(alice, bob, wait_until):
     wait_until(lambda: "Alice is now known as Alice2" in bob.text())
     assert userlist(alice) == ["Alice2 (away: foo bar baz)", "Bob"]
     assert userlist(bob) == ["Alice2 (away: foo bar baz)", "Bob"]
+    assert alice._nickbutton["text"] == "Alice2 (away)"
+    assert str(alice._nickbutton["style"]) == "Away.TButton"
 
     alice.entry.insert(0, "/back")
     alice.on_enter_pressed()
@@ -330,6 +334,7 @@ def test_away_status(alice, bob, wait_until):
     assert userlist(alice) == ["Alice2", "Bob"]
     assert userlist(bob) == ["Alice2", "Bob"]
     assert "You are no longer marked as being away\n" in alice.text()
+    assert alice._nickbutton["text"] == "Alice2"
     assert str(alice._nickbutton["style"]) == ""
 
 
