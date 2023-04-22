@@ -396,11 +396,6 @@ class ServerView(View):
         self.settings = settings
         self.core = backend.IrcCore(settings, verbose=irc_widget.verbose)
 
-        # Tracks whether this user is away or not. The user lists track this for
-        # all users on a channel, but we can't rely on that because the user might
-        # not join any channels.
-        self.is_away = False
-
         # A bit weird, but "/join #foo" causes mantaray to join #foo automatically
         # when started only if joining a channel named #foo succeeds. This only
         # applies to the /join command, because if you use the GUI to join a channel,

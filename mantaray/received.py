@@ -708,7 +708,7 @@ def _handle_received_message(
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
-        server_view.is_away = False
+        server_view.core.is_away = False
         server_view.irc_widget.update_nick_button()
 
     elif msg.command == RPL_NOWAWAY:
@@ -722,7 +722,7 @@ def _handle_received_message(
                     reason=server_view.last_away_status,
                 )
 
-        server_view.is_away = True
+        server_view.core.is_away = True
         server_view.irc_widget.update_nick_button()
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
@@ -739,6 +739,10 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
     elif isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
             view.add_message(event.message, tag=("error" if event.is_error else "info"))
+
+        # When reconnecting, the user is marked as not being away.
+        # This can affect the nick button because it shows whether the user is away.
+        server_view.irc_widget.update_nick_button()
 
     elif isinstance(event, backend.HostChanged):
         server_view.view_name = event.new
