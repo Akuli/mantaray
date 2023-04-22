@@ -108,7 +108,8 @@ class ServerSettings:
         self.parent_settings_object = parent_settings_object
 
         # The defaults passed to .get() are what the user sees when running Mantaray
-        # for the first time.
+        # for the first time. They are also used when config.json has been created
+        # by an older version of Mantaray where the setting doesn't exist.
         self.host: str = dict_from_file.get("host", "irc.libera.chat")
         self.port: int = dict_from_file.get("port", 6697)
         self.ssl: bool = dict_from_file.get("ssl", True)
