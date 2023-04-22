@@ -240,8 +240,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
         # nick that is currently being used.
         server_view.settings.nick = new_nick
         server_view.settings.save()
-        if server_view.irc_widget.get_current_view().server_view == server_view:
-            server_view.irc_widget.nickbutton.config(text=new_nick)
+        server_view.irc_widget.update_nickbutton()
 
         for view in server_view.get_subviews(include_server=True):
             view.add_message(

@@ -133,8 +133,8 @@ class IrcWidget(ttk.PanedWindow):
         entryframe.pack(side="bottom", fill="x")
 
         # TODO: add a tooltip to the button, it's not very obvious
-        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
-        self.nickbutton.pack(side="left")
+        self._nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
+        self._nickbutton.pack(side="left")
 
         self.entry = tkinter.Entry(
             entryframe,
@@ -331,8 +331,11 @@ class IrcWidget(ttk.PanedWindow):
 
         self._previous_view = new_view
 
-        self.nickbutton.config(text=new_view.server_view.settings.nick)
+        self.update_nickbutton()
         self.entry.focus()
+
+    def update_nickbutton(self) -> None:
+        self._nickbutton.config(text=self.get_current_view().server_view.settings.nick)
 
     def add_view(self, view: View) -> None:
         assert view.view_id not in self.views_by_id
