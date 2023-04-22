@@ -41,12 +41,13 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
-    content.columnconfigure((0, 1), weight=1)
+    content.columnconfigure((0, 1), weight=1)  # type: ignore
+    content.rowconfigure((0, 1, 2, 3), pad=14)  # type: ignore
 
     ttk.Label(content, text="Enter a new nickname here:").grid(columnspan=2)
 
     entry = ttk.Entry(content)
-    entry.grid(row=1, columnspan=2, pady=8)
+    entry.grid(row=1, columnspan=2)
     entry.insert(0, old_nick)
 
     ttk.Label(
@@ -65,10 +66,10 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
 
     ok_button = ttk.Button(
         content, text="OK", command=ok, width=10, style="Accent.TButton"
-    ).grid(row=3, column=0, pady=(8, 4), padx=(8, 4), sticky="ew")
+    ).grid(row=3, column=0, padx=(8, 5), sticky="ew")
     cancel_button = ttk.Button(
         content, text="Cancel", command=dialog.destroy, width=10
-    ).grid(row=3, column=1, pady=(8, 4), padx=(4, 8), sticky="ew")
+    ).grid(row=3, column=1, padx=(5, 8), sticky="ew")
 
     entry.bind("<Return>", (lambda junk_event: ok()))
     entry.bind("<Escape>", (lambda junk_event: dialog.destroy()))
