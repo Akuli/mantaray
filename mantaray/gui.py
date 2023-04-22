@@ -141,7 +141,6 @@ class IrcWidget(ttk.PanedWindow):
             "ttk::style", "configure", "Away.TButton", "-foreground", AWAY_COLOR
         )
 
-        self.update()  # needed for font to work, see https://stackoverflow.com/a/75694035
         self.entry = ttk.Entry(entryframe, font=self.settings.font)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
