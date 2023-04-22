@@ -126,9 +126,15 @@ class ServerSettings:
         self.username: str = dict_from_file.get("username", getuser())
         self.realname: str = dict_from_file.get("realname", getuser())
         self.password: str | None = dict_from_file.get("password", None)
-        self.joined_channels: list[str] = dict_from_file.get("joined_channels", ["##learnpython"])
-        self.extra_notifications: set[str] = set(dict_from_file.get("extra_notifications", []))
-        self.join_leave_hiding: JoinLeaveHidingSettings = dict_from_file.get("join_leave_hiding", {"show_by_default": True, "exception_nicks": []})
+        self.joined_channels: list[str] = dict_from_file.get(
+            "joined_channels", ["##learnpython"]
+        )
+        self.extra_notifications: set[str] = set(
+            dict_from_file.get("extra_notifications", [])
+        )
+        self.join_leave_hiding: JoinLeaveHidingSettings = dict_from_file.get(
+            "join_leave_hiding", {"show_by_default": True, "exception_nicks": []}
+        )
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
 
     def get_json(self) -> dict[str, Any]:
