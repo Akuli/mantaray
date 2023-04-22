@@ -8,7 +8,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
-from mantaray import commands, config, logs, textwidget_tags
+from mantaray import commands, config, logs
 from mantaray.right_click_menus import (
     RIGHT_CLICK_BINDINGS,
     channel_view_right_click,
@@ -137,10 +137,7 @@ class IrcWidget(ttk.PanedWindow):
         self.nickbutton.pack(side="left")
 
         self.update()  # needed for font to work, see https://stackoverflow.com/a/75694035
-        self.entry = ttk.Entry(
-            entryframe,
-            font=self.settings.font,
-        )
+        self.entry = ttk.Entry(entryframe, font=self.settings.font)
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
         self.entry.bind("<Tab>", self._tab_event_handler)
