@@ -58,16 +58,6 @@ class Settings:
                 self.theme = result["theme"]
 
             for server_dict in result["servers"]:
-                # Backwards compatibility with older config.json files
-                server_dict.setdefault("ssl", True)
-                server_dict.setdefault("password", None)
-                server_dict.setdefault("extra_notifications", [])
-                server_dict.setdefault("audio_notification", False)
-                server_dict.setdefault(
-                    "join_leave_hiding",
-                    {"show_by_default": True, "exception_nicks": []},
-                )
-
                 self.servers.append(
                     ServerSettings(
                         dict_from_file=server_dict, parent_settings_object=self
