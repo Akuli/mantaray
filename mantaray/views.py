@@ -402,10 +402,6 @@ class ServerView(View):
         # you likely want to also use the GUI to configure automatic joining.
         self.last_slash_join_channel: str | None = None
 
-        # Similarly, we display the resulting status of "/away <status>" when the
-        # server tells us that it successfully marked the user as away.
-        self.last_away_status: str | None = None
-
     def _run_core(self) -> None:
         self.core.run_one_step()
 
