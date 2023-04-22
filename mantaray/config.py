@@ -120,6 +120,8 @@ class ServerSettings:
         self.joined_channels: list[str] = dict_from_file.get(
             "joined_channels", ["##learnpython"]
         )
+        # On channels whose name is in extra_notifications you get a notification
+        # for each new message, even if you are not pinged.
         self.extra_notifications: set[str] = set(
             dict_from_file.get("extra_notifications", [])
         )
