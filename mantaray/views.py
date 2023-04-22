@@ -205,6 +205,7 @@ class View:
             irc_widget.textwidget_container,
             width=1,  # minimum, can stretch bigger
             height=1,  # minimum, can stretch bigger
+            border=1,
             font=irc_widget.settings.font,
             state="disabled",
             takefocus=True,
