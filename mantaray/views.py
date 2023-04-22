@@ -22,15 +22,17 @@ if TYPE_CHECKING:
     from mantaray.gui import IrcWidget
 
 
-class _UserList:
-    _AWAY_COLOR = "#95968c"
+# This works reasonably well with both dark and light theme
+AWAY_COLOR = "#95968c"
 
+
+class _UserList:
     def __init__(self, server_view: ServerView) -> None:
         self._server_view = server_view
         self.treeview = ttk.Treeview(
             server_view.irc_widget, show="tree", selectmode="extended"
         )
-        self.treeview.tag_configure("away", foreground=self._AWAY_COLOR)
+        self.treeview.tag_configure("away", foreground=AWAY_COLOR)
 
         for right_click in RIGHT_CLICK_BINDINGS:
             self.treeview.bind(right_click, self._on_right_click)
@@ -130,7 +132,7 @@ class _UserList:
             fg = run_tcl_code("ttk::style lookup Treeview -foreground")
             bg = run_tcl_code("ttk::style lookup Treeview -background")
             if "away" in self.treeview.item(nick, "tags"):
-                fg = self._AWAY_COLOR
+                fg = AWAY_COLOR
 
         font = run_tcl_code("ttk::style lookup Treeview -font")
         text = self.treeview.item(nick, "text")

@@ -240,8 +240,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
         # nick that is currently being used.
         server_view.settings.nick = new_nick
         server_view.settings.save()
-        if server_view.irc_widget.get_current_view().server_view == server_view:
-            server_view.irc_widget.nickbutton.config(text=new_nick)
+        server_view.irc_widget.update_nick_button()
 
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
@@ -709,6 +708,9 @@ def _handle_received_message(
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
+        server_view.core.is_away = False
+        server_view.irc_widget.update_nick_button()
+
     elif msg.command == RPL_NOWAWAY:
         away_notification = msg.args[1]
         for user_view in server_view.get_subviews(include_server=True):
@@ -719,6 +721,9 @@ def _handle_received_message(
                     is_away=True,
                     reason=server_view.last_away_status,
                 )
+
+        server_view.core.is_away = True
+        server_view.irc_widget.update_nick_button()
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
@@ -734,6 +739,10 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
     elif isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
             view.add_message(event.message, tag=("error" if event.is_error else "info"))
+
+        # When reconnecting, the user is marked as not being away.
+        # This can affect the nick button because it shows whether the user is away.
+        server_view.irc_widget.update_nick_button()
 
     elif isinstance(event, backend.HostChanged):
         server_view.view_name = event.new

@@ -121,9 +121,13 @@ def test_quitting_while_disconnected(alice, irc_server, monkeypatch, wait_until)
 )
 @pytest.mark.skipif(
     os.environ["IRC_SERVER"] == "hircd",
-    reason="hircd responds to CAP commands with error",
+    reason="hircd responds to CAP commands with error and doesn't support /away",
 )
 def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
+    alice.entry.insert(0, "/away asd")
+    alice.on_enter_pressed()
+    wait_until(lambda: alice.nickbutton["text"] == "Alice (away)")
+
     monkeypatch.setattr("mantaray.backend.RECONNECT_SECONDS", 2)
     assert "Connecting to localhost" not in alice.text()
 
@@ -151,3 +155,7 @@ def test_server_dies(alice, bob, irc_server, monkeypatch, wait_until):
 
     assert alice.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
     assert bob.get_current_view().userlist.get_nicks() == ("Alice", "Bob")
+
+    # Alice is no longer marked as away: the server doesn't remember that
+    # when reconnecting, so we don't pretend that it does.
+    assert alice.nickbutton["text"] == "Alice"

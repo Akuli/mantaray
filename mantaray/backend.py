@@ -164,6 +164,10 @@ class IrcCore:
         self.cap_list: set[str] = set()
         # To evaluate how many more ACK/NAKs will be received from server
         self.pending_cap_count = 0
+        # Keep track of whether the current user is away or not.
+        # User lists do that for all users on a channel, but that's not enough if
+        # the user does not join any channels and only chats with private messages.
+        self.is_away = False
 
         self._events: list[IrcEvent] = []
 
@@ -224,6 +228,8 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
+            # TODO: should we reset pending_cap_count?
+            self.is_away = False
             self._nickmask = None
 
             if self.host != self.settings.host:
