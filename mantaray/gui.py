@@ -136,12 +136,10 @@ class IrcWidget(ttk.PanedWindow):
         self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
         self.nickbutton.pack(side="left")
 
-        self.entry = tkinter.Entry(
+        self.update()  # needed for font to work, see https://stackoverflow.com/a/75694035
+        self.entry = ttk.Entry(
             entryframe,
             font=self.settings.font,
-            fg=textwidget_tags.get_foreground(),
-            bg=textwidget_tags.get_background(),
-            insertbackground=textwidget_tags.get_foreground(),
         )
         self.entry.pack(side="left", fill="both", expand=True)
         self.entry.bind("<Return>", self.on_enter_pressed)
