@@ -240,7 +240,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
         # nick that is currently being used.
         server_view.settings.nick = new_nick
         server_view.settings.save()
-        server_view.irc_widget.update_nickbutton()
+        server_view.irc_widget.update_nick_button()
 
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
@@ -709,7 +709,7 @@ def _handle_received_message(
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
         server_view.is_away = False
-        server_view.irc_widget.update_nickbutton()
+        server_view.irc_widget.update_nick_button()
 
     elif msg.command == RPL_NOWAWAY:
         away_notification = msg.args[1]
@@ -723,7 +723,7 @@ def _handle_received_message(
                 )
 
         server_view.is_away = True
-        server_view.irc_widget.update_nickbutton()
+        server_view.irc_widget.update_nick_button()
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)

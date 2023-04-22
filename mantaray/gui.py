@@ -133,8 +133,8 @@ class IrcWidget(ttk.PanedWindow):
         entryframe.pack(side="bottom", fill="x")
 
         # TODO: add a tooltip to the button, it's not very obvious
-        self._nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
-        self._nickbutton.pack(side="left")
+        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
+        self.nickbutton.pack(side="left")
 
         # When the user is away, display the nick as gray in the button
         self.tk.call("ttk::style", "configure", "Away.TButton", "-foreground", AWAY_COLOR)
@@ -334,17 +334,17 @@ class IrcWidget(ttk.PanedWindow):
 
         self._previous_view = new_view
 
-        self.update_nickbutton()
+        self.update_nick_button()
         self.entry.focus()
 
-    def update_nickbutton(self) -> None:
+    def update_nick_button(self) -> None:
         server_view = self.get_current_view().server_view
         if server_view.is_away:
-            self._nickbutton.config(
+            self.nickbutton.config(
                 text=server_view.settings.nick + " (away)", style="Away.TButton"
             )
         else:
-            self._nickbutton.config(
+            self.nickbutton.config(
                 text=server_view.settings.nick, style=""
             )
 
