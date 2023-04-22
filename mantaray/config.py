@@ -58,17 +58,6 @@ class Settings:
                 self.theme = result["theme"]
 
             for server_dict in result["servers"]:
-                # Backwards compatibility with older config.json files
-                server_dict.setdefault("ssl", True)
-                server_dict.setdefault("password", None)
-                server_dict.setdefault("extra_notifications", [])
-                server_dict.setdefault("audio_notification", False)
-                server_dict.setdefault(
-                    "join_leave_hiding",
-                    {"show_by_default": True, "exception_nicks": []},
-                )
-                server_dict.setdefault("last_away_status", "Away")
-
                 self.servers.append(
                     ServerSettings(
                         dict_from_file=server_dict, parent_settings_object=self
@@ -119,7 +108,8 @@ class ServerSettings:
         self.parent_settings_object = parent_settings_object
 
         # The defaults passed to .get() are what the user sees when running Mantaray
-        # for the first time.
+        # for the first time. They are also used when config.json has been created
+        # by an older version of Mantaray where the setting doesn't exist.
         self.host: str = dict_from_file.get("host", "irc.libera.chat")
         self.port: int = dict_from_file.get("port", 6697)
         self.ssl: bool = dict_from_file.get("ssl", True)
@@ -130,6 +120,8 @@ class ServerSettings:
         self.joined_channels: list[str] = dict_from_file.get(
             "joined_channels", ["##learnpython"]
         )
+        # On channels whose name is in extra_notifications you get a notification
+        # for each new message, even if you are not pinged.
         self.extra_notifications: set[str] = set(
             dict_from_file.get("extra_notifications", [])
         )
