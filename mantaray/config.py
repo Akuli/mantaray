@@ -67,7 +67,6 @@ class Settings:
                     "join_leave_hiding",
                     {"show_by_default": True, "exception_nicks": []},
                 )
-                server_dict.setdefault("last_away_status", "Away")
 
                 self.servers.append(
                     ServerSettings(
@@ -131,7 +130,6 @@ class ServerSettings:
         self.extra_notifications: set[str] = set(dict_from_file.get("extra_notifications", []))
         self.join_leave_hiding: JoinLeaveHidingSettings = dict_from_file.get("join_leave_hiding", {"show_by_default": True, "exception_nicks": []})
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
-        self.last_away_status: str = dict_from_file.get("last_away_status", "Away")  # not empty
 
     def get_json(self) -> dict[str, Any]:
         return {
@@ -146,7 +144,6 @@ class ServerSettings:
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self.join_leave_hiding,
             "audio_notification": self.audio_notification,
-            "last_away_status": self.last_away_status,
         }
 
     # Please save the settings after changing them.
