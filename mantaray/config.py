@@ -58,16 +58,6 @@ class Settings:
                 self.theme = result["theme"]
 
             for server_dict in result["servers"]:
-                # Backwards compatibility with older config.json files
-                server_dict.setdefault("ssl", True)
-                server_dict.setdefault("password", None)
-                server_dict.setdefault("extra_notifications", [])
-                server_dict.setdefault("audio_notification", False)
-                server_dict.setdefault(
-                    "join_leave_hiding",
-                    {"show_by_default": True, "exception_nicks": []},
-                )
-
                 self.servers.append(
                     ServerSettings(
                         dict_from_file=server_dict, parent_settings_object=self
@@ -110,50 +100,35 @@ class JoinLeaveHidingSettings(TypedDict):
 
 
 class ServerSettings:
-    host: str
-    port: int
-    ssl: bool
-    nick: str  # TODO: multiple choices, in case already in use
-    username: str
-    realname: str
-    password: str | None
-    joined_channels: list[str]
-    extra_notifications: set[str]  # channel names to notify for all messages
-    join_leave_hiding: JoinLeaveHidingSettings
-    audio_notification: bool
-
     def __init__(
         self,
         parent_settings_object: Settings | None = None,
-        dict_from_file: dict[str, Any] | None = None,
+        dict_from_file: dict[str, Any] = {},
     ) -> None:
         self.parent_settings_object = parent_settings_object
 
-        if dict_from_file is None:
-            # This is what the user sees when running Mantaray for the first time
-            self.host = "irc.libera.chat"
-            self.port = 6697
-            self.ssl = True
-            self.nick = getuser()
-            self.username = getuser()
-            self.realname = getuser()
-            self.password = None
-            self.joined_channels = ["##learnpython"]
-            self.extra_notifications = set()
-            self.join_leave_hiding = {"show_by_default": True, "exception_nicks": []}
-            self.audio_notification = False
-        else:
-            self.host = dict_from_file["host"]
-            self.port = dict_from_file["port"]
-            self.ssl = dict_from_file["ssl"]
-            self.nick = dict_from_file["nick"]
-            self.username = dict_from_file["username"]
-            self.realname = dict_from_file["realname"]
-            self.password = dict_from_file["password"]
-            self.joined_channels = dict_from_file["joined_channels"]
-            self.extra_notifications = set(dict_from_file["extra_notifications"])
-            self.join_leave_hiding = dict_from_file["join_leave_hiding"]
-            self.audio_notification = dict_from_file["audio_notification"]
+        # The defaults passed to .get() are what the user sees when running Mantaray
+        # for the first time. They are also used when config.json has been created
+        # by an older version of Mantaray where the setting doesn't exist.
+        self.host: str = dict_from_file.get("host", "irc.libera.chat")
+        self.port: int = dict_from_file.get("port", 6697)
+        self.ssl: bool = dict_from_file.get("ssl", True)
+        self.nick: str = dict_from_file.get("nick", getuser())
+        self.username: str = dict_from_file.get("username", getuser())
+        self.realname: str = dict_from_file.get("realname", getuser())
+        self.password: str | None = dict_from_file.get("password", None)
+        self.joined_channels: list[str] = dict_from_file.get(
+            "joined_channels", ["##learnpython"]
+        )
+        # On channels whose name is in extra_notifications you get a notification
+        # for each new message, even if you are not pinged.
+        self.extra_notifications: set[str] = set(
+            dict_from_file.get("extra_notifications", [])
+        )
+        self.join_leave_hiding: JoinLeaveHidingSettings = dict_from_file.get(
+            "join_leave_hiding", {"show_by_default": True, "exception_nicks": []}
+        )
+        self.audio_notification: bool = dict_from_file.get("audio_notification", False)
 
     def get_json(self) -> dict[str, Any]:
         return {
