@@ -228,6 +228,7 @@ class IrcCore:
             self._receive_buffer.clear()
             self.cap_req.clear()
             self.cap_list.clear()
+            # TODO: should we reset pending_cap_count?
             self.is_away = False
             self._nickmask = None
 
