@@ -41,24 +41,20 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
+    content.columnconfigure((0, 1), weight=1)
 
-    ttk.Label(content, text="Enter a new nickname here:").place(
-        relx=0.5, rely=0.1, anchor="center"
-    )
+    ttk.Label(content, text="Enter a new nickname here:").grid(columnspan=2)
 
     entry = ttk.Entry(content)
-    entry.place(relx=0.5, rely=0.3, anchor="center")
+    entry.grid(row=1, columnspan=2, pady=8)
     entry.insert(0, old_nick)
 
     ttk.Label(
         content,
         text="The same nick will be used on all channels.",
         justify="center",
-        wraplength=150,
-    ).place(relx=0.5, rely=0.6, anchor="center")
-
-    buttonframe = ttk.Frame(content, borderwidth=5)
-    buttonframe.place(relx=1.0, rely=1.0, anchor="se")
+        wraplength=160,
+    ).grid(row=2, columnspan=2)
 
     result = old_nick
 
@@ -67,12 +63,16 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
         result = entry.get()
         dialog.destroy()
 
-    ttk.Button(buttonframe, text="OK", command=ok).pack(side="left")
-    ttk.Button(buttonframe, text="Cancel", command=dialog.destroy).pack(side="left")
+    ok_button = ttk.Button(
+        content, text="OK", command=ok, width=10, style="Accent.TButton"
+    ).grid(row=3, column=0, pady=(8, 4), padx=(8, 4), sticky="ew")
+    cancel_button = ttk.Button(
+        content, text="Cancel", command=dialog.destroy, width=10
+    ).grid(row=3, column=1, pady=(8, 4), padx=(4, 8), sticky="ew")
+
     entry.bind("<Return>", (lambda junk_event: ok()))
     entry.bind("<Escape>", (lambda junk_event: dialog.destroy()))
 
-    dialog.geometry("250x150")
     dialog.resizable(False, False)
     dialog.transient(parent)
     entry.focus()
