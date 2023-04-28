@@ -129,9 +129,10 @@ class ServerSettings:
             "join_leave_hiding", {"show_by_default": True, "exception_nicks": []}
         )
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
+        # last_away_status is never empty
         self.last_away_status: str = dict_from_file.get(
             "last_away_status", "Away"
-        )  # not empty
+        )
 
     def get_json(self) -> dict[str, Any]:
         return {
