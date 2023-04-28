@@ -130,9 +130,7 @@ class ServerSettings:
         )
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
         # last_away_status is never empty
-        self.last_away_status: str = dict_from_file.get(
-            "last_away_status", "Away"
-        )
+        self.last_away_status: str = dict_from_file.get("last_away_status", "Away")
 
     def get_json(self) -> dict[str, Any]:
         return {
