@@ -16,7 +16,7 @@ Supported features:
 - `/me`
 - `/kick`
 
-You can run Mantaray like this:
+You can run Mantaray like this, assuming you have Python 3.8 or newer:
 
     $ sudo apt install libnotify-bin   # skip this on MacOS
     $ git clone https://github.com/Akuli/mantaray
