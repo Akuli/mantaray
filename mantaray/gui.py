@@ -37,46 +37,74 @@ def _fix_tag_coloring_bug() -> None:
     )
 
 
-def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
+def show_nick_and_away_dialog(
+    parent: tkinter.Tk | tkinter.Toplevel,
+    settings: config.ServerSettings,
+    was_away: bool,
+) -> tuple[str, bool]:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
     content.columnconfigure((0, 1), weight=1)  # type: ignore
-    content.rowconfigure((0, 1, 2, 3), pad=14)  # type: ignore
+    content.rowconfigure((0, 1, 2, 3, 4, 5), pad=14)  # type: ignore
 
     ttk.Label(content, text="Enter a new nickname here:").grid(columnspan=2)
 
-    entry = ttk.Entry(content)
-    entry.grid(row=1, columnspan=2)
-    entry.insert(0, old_nick)
+    nick_entry = ttk.Entry(content)
+    nick_entry.grid(row=1, columnspan=2)
+    nick_entry.insert(0, settings.nick)
 
     ttk.Label(
-        content,
-        text="The same nick will be used on all channels.",
-        justify="center",
-        wraplength=160,
+        content, text="The same nick will be used on all channels.", justify="center"
     ).grid(row=2, columnspan=2)
 
-    result = old_nick
+    away_frame = ttk.Frame(content)
+    away_frame.grid(row=4, columnspan=2, sticky="we", padx=10, pady=30)
+    away_frame.columnconfigure(1, weight=1)
+
+    away_var = tkinter.BooleanVar()
+    ttk.Checkbutton(away_frame, text="Mark me as being away", variable=away_var).grid(
+        row=0, columnspan=2, sticky="w", pady=10
+    )
+
+    ttk.Label(away_frame, text="Reason: ").grid(row=1, column=0)
+    away_entry = ttk.Entry(away_frame)
+    away_entry.grid(row=1, column=1, sticky="we")
+    away_entry.insert(0, settings.last_away_status)
+
+    away_var.trace_add(
+        "write",
+        (
+            lambda *junk: away_entry.config(
+                state="normal" if away_var.get() else "disabled"
+            )
+        ),
+    )
+    away_var.set(was_away)
+
+    result = (settings.nick, was_away)
 
     def ok() -> None:
         nonlocal result
-        result = entry.get()
+        result = (nick_entry.get(), away_var.get())
+        settings.last_away_status = away_entry.get() or "Away"
+        settings.save()
         dialog.destroy()
 
-    ok_button = ttk.Button(
-        content, text="OK", command=ok, width=10, style="Accent.TButton"
-    ).grid(row=3, column=0, padx=(8, 5), sticky="ew")
-    cancel_button = ttk.Button(
-        content, text="Cancel", command=dialog.destroy, width=10
-    ).grid(row=3, column=1, padx=(5, 8), sticky="ew")
+    ttk.Button(content, text="OK", command=ok, width=15, style="Accent.TButton").grid(
+        row=5, column=0, padx=(8, 5), sticky="ew"
+    )
+    ttk.Button(content, text="Cancel", command=dialog.destroy, width=15).grid(
+        row=5, column=1, padx=(5, 8), sticky="ew"
+    )
 
-    entry.bind("<Return>", (lambda junk_event: ok()))
-    entry.bind("<Escape>", (lambda junk_event: dialog.destroy()))
+    dialog.bind("<Escape>", (lambda junk_event: dialog.destroy()))
+    for entry in [nick_entry, away_entry]:
+        entry.bind("<Return>", (lambda junk_event: ok()))
 
     dialog.resizable(False, False)
     dialog.transient(parent)
-    entry.focus()
+    nick_entry.focus()
     dialog.wait_window()
 
     return result
@@ -134,7 +162,7 @@ class IrcWidget(ttk.PanedWindow):
         entryframe.pack(side="bottom", fill="x")
 
         # TODO: add a tooltip to the button, it's not very obvious
-        self.nickbutton = ttk.Button(entryframe, command=self._show_change_nick_dialog)
+        self.nickbutton = ttk.Button(entryframe, command=self._on_nick_button_clicked)
         self.nickbutton.pack(side="left")
 
         # When the user is away, display the nick as gray in the button
@@ -171,11 +199,20 @@ class IrcWidget(ttk.PanedWindow):
         server_views.sort(key=(lambda v: self.view_selector.index(v.view_id)))
         return server_views
 
-    def _show_change_nick_dialog(self) -> None:
+    def _on_nick_button_clicked(self) -> None:
         server_view = self.get_current_view().server_view
-        new_nick = ask_new_nick(self.winfo_toplevel(), server_view.settings.nick)
+        new_nick, is_away = show_nick_and_away_dialog(
+            self.winfo_toplevel(), server_view.settings, server_view.core.is_away
+        )
+
         if new_nick != server_view.settings.nick:
             server_view.core.send(f"NICK {new_nick}")
+
+        if is_away != server_view.core.is_away:
+            if is_away:
+                server_view.core.send(f"AWAY :{server_view.settings.last_away_status}")
+            else:
+                server_view.core.send("AWAY")
 
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()

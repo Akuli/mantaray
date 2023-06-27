@@ -719,7 +719,7 @@ def _handle_received_message(
                 user_view.userlist.set_away(
                     server_view.settings.nick,
                     is_away=True,
-                    reason=server_view.last_away_status,
+                    reason=server_view.settings.last_away_status,
                 )
 
         server_view.core.is_away = True
