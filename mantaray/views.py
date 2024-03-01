@@ -304,6 +304,7 @@ class View:
     def mark_seen(self) -> None:
         for timeout_id in self._biberao_notification_timers:
             self.textwidget.after_cancel(timeout_id)
+        self._biberao_notification_timers.clear()
 
         self.notification_count = 0
         self._update_view_selector()
