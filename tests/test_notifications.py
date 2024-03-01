@@ -1,5 +1,6 @@
 import os
 import re
+import time
 
 import pytest
 
@@ -97,3 +98,33 @@ def test_new_message_tags(alice, bob, wait_until, switch_view):
 
     switch_view(alice, "#autojoin")
     assert not alice.view_selector.item(alice_autojoin.view_id, "tags")
+
+
+def test_biberao_mode(alice, bob, wait_until, mocker, monkeypatch):
+    monkeypatch.setattr("mantaray.views.BIBERAO_MODE_DELAY", 3)
+    mocker.patch("mantaray.views.View._window_has_focus", return_value=False)
+    mocker.patch("mantaray.views._show_popup")
+
+    biberao = bob
+    biberao.entry.insert(0, "/nick biberao")
+    biberao.on_enter_pressed()
+    wait_until(lambda: "Bob is now known as biberao." in alice.text())
+    wait_until(lambda: "You are now known as biberao." in biberao.text())
+
+    biberao.entry.insert(0, "Alice: blah blah")
+    biberao.on_enter_pressed()
+
+    # Alice receives the biberao message instantaneously
+    start = time.time()
+    wait_until(lambda: "blah blah" in alice.text())
+    end = time.time()
+    assert end - start < 0.1
+
+    # But because the biberao mode delay was set to 3 seconds, that's how
+    # long it takes for the notification to arrive
+    start = time.time()
+    wait_until(lambda: views._show_popup.call_count != 0)
+    end = time.time()
+    assert 2.9 < end - start < 3.1
+
+    views._show_popup.assert_called_once_with("#autojoin", "<biberao> Alice: blah blah")

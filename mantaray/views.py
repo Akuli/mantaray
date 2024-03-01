@@ -196,6 +196,9 @@ class MessagePart:
         self.tags = tags.copy()
 
 
+BIBERAO_MODE_DELAY = 60  # seconds
+
+
 class View:
     def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
         self.irc_widget = irc_widget
@@ -282,7 +285,7 @@ class View:
             # many messages with a few seconds between them, I see them all
             # at once when I look at mantaray after the first notification.
             timeout_id = self.textwidget.after(
-                60000, (lambda: self.add_notification(popup_text))
+                BIBERAO_MODE_DELAY * 1000, (lambda: self.add_notification(popup_text))
             )
             self._biberao_notification_timers.append(timeout_id)
             return
