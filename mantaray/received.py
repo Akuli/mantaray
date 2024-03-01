@@ -131,7 +131,9 @@ def _add_privmsg_to_view(
             view.add_notification(f"{sender} {text}")
         else:
             if isinstance(view, views.ChannelView):
-                view.add_notification(f"<{sender}> {text}")
+                view.add_notification(
+                    f"<{sender}> {text}", biberao_mode=(sender == "biberao")
+                )
             else:
                 view.add_notification(text)
 

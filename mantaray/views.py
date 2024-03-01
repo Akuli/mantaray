@@ -202,6 +202,7 @@ class View:
         self.view_id = irc_widget.view_selector.insert(parent_view_id, "end", text=name)
         self._name = name
         self.notification_count = 0
+        self._biberao_notification_timers: list[str] = []
 
         self.textwidget = tkinter.Text(
             irc_widget.textwidget_container,
@@ -272,8 +273,18 @@ class View:
     def _window_has_focus(self) -> bool:
         return bool(self.irc_widget.tk.eval("focus"))
 
-    def add_notification(self, popup_text: str) -> None:
+    def add_notification(self, popup_text: str, *, biberao_mode: bool = False) -> None:
         if self.irc_widget.get_current_view() == self and self._window_has_focus():
+            return
+
+        if biberao_mode:
+            # Show the notification later. This way, if biberao sends me
+            # many messages with a few seconds between them, I see them all
+            # at once when I look at mantaray after the first notification.
+            timeout_id = self.textwidget.after(
+                60000, (lambda: self.add_notification(popup_text))
+            )
+            self._biberao_notification_timers.append(timeout_id)
             return
 
         self.notification_count += 1
@@ -288,6 +299,9 @@ class View:
         _show_popup(self.view_name, popup_text)
 
     def mark_seen(self) -> None:
+        for timeout_id in self._biberao_notification_timers:
+            self.textwidget.after_cancel(timeout_id)
+
         self.notification_count = 0
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
