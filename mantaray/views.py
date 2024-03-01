@@ -10,8 +10,6 @@ from tkinter import ttk
 from tkinter.font import Font
 from typing import IO, TYPE_CHECKING, Any
 
-from playsound import playsound
-
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
@@ -295,6 +293,8 @@ class View:
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
         if self.server_view.settings.audio_notification:
             try:
+                from playsound import playsound
+
                 playsound("mantaray/audio/notify.mp3", False)
             except Exception:
                 logging.exception("can't play notify sound")
