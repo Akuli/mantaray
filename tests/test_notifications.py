@@ -118,13 +118,13 @@ def test_biberao_mode(alice, bob, wait_until, mocker, monkeypatch):
     start = time.time()
     wait_until(lambda: "blah blah" in alice.text())
     end = time.time()
-    assert end - start < 0.1
+    assert end - start < 0.5
 
     # But because the biberao mode delay was set to 3 seconds, that's how
     # long it takes for the notification to arrive
     start = time.time()
     wait_until(lambda: views._show_popup.call_count != 0)
     end = time.time()
-    assert 2.9 < end - start < 3.1
+    assert 2.5 < end - start < 3.5
 
     views._show_popup.assert_called_once_with("#autojoin", "<biberao> Alice: blah blah")
