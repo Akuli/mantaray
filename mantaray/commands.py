@@ -162,7 +162,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
 
     def away(view: View, core: IrcCore, away_message: str) -> None:
         core.send(f"AWAY :{away_message}")
-        view.server_view.last_away_status = away_message
+        view.server_view.settings.last_away_status = away_message
+        view.server_view.settings.save()
 
     def back(view: View, core: IrcCore) -> None:
         core.send("AWAY")

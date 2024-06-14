@@ -129,8 +129,10 @@ class ServerSettings:
             "join_leave_hiding", {"show_by_default": True, "exception_nicks": []}
         )
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
+        self.last_away_status: str = dict_from_file.get("last_away_status", "Away")
 
     def get_json(self) -> dict[str, Any]:
+        assert self.last_away_status  # should never be empty
         return {
             "host": self.host,
             "port": self.port,
@@ -143,6 +145,7 @@ class ServerSettings:
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self.join_leave_hiding,
             "audio_notification": self.audio_notification,
+            "last_away_status": self.last_away_status,
         }
 
     # Please save the settings after changing them.
