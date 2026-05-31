@@ -231,7 +231,7 @@ class _DialogContent(ttk.Frame):
         self._port_entry.grid(row=self._rownumber, column=1, sticky="we")
         self._setup_entry_bindings(self._port_entry)
         self._ssl_var = tkinter.BooleanVar(value=True)
-        self._ssl_var.trace("w", self._guess_port_based_on_ssl)
+        self._ssl_var.trace_add("write", self._guess_port_based_on_ssl)
         self._ssl_checkbox = ttk.Checkbutton(
             self, text="Use SSL", variable=self._ssl_var
         )
@@ -342,7 +342,7 @@ class _DialogContent(ttk.Frame):
 
     def _create_entry(self, **kwargs: Any) -> _EntryWithVar:
         entry = _EntryWithVar(self, **kwargs)
-        entry.var.trace("w", self._validate)
+        entry.var.trace_add("write", self._validate)
         return entry
 
     def _setup_entry_bindings(self, entry: ttk.Entry) -> None:

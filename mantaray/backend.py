@@ -102,7 +102,11 @@ class _Quit:
 
 
 IrcEvent = Union[
-    MessageFromServer, MessageFromUser, ConnectivityMessage, HostChanged, SentPrivmsg
+    MessageFromServer,
+    MessageFromUser,
+    ConnectivityMessage,
+    HostChanged,
+    SentPrivmsg,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
 

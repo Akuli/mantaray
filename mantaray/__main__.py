@@ -12,7 +12,7 @@ from typing import Callable
 
 try:
     import platformdirs
-    import sv_ttk  # type: ignore
+    import sv_ttk
 
     from mantaray import config, gui
 except ImportError:
