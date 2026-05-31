@@ -12,8 +12,6 @@ from typing import Iterable
 
 from . import backend, config
 
-DEFAULT_LOG_DIR = Path("logs")
-
 
 def parse_channel_list(values: Iterable[str]) -> list[str]:
     result: list[str] = []
@@ -22,19 +20,6 @@ def parse_channel_list(values: Iterable[str]) -> list[str]:
             if part:
                 result.append(part)
     return result
-
-
-def normalize_log_dir(path: str) -> Path:
-    log_dir = Path(path)
-    if not log_dir.is_absolute():
-        log_dir = Path.cwd() / log_dir
-    log_dir = log_dir.resolve()
-    cwd = Path.cwd().resolve()
-    if cwd not in log_dir.parents and log_dir != cwd:
-        raise argparse.ArgumentTypeError(
-            f"log dir must be under current working directory: {path}"
-        )
-    return log_dir
 
 
 class LogManager:
@@ -217,87 +202,40 @@ class IrcLoggerBot:
         self._joined_channels = True
 
 
-def build_arg_parser() -> argparse.ArgumentParser:
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run an IRC logger bot using mantaray backend code."
+        description="This is an IRC bot that logs conversations to files similarly to mantaray."
     )
     parser.add_argument("--server", default="irc.libera.chat", help="IRC server host")
     parser.add_argument("--port", type=int, default=6697, help="IRC server port")
-    parser.add_argument(
-        "--ssl",
-        dest="ssl",
-        action="store_true",
-        default=True,
-        help="Use SSL/TLS for the connection",
-    )
-    parser.add_argument(
-        "--no-ssl",
-        dest="ssl",
-        action="store_false",
-        help="Do not use SSL/TLS for the connection",
-    )
-    parser.add_argument("--nick", default=getuser(), help="Nickname to use")
-    parser.add_argument("--username", default=getuser(), help="Username to use")
-    parser.add_argument("--realname", help="Real name to use (defaults to username)")
+    parser.add_argument("--no-ssl", action="store_true", help="Do not use SSL/TLS for the connection")
+    parser.add_argument("--nick", help=f"Nickname to use (defaults to username or {getuser()})")
+    parser.add_argument("--username", help=f"Nickname to use (defaults to nick or {getuser()})")
+    parser.add_argument("--realname", help=f"Real name to use (defaults to nick)")
     parser.add_argument("--password", help="Password for server authentication", default=None)
     parser.add_argument(
         "--channel",
         dest="channels",
         action="append",
         default=[],
-        help="Channel to join. May be repeated.",
+        help="Channel to join, may be repeated",
     )
-    parser.add_argument(
-        "--channels",
-        dest="channels_str",
-        help="Comma- or space-separated list of channels to join.",
-    )
-    parser.add_argument(
-        "--log-dir",
-        default=str(DEFAULT_LOG_DIR),
-        type=normalize_log_dir,
-        help="Directory for log files, relative to the current working directory.",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Print raw IRC send/receive debugging information.",
-    )
-    return parser
+    parser.add_argument("--log-dir", default="logs", type=Path, help="Directory where log files go")
+    parser.add_argument("--verbose", action="store_true", help="Print raw IRC send/receive debugging information")
+    args = parser.parse_args()
 
+    if not args.channels:
+        parser.error("At least one channel must be provided via --channel")
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_arg_parser()
-    args = parser.parse_args(argv)
-
-    channels: list[str] = []
-    if args.channels:
-        channels.extend(args.channels)
-    if args.channels_str is not None:
-        channels.extend(parse_channel_list([args.channels_str]))
-
-    if not channels:
-        parser.error("At least one channel must be provided via --channel or --channels")
-
-    args.channels = channels
-
-    realname = args.realname or args.username
-    server_settings = config.ServerSettings(
-        dict_from_file={
-            "host": args.server,
-            "port": args.port,
-            "ssl": args.ssl,
-            "nick": args.nick,
-            "username": args.username,
-            "realname": realname,
-            "password": args.password,
-            "joined_channels": args.channels,
-        }
-    )
+    server_settings = config.ServerSettings()
+    server_settings.host = args.server
+    server_settings.port = args.port
+    server_settings.ssl = not args.no_ssl
+    server_settings.nick = args.nick or args.username or getuser()
+    server_settings.username = args.username or args.nick or getuser()
+    server_settings.realname = args.realname or args.nick or args.username or getuser()
+    server_settings.password = args.password
+    server_settings.joined_channels = args.channels
 
     bot = IrcLoggerBot(server_settings, args.log_dir, args.verbose)
     return bot.run()
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

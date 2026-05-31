@@ -395,8 +395,10 @@ class View:
                 self.textwidget.see("end")
 
         if self.log_file is not None:
+            # Includes time zone, 
+            timestamp = str(datetime.datetime.now(datetime.timezone.utc).astimezone())
             print(
-                time.asctime(),
+                timestamp_with_timezone,
                 sender,
                 "".join(part.text for part in message),
                 sep="\t",
