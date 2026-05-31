@@ -744,49 +744,48 @@ def _handle_received_message(
 
 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
-    match event:
-        case backend.MessageFromServer() | backend.MessageFromUser():
-            _handle_received_message(server_view, event)
+    if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
+        _handle_received_message(server_view, event)
 
-        case backend.ConnectivityMessage():
-            for view in server_view.get_subviews(include_server=True):
-                view.add_message(event.message, tag=("error" if event.is_error else "info"))
+    elif isinstance(event, backend.ConnectivityMessage):
+        for view in server_view.get_subviews(include_server=True):
+            view.add_message(event.message, tag=("error" if event.is_error else "info"))
 
-            # When reconnecting, the user is marked as not being away.
-            # This can affect the nick button because it shows whether the user is away.
-            server_view.irc_widget.update_nick_button()
+        # When reconnecting, the user is marked as not being away.
+        # This can affect the nick button because it shows whether the user is away.
+        server_view.irc_widget.update_nick_button()
 
-        case backend.HostChanged():
-            server_view.view_name = event.new
-            for subview in server_view.get_subviews(include_server=True):
-                subview.reopen_log_file()
+    elif isinstance(event, backend.HostChanged):
+        server_view.view_name = event.new
+        for subview in server_view.get_subviews(include_server=True):
+            subview.reopen_log_file()
 
-        case backend.SentPrivmsg():
-            channel_view = server_view.find_channel(event.nick_or_channel)
-            if channel_view is None:
-                assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), (
-                    event.nick_or_channel
-                )
-                pm_view = server_view.find_or_open_pm(event.nick_or_channel)
+    elif isinstance(event, backend.SentPrivmsg):
+        channel_view = server_view.find_channel(event.nick_or_channel)
+        if channel_view is None:
+            assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), (
+                event.nick_or_channel
+            )
+            pm_view = server_view.find_or_open_pm(event.nick_or_channel)
 
-                # /msg NickServ identify <password>   --> hide password
-                text = event.text
-                if (
-                    pm_view.nick_of_other_user.lower() == "nickserv"
-                    and text.lower().startswith("identify ")
-                ):
-                    text = text[:9] + "********"
+            # /msg NickServ identify <password>   --> hide password
+            text = event.text
+            if (
+                pm_view.nick_of_other_user.lower() == "nickserv"
+                and text.lower().startswith("identify ")
+            ):
+                text = text[:9] + "********"
 
-                _add_privmsg_to_view(
-                    pm_view, server_view.settings.nick, text, history_id=event.history_id
-                )
-            else:
-                _add_privmsg_to_view(
-                    channel_view,
-                    server_view.settings.nick,
-                    event.text,
-                    history_id=event.history_id,
-                )
+            _add_privmsg_to_view(
+                pm_view, server_view.settings.nick, text, history_id=event.history_id
+            )
+        else:
+            _add_privmsg_to_view(
+                channel_view,
+                server_view.settings.nick,
+                event.text,
+                history_id=event.history_id,
+            )
 
-        case _:
-            assert_never(event)
+    else:
+        assert_never(event)
