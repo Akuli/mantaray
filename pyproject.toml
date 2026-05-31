@@ -7,3 +7,9 @@ profile = "black"
 
 [tool.pytest.ini_options]
 addopts = "--capture=no --ignore=tests/MantaTail/"
+
+[project]
+requires-python = ">=3.10"
+
+[tool.ty.analysis]
+exclude = ["tests/"]
