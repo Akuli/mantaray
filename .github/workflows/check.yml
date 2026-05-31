@@ -25,7 +25,7 @@ jobs:
         cache: pip
     - run: pip install wheel  # needed for sv-ttk to work
     - run: pip install -r requirements.txt -r requirements-dev.txt
-    - run: ty check --exclude tests/** mantaray
+    - run: ty check
   ruff:
     runs-on: ubuntu-latest
     timeout-minutes: 5
