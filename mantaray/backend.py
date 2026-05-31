@@ -16,7 +16,7 @@ import socket
 import ssl
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Iterator, Union, cast, Any
+from typing import Iterator, cast, Any
 
 import certifi
 
@@ -101,14 +101,8 @@ class _Quit:
     pass
 
 
-IrcEvent = Union[
-    MessageFromServer,
-    MessageFromUser,
-    ConnectivityMessage,
-    HostChanged,
-    SentPrivmsg,
-]
-_Socket = Union[socket.socket, ssl.SSLSocket]
+IrcEvent = MessageFromServer | MessageFromUser | ConnectivityMessage | HostChanged | SentPrivmsg
+_Socket = socket.socket | ssl.SSLSocket
 
 
 def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
