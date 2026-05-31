@@ -11,9 +11,9 @@ from mantaray import backend, textwidget_tags, views
 if sys.version_info >= (3, 11):
     from typing import assert_never
 else:
-    from typing import Any, NoReturn
+    from typing import NoReturn
 
-    def assert_never(value: Any) -> NoReturn:
+    def assert_never(value: object) -> NoReturn:
         raise AssertionError(f"this should never happen: {value}")
 
 # Most of these are from https://modern.ircdocs.horse/
