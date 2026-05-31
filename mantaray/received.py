@@ -675,7 +675,7 @@ def _handle_received_message(
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         assert isinstance(msg, backend.MessageFromServer)
-        server_view.add_message(f'{msg.command} {" ".join(msg.args)}', msg.server)
+        server_view.add_message(f"{msg.command} {' '.join(msg.args)}", msg.server)
         server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
@@ -754,9 +754,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
     elif isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)
         if channel_view is None:
-            assert not re.fullmatch(
-                backend.CHANNEL_REGEX, event.nick_or_channel
-            ), event.nick_or_channel
+            assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), (
+                event.nick_or_channel
+            )
             pm_view = server_view.find_or_open_pm(event.nick_or_channel)
 
             # /msg NickServ identify <password>   --> hide password

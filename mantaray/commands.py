@@ -1,4 +1,5 @@
 """This file handles commands like /join."""
+
 from __future__ import annotations
 
 import inspect

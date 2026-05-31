@@ -26,6 +26,18 @@ jobs:
     - run: pip install wheel  # needed for sv-ttk to work
     - run: pip install -r requirements.txt -r requirements-dev.txt
     - run: mypy mantaray
+  ruff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: pip
+    - run: pip install wheel  # needed for sv-ttk to work
+    - run: pip install -r requirements.txt -r requirements-dev.txt
+    - run: ruff check
   dependencies-not-installed-error:
     runs-on: ubuntu-latest
     timeout-minutes: 5

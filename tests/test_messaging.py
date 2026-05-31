@@ -130,10 +130,12 @@ def test_private_messages_nick_changing_bug(alice, bob, wait_until):
     bob.entry.insert(0, "/part #autojoin")
     bob.on_enter_pressed()
     wait_until(
-        lambda: "Bob"
-        not in alice.get_server_views()[0]
-        .find_channel("#autojoin")
-        .userlist.get_nicks()
+        lambda: (
+            "Bob"
+            not in alice.get_server_views()[0]
+            .find_channel("#autojoin")
+            .userlist.get_nicks()
+        )
     )
 
     bob.entry.insert(0, "/nick Bob2")

@@ -64,10 +64,10 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
         result = entry.get()
         dialog.destroy()
 
-    ok_button = ttk.Button(
+    ttk.Button(
         content, text="OK", command=ok, width=10, style="Accent.TButton"
     ).grid(row=3, column=0, padx=(8, 5), sticky="ew")
-    cancel_button = ttk.Button(
+    ttk.Button(
         content, text="Cancel", command=dialog.destroy, width=10
     ).grid(row=3, column=1, padx=(5, 8), sticky="ew")
 

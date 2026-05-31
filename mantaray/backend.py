@@ -186,9 +186,9 @@ class IrcCore:
         #   socket: connected
         #   float: disconnected, value indicates when to reconnect
         #   None: quitting
-        self._connection_state: Future[
-            _Socket
-        ] | _Socket | float | None = time.monotonic()
+        self._connection_state: Future[_Socket] | _Socket | float | None = (
+            time.monotonic()
+        )
 
         self._force_quit_time: float | None = None
 

@@ -146,8 +146,10 @@ def test_multiple_servers(alice, bob, mocker, monkeypatch, wait_until):
 
     wait_until(lambda: len(alice.get_server_views()) == 2)
     wait_until(
-        lambda: alice.get_current_view()
-        == alice.get_server_views()[1].find_channel("#autojoin")
+        lambda: (
+            alice.get_current_view()
+            == alice.get_server_views()[1].find_channel("#autojoin")
+        )
     )
     assert len(alice.settings.servers) == 2
     wait_until(lambda: "*\tAlice2 joined #autojoin.\n" in bob.text())
@@ -241,8 +243,10 @@ def test_join_part_quit_messages_disabled(alice, bob, wait_until, monkeypatch):
     wait_until(lambda: not alice.winfo_exists())
 
     wait_until(
-        lambda: "Hello Bob" in bob.text()
-        and "Alice" not in bob.get_current_view().userlist.get_nicks()
+        lambda: (
+            "Hello Bob" in bob.text()
+            and "Alice" not in bob.get_current_view().userlist.get_nicks()
+        )
     )
     assert "joined" not in bob.text()
     assert "left" not in bob.text()
@@ -334,16 +338,18 @@ def test_autojoin_after_connection_error(alice, wait_until, monkeypatch):
 
     # Both channels should be joined automatically when reconnecting
     wait_until(
-        lambda: server_view.find_channel("#lol")
-        .get_text()
-        .count("The topic of #lol is:")
-        == 2
+        lambda: (
+            server_view.find_channel("#lol").get_text().count("The topic of #lol is:")
+            == 2
+        )
     )
     wait_until(
-        lambda: server_view.find_channel("#autojoin")
-        .get_text()
-        .count("The topic of #autojoin is:")
-        == 2
+        lambda: (
+            server_view.find_channel("#autojoin")
+            .get_text()
+            .count("The topic of #autojoin is:")
+            == 2
+        )
     )
 
     # But next time mantaray starts we will not join #lol
