@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any, NoReturn
 import re
 from base64 import b64encode
-from typing import assert_never
 
 from mantaray import backend, textwidget_tags, views
+
+
+def assert_never(value: Any) -> NoReturn:
+    raise AssertionError(f"Unhandled event: {value!r}")
 
 # Most of these are from https://modern.ircdocs.horse/
 RPL_WELCOME = "001"
