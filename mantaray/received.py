@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import sys
 import re
 from base64 import b64encode
 
 from mantaray import backend, textwidget_tags, views
+
+if sys.version_info >= (3, 11):
+    from typing import assert_never
+else:
+    from typing import NoReturn
+
+    def assert_never(value: object) -> NoReturn:
+        raise AssertionError(f"this should never happen: {value}")
 
 # Most of these are from https://modern.ircdocs.horse/
 RPL_WELCOME = "001"
@@ -779,6 +788,4 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             )
 
     else:
-        # If mypy says 'error: unused "type: ignore" comment', you
-        # forgot to check for some class
-        print("can't happen")  # type: ignore
+        assert_never(event)

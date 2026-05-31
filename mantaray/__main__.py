@@ -12,14 +12,14 @@ from typing import Callable
 
 try:
     import platformdirs
-    import sv_ttk  # type: ignore
+    import sv_ttk
 
     from mantaray import config, gui
 except ImportError:
     traceback.print_exc()
     print()
     print("You need to create a venv and install the dependencies into it with pip.")
-    print("If you already created it, you probably forgot to active it.")
+    print("If you already created it, you probably forgot to activate it.")
     print("See README.md for instructions.")
     sys.exit(1)
 

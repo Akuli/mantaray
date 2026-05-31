@@ -48,6 +48,11 @@ To install tools needed for development, run:
     $ source env/bin/activate
     $ pip install -r requirements-dev.txt
 
+To format the code and check for various errors, use:
+
+    $ ruff check mantaray
+    $ ty check mantaray
+
 Mantaray's tests use IRC servers that Mantaray connects to for testing.
 They are included with Mantaray as Git submodules.
 To run tests, you need to download the servers and then actually run the tests:

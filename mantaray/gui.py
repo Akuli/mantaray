@@ -41,8 +41,8 @@ def ask_new_nick(parent: tkinter.Tk | tkinter.Toplevel, old_nick: str) -> str:
     dialog = tkinter.Toplevel()
     content = ttk.Frame(dialog)
     content.pack(fill="both", expand=True)
-    content.columnconfigure((0, 1), weight=1)  # type: ignore
-    content.rowconfigure((0, 1, 2, 3), pad=14)  # type: ignore
+    content.columnconfigure((0, 1), weight=1)
+    content.rowconfigure((0, 1, 2, 3), pad=14)
 
     ttk.Label(content, text="Enter a new nickname here:").grid(columnspan=2)
 

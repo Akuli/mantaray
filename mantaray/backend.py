@@ -16,7 +16,7 @@ import socket
 import ssl
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Iterator, Union
+from typing import Iterator, Union, cast, Any
 
 import certifi
 
@@ -102,14 +102,16 @@ class _Quit:
 
 
 IrcEvent = Union[
-    MessageFromServer, MessageFromUser, ConnectivityMessage, HostChanged, SentPrivmsg
+    MessageFromServer,
+    MessageFromUser,
+    ConnectivityMessage,
+    HostChanged,
+    SentPrivmsg,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
 
 
 def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
-    sock: _Socket
-
     if use_ssl:
         context = ssl.create_default_context(cafile=certifi.where())
         sock = context.wrap_socket(socket.socket(), server_hostname=host)
@@ -142,6 +144,12 @@ def _flush_and_close_socket(sock: _Socket) -> None:
     except OSError:
         pass
     sock.close()
+
+
+# Slightly more type safe than just cast().
+# TODO: avoid this entirely?
+def _cast_future(future: Future[Any]) -> Future[_Socket]:
+    return cast(Future[_Socket], future)
 
 
 class IrcCore:
@@ -247,11 +255,12 @@ class IrcCore:
             )
 
         elif isinstance(self._connection_state, Future):
-            if self._connection_state.running():
+            future = _cast_future(self._connection_state)
+            if future.running():
                 return
 
             try:
-                self._connection_state = self._connection_state.result()
+                self._connection_state = future.result()
             except (OSError, ssl.SSLError) as e:
                 self._events.append(
                     ConnectivityMessage(
@@ -280,10 +289,9 @@ class IrcCore:
 
         else:
             # Connected
+            sock = cast(_Socket, self._connection_state)  # TODO: make this more type-safe
             try:
-                quitting = self._send_and_receive_as_much_as_possible_without_blocking(
-                    self._connection_state
-                )
+                quitting = self._send_and_receive_as_much_as_possible_without_blocking(sock)
             except (OSError, ssl.SSLError) as e:
                 self._events.append(
                     ConnectivityMessage(
@@ -291,14 +299,12 @@ class IrcCore:
                         is_error=True,
                     )
                 )
-                self._connection_state.close()
+                sock.close()
                 self._connection_state = time.monotonic() + RECONNECT_SECONDS
                 return
 
             if quitting:
-                sock = self._connection_state
                 self._connection_state = None
-
                 sock.setblocking(True)
                 self._connect_pool.submit(_flush_and_close_socket, sock)
                 return
@@ -416,9 +422,11 @@ class IrcCore:
             pass
         elif isinstance(self._connection_state, Future):
             # It's already connecting. We won't use that connection.
-            self._connection_state.add_done_callback(_close_socket_when_future_done)
+            future = _cast_future(self._connection_state)
+            future.add_done_callback(_close_socket_when_future_done)
         else:
-            self._connection_state.close()
+            sock = cast(_Socket, self._connection_state)  # TODO: make this more type-safe
+            sock.close()
         self._connection_state = time.monotonic()  # reconnect asap
 
     def send_privmsg(
@@ -455,5 +463,6 @@ class IrcCore:
             self._connection_state.close()
         if isinstance(self._connection_state, Future):
             # It's already connecting. We won't use the resulting connection.
-            self._connection_state.add_done_callback(_close_socket_when_future_done)
+            future = _cast_future(self._connection_state)
+            future.add_done_callback(_close_socket_when_future_done)
         self._connection_state = None
