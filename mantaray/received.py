@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any, NoReturn
+import sys
 import re
 from base64 import b64encode
 
 from mantaray import backend, textwidget_tags, views
 
+if sys.version_info >= (3, 10):
+    from typing import assert_never
+else:
+    from typing import Any, NoReturn
 
-def assert_never(value: Any) -> NoReturn:
-    raise AssertionError(f"Unhandled event: {value!r}")
+    def assert_never(value: Any) -> NoReturn:
+        raise AssertionError(f"this should never happen: {value}")
 
 # Most of these are from https://modern.ircdocs.horse/
 RPL_WELCOME = "001"

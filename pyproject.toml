@@ -1,15 +1,8 @@
-[tool.black]
-skip-magic-trailing-comma = true
-exclude = '/tests/(hircd|MantaTail)/'
-
-[tool.isort]
-profile = "black"
-
 [tool.pytest.ini_options]
 addopts = "--capture=no --ignore=tests/MantaTail/"
 
-[project]
-requires-python = ">=3.10"
+[tool.ty.src]
+exclude = ["tests"]
 
-[tool.ty.analysis]
-exclude = ["tests/"]
+[tool.ruff]
+exclude = ["tests/hircd", "tests/MantaTail"]
