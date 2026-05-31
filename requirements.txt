@@ -6,4 +6,6 @@ sv-ttk==2.4.5
 # The commented out dependencies worked on some older MacOS version.
 #playsound==1.3.0
 #PyObjC==9.0.1; sys_platform == "darwin"  # Needed for playsound to work on MacOS
-playsound==1.3.0; sys_platform != "darwin"
+
+# TODO: playsound no longer works for me even on linux
+#playsound==1.3.0; sys_platform != "darwin"
