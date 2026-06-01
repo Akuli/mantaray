@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import shutil
@@ -15,6 +16,26 @@ import sv_ttk
 from mantaray import config, gui
 
 os.environ.setdefault("IRC_SERVER", "mantatail")
+
+
+# To speed up CI, it's possible to set MANTASHARD to e.g. "1/3", "2/3", "3/3"
+# to run the tests in multiple parts.
+#
+# Based on: https://github.com/AdamGleave/pytest-shard/blob/64610a08dac6b0511b6d51cf895d0e1040d162ad/pytest_shard/pytest_shard.py#L43-L63
+# The code linked above is: Copyright 2019 Adam Gleave
+def pytest_collection_modifyitems(config, items):
+    value = os.environ.get("MANTASHARD", "1/1")
+    shard_index, num_shards = map(int, value.split("/"))
+    shard_index -= 1
+
+    old_len = len(items)
+    items[:] = [
+        item
+        for item in items
+        if int(hashlib.md5(item.nodeid.encode("utf-8")).hexdigest(), 16) % num_shards == shard_index
+    ]
+    if len(items) < old_len:
+        print(f"Only {len(items)} tests will run (MANTASHARD={value})", flush=True)
 
 
 # https://github.com/pytest-dev/pytest/issues/8887

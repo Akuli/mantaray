@@ -48,25 +48,20 @@ jobs:
         python-version: "3.11"
     - run: (python3 -m mantaray || true) 2>&1 | tee output.txt
     - run: grep "You need to create a venv and install the dependencies into it with pip" output.txt
-  test:
+  test-linux:
     strategy:
       matrix:
-        # os is last so you can see everything in github's ui, even if the job name gets truncated
         irc-server: ["hircd", "mantatail"]
-        # TODO: enable MacOS tests
-        #os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-        os: ["ubuntu-latest", "windows-latest"]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20  # windows is slow
+        shard: ["1/2", "2/2"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
+      MANTASHARD: ${{ matrix.shard }}
     steps:
     - uses: actions/checkout@v3
     # https://stackoverflow.com/a/66919851
-    - if: matrix.os == 'macos-latest'
-      run: brew install python@3.9 python-tk@3.9
-    - if: matrix.os != 'macos-latest'
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: "3.11"
         cache: pip
@@ -76,3 +71,45 @@ jobs:
     - uses: GabrielBB/xvfb-action@v1.4
       with:
         run: python3 -m pytest -vv
+  test-windows:
+    strategy:
+      matrix:
+        irc-server: ["hircd", "mantatail"]
+        shard: ["1/5", "2/5", "3/5", "4/5", "5/5"]  # more shards on windows, because windows is slow
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      IRC_SERVER: ${{ matrix.irc-server }}
+      MANTASHARD: ${{ matrix.shard }}
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: pip
+    - run: git submodule update --init
+    - run: python3 -m pip install wheel  # needed for sv-ttk to work
+    - run: python3 -m pip install -r requirements.txt -r requirements-dev.txt
+    - run: python3 -m pytest -vv
+  # TODO: enable macos tests again
+#  test-macos:
+#    strategy:
+#      matrix:
+#        irc-server: ["hircd", "mantatail"]
+#        shard: ["1/2", "2/2"]
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 10
+#    env:
+#      IRC_SERVER: ${{ matrix.irc-server }}
+#      MANTASHARD: ${{ matrix.shard }}
+#    steps:
+#    - uses: actions/checkout@v3
+#    # https://stackoverflow.com/a/66919851
+#    - uses: actions/setup-python@v4
+#      with:
+#        python-version: "3.11"
+#        cache: pip
+#    - run: git submodule update --init
+#    - run: python3 -m pip install wheel  # needed for sv-ttk to work
+#    - run: python3 -m pip install -r requirements.txt -r requirements-dev.txt
+#    - run: python3 -m pytest -vv
