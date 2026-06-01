@@ -1,9 +1,13 @@
 import re
 import sys
-import time
+from datetime import datetime
 from pathlib import Path
 from typing import IO
 
+
+def make_timestamp() -> str:
+    # This includes the timezone and is not locale dependent
+    return datetime.now().astimezone().isoformat()
 
 class LogManager:
     def __init__(self, log_dir: Path):
@@ -27,11 +31,11 @@ class LogManager:
         if sys.platform != "win32":
             path.chmod(0o600)
 
-        print("\n\n*** LOGGING BEGINS", time.asctime(), file=file, flush=True)
+        print("\n\n*** LOGGING BEGINS", make_timestamp(), file=file, flush=True)
         self._opened[file] = path
         return file
 
     def close_log_file(self, file: IO[str]) -> None:
-        print("*** LOGGING ENDS", time.asctime(), file=file, flush=True)
+        print("*** LOGGING ENDS", make_timestamp(), file=file, flush=True)
         file.close()
         del self._opened[file]
