@@ -11,15 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - run: |
         grep $(date +%Y) LICENSE
   ty:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -30,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
     - run: (python3 -m mantaray || true) 2>&1 | tee output.txt
@@ -59,9 +59,9 @@ jobs:
       IRC_SERVER: ${{ matrix.irc-server }}
       MANTASHARD: ${{ matrix.shard }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     # https://stackoverflow.com/a/66919851
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -82,8 +82,8 @@ jobs:
       IRC_SERVER: ${{ matrix.irc-server }}
       MANTASHARD: ${{ matrix.shard }}
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -103,9 +103,9 @@ jobs:
 #      IRC_SERVER: ${{ matrix.irc-server }}
 #      MANTASHARD: ${{ matrix.shard }}
 #    steps:
-#    - uses: actions/checkout@v3
+#    - uses: actions/checkout@v6
 #    # https://stackoverflow.com/a/66919851
-#    - uses: actions/setup-python@v4
+#    - uses: actions/setup-python@v6
 #      with:
 #        python-version: "3.11"
 #        cache: pip
