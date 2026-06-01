@@ -11,15 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - run: |
         grep $(date +%Y) LICENSE
   ty:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -30,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
     - run: (python3 -m mantaray || true) 2>&1 | tee output.txt
@@ -59,9 +59,9 @@ jobs:
       IRC_SERVER: ${{ matrix.irc-server }}
       MANTASHARD: ${{ matrix.shard }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     # https://stackoverflow.com/a/66919851
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -75,15 +75,15 @@ jobs:
     strategy:
       matrix:
         irc-server: ["hircd", "mantatail"]
-        shard: ["1/5", "2/5", "3/5", "4/5", "5/5"]  # more shards on windows, because windows is slow
+        shard: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]  # more shards on windows, because windows is slow
     runs-on: windows-latest
     timeout-minutes: 10
     env:
       IRC_SERVER: ${{ matrix.irc-server }}
       MANTASHARD: ${{ matrix.shard }}
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: pip
@@ -103,9 +103,9 @@ jobs:
 #      IRC_SERVER: ${{ matrix.irc-server }}
 #      MANTASHARD: ${{ matrix.shard }}
 #    steps:
-#    - uses: actions/checkout@v3
+#    - uses: actions/checkout@v6
 #    # https://stackoverflow.com/a/66919851
-#    - uses: actions/setup-python@v4
+#    - uses: actions/setup-python@v6
 #      with:
 #        python-version: "3.11"
 #        cache: pip
