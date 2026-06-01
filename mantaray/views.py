@@ -13,6 +13,7 @@ from typing import IO, TYPE_CHECKING, Any
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
+from mantaray.logs import make_timestamp
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -396,7 +397,7 @@ class View:
 
         if self.log_file is not None:
             print(
-                time.asctime(),
+                make_timestamp(),
                 sender,
                 "".join(part.text for part in message),
                 sep="\t",

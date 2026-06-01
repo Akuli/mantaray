@@ -8,7 +8,7 @@ from mantaray.views import ServerView
 def _read_file(path):
     string = path.read_text("utf-8")
     string = re.sub(
-        r"[A-Z][a-z][a-z] [A-Z][a-z][a-z] [ \d]\d \d\d:\d\d:\d\d \d\d\d\d",
+        r"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9]\+[0-9][0-9]:[0-9][0-9]",
         "<time>",
         string,
     )
