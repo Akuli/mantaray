@@ -60,12 +60,11 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
         command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
-            # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
-            usage = _format_usage(command_name, func, skip=2)
             view.add_message(
                 [
                     MessagePart("Usage: "),
-                    MessagePart(usage, tags=["pinged"]),
+                    # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
+                    MessagePart(_format_usage(command_name, func, skip=2), tags=["pinged"]),
                 ],
                 tag="error",
                 history_id=history_id,
