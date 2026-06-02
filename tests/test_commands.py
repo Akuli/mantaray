@@ -215,15 +215,6 @@ def test_invalid_command(alice, wait_until):
     wait_until(lambda: "No command named '/AsDf'\n" in alice.text())
 
 
-@pytest.mark.parametrize("help_command", ["/help", "/?"])
-def test_help_shows_available_commands(alice, wait_until, help_command):
-    alice.entry.insert(0, help_command)
-    alice.on_enter_pressed()
-    wait_until(lambda: "Available commands:" in alice.text())
-    wait_until(lambda: "/join <channel> - Join a channel" in alice.text())
-    wait_until(lambda: "/nick <new_nick> - Change your nickname" in alice.text())
-
-
 def test_case_insensitive(alice, bob, wait_until):
     alice.entry.insert(0, "/ME says foo")
     alice.on_enter_pressed()
@@ -370,6 +361,15 @@ def test_who_on_join(alice, bob, wait_until, sharing_channels):
     wait_until(
         lambda: "away" in alice.get_current_view().userlist.treeview.item("Bob", "tags")
     )
+
+
+@pytest.mark.parametrize("help_command", ["/help", "/?"])
+def test_help_shows_available_commands(alice, wait_until, help_command):
+    alice.entry.insert(0, help_command)
+    alice.on_enter_pressed()
+    wait_until(lambda: "Available commands:" in alice.text())
+    wait_until(lambda: "/part [<channel>] - Leave a channel" in alice.text())
+    wait_until(lambda: "/nick <new_nick> - Change your nickname" in alice.text())
 
 
 @pytest.mark.parametrize(
