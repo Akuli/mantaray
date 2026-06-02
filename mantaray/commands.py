@@ -30,7 +30,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
     if not entry_text:
         return
 
-    if re.fullmatch("/[A-Za-z]+( .*)?", entry_text):
+    if re.fullmatch("/([A-Za-z]+|\?)( .*)?", entry_text):
         try:
             func = _commands[entry_text.split()[0].lower()]
         except KeyError:
@@ -171,6 +171,35 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def raw(view: View, core: IrcCore, command: str) -> None:
         core.send(command)
 
+    def help(view: View, core: IrcCore, command: str | None = None) -> None:
+        def format_usage(command_name: str, func: Callable[..., None]) -> str:
+            params = list(inspect.signature(func).parameters.values())[2:]
+            usage = command_name
+            for p in params:
+                if p.default == inspect.Parameter.empty:
+                    usage += f" <{p.name}>"
+                else:
+                    usage += f" [<{p.name}>]"
+            return usage
+
+        if command is None:
+            view.add_message("Available commands:")
+            for command_name in sorted(_commands):
+                view.add_message(format_usage(command_name, _commands[command_name]))
+            return
+
+        command_key = command.lower()
+        if not command_key.startswith("/"):
+            command_key = "/" + command_key
+        if command_key not in _commands:
+            view.add_message(
+                f"No command named '{command}'",
+                tag="error",
+            )
+            return
+
+        view.add_message("Usage: " + format_usage(command_key, _commands[command_key]))
+
     return {
         "/join": join,
         "/part": part,
@@ -191,6 +220,8 @@ def _define_commands() -> dict[str, Callable[..., None]]:
         "/away": away,
         "/back": back,
         "/raw": raw,
+        "/help": help,
+        "/?": help,
     }
 
 
