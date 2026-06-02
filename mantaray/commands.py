@@ -8,7 +8,7 @@ from tkinter import messagebox
 from typing import Callable, NamedTuple
 
 from mantaray.backend import IrcCore
-from mantaray.views import ChannelView, PMView, View
+from mantaray.views import ChannelView, MessagePart, PMView, View
 
 
 def _send_privmsg(
@@ -55,7 +55,15 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
                     usage += f" <{p.name}>"
                 else:
                     usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage, tag="error", history_id=history_id)
+            # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
+            view.add_message(
+                [
+                    MessagePart("Usage: "),
+                    MessagePart(usage, tags=["pinged"]),
+                ],
+                tag="error",
+                history_id=history_id,
+            )
         else:
             func(view, core, *args)
 
@@ -186,10 +194,12 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
             view.add_message("Available commands:")
             for command_name in sorted(_commands.keys()):
                 func, description = _commands[command_name]
+                # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
                 view.add_message(
-                    format_usage(command_name, func)
-                    + " - "
-                    + description
+                    [
+                        MessagePart(format_usage(command_name, func), tags=["pinged"]),
+                        MessagePart(" - " + description),
+                    ]
                 )
             return
 
@@ -205,10 +215,11 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
 
         command = _commands[command_key]
         view.add_message(
-            "Usage: "
-            + format_usage(command_key, command.func)
-            + " - "
-            + command.description
+            [
+                MessagePart("Usage: "),
+                MessagePart(format_usage(command_key, command.func), tags=["pinged"]),
+                MessagePart(" - " + command.description),
+            ]
         )
 
     return {
