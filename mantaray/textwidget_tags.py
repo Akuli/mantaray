@@ -167,6 +167,7 @@ def config_tags(
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
     textwidget.tag_configure("privmsg", foreground=get_foreground())
+    textwidget.tag_configure("from-log", foreground="#999999")
 
     if sv_ttk.get_theme() == "light":
         # Used only if the user enables the light theme by editing json.

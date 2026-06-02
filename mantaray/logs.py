@@ -7,11 +7,6 @@ from pathlib import Path
 from typing import IO
 
 
-def make_timestamp() -> str:
-    # This includes the timezone and is not locale dependent
-    return datetime.now().astimezone().isoformat()
-
-
 @dataclass
 class _Log:
     server_name: str
@@ -63,7 +58,7 @@ class LogManager:
 
         print(
             "\n\n*** LOGGING BEGINS",
-            make_timestamp(),
+            datetime.now().astimezone().isoformat(),
             server_name,
             channel_or_nick or "*",
             sep="\t",
@@ -88,7 +83,7 @@ class LogManager:
         log = self._opened_logs.pop(log_id)
         print(
             "\n\n*** LOGGING ENDS",
-            make_timestamp(),
+            datetime.now().astimezone().isoformat(),
             log.server_name,
             log.channel_or_nick or "*",
             sep="\t",
@@ -98,12 +93,12 @@ class LogManager:
         log.file.close()
 
     # Sender is None for "system" messages like join/leave that show up with "*" in UI
-    def write_to_log(self, log_id: int, sender: str | None, message: str) -> None:
+    def write_to_log(self, log_id: int, timestamp: datetime, sender: str | None, message: str) -> None:
         log = self._opened_logs[log_id]
-        timestamp = make_timestamp()
 
+        assert timestamp.tzinfo is not None
         print(
-            timestamp,
+            timestamp.isoformat(),
             sender or "*",
             message,
             sep="\t",
@@ -121,7 +116,7 @@ class LogManager:
             # each 1MB chunk of log has at least one begin, continue or end marker.
             print(
                 f"\n\n*** {log.lines_written} lines have been logged since the file was opened.",
-                timestamp,
+                timestamp.isoformat(),
                 log.server_name,
                 log.channel_or_nick or "*",
                 sep="\t",

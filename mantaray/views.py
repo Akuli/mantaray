@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import logging
 import subprocess
 import sys
@@ -9,11 +10,11 @@ import webbrowser
 from tkinter import ttk
 from tkinter.font import Font
 from typing import IO, TYPE_CHECKING, Any
+from datetime import datetime, timedelta
 
 from mantaray import backend, config, received, textwidget_tags
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
-from mantaray.logs import make_timestamp
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -189,6 +190,13 @@ def _show_popup(title: str, text: str) -> None:
         logging.exception("error showing notification popup")
 
 
+def _timestamp_to_string(timestamp: datetime) -> str:
+    # TODO: somehow include day if it's old? That's possible with messages that
+    #       came from reading the log file. In any case this should be kept
+    #       really concise.
+    return timestamp.astimezone().strftime("[%H:%M]")
+
+
 class MessagePart:
     def __init__(self, text: str, *, tags: list[str] = []):
         self.text = text
@@ -223,6 +231,27 @@ class View:
         )
 
         self.history = History(self.textwidget)
+
+        # Fetch old messages from log files
+        # TODO: Add some way to disable this in GUI.
+        # TODO: this is hacky in other ways tooo....
+        if "PYTEST_CURRENT_TEST" not in os.environ and self.get_log_name() is not None:
+            channel_or_nick = self.get_log_name()
+            assert channel_or_nick is not None
+            now = datetime.now().astimezone()
+            old_logs = irc_widget.log_manager.read_old_logs(
+                server_name=self.server_view.view_name,
+                channel_or_nick=channel_or_nick,
+                since=(now - timedelta(days=3)),
+            )
+            gonna_insert = "".join(
+                f"{_timestamp_to_string(timestamp)}\t{sender or '*'}\t{message}\n"
+                for timestamp, sender, message in old_logs
+            )
+            self.textwidget.config(state="normal")
+            self.textwidget.insert("end", gonna_insert, ["from-log"])
+            self.textwidget.config(state="disabled")
+            self.textwidget.after_idle(self.textwidget.see, "end")
 
         self.log_id: int | None = None
         self.reopen_log_file()
@@ -353,6 +382,8 @@ class View:
         pinged: bool = False,
         history_id: int | None = None,
     ) -> None:
+        timestamp = datetime.now().astimezone()
+
         if isinstance(message, str):
             message = [MessagePart(message)]
 
@@ -366,7 +397,7 @@ class View:
 
         self.textwidget.config(state="normal")
         start = self.textwidget.index("end - 1 char")
-        self.textwidget.insert("end", time.strftime("[%H:%M]"))
+        self.textwidget.insert("end", _timestamp_to_string(timestamp))
         self.textwidget.insert("end", "\t")
         self.textwidget.insert(
             "end", sender or "*", [] if sender_tag is None else [sender_tag]
@@ -396,7 +427,7 @@ class View:
 
         if self.log_id is not None:
             self.irc_widget.log_manager.write_to_log(
-                self.log_id, sender, "".join(part.text for part in message)
+                self.log_id, timestamp, sender, "".join(part.text for part in message)
             )
 
 
