@@ -191,36 +191,32 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
             return usage
 
         if command is None:
-            view.add_message("Available commands:")
-            for command_name in sorted(_commands.keys()):
-                func, description = _commands[command_name]
-                # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
-                view.add_message(
-                    [
-                        MessagePart(format_usage(command_name, func), tags=["pinged"]),
-                        MessagePart(" - " + description),
-                    ]
-                )
-            return
+            # TODO: Which tags to use? "pinged" is not really meant for this.
+            view.add_message([MessagePart("Available commands:", tags=["pinged", "underline"])])
+            keys = sorted(_commands.keys())
+        else:
+            key = command.lower()
+            if not key.startswith("/"):
+                key = "/" + key
+            if key not in _commands:
+                view.add_message(f"No command named '{command}'", tag="error")
+                return
+            keys = [key]
 
-        command_key = command.lower()
-        if not command_key.startswith("/"):
-            command_key = "/" + command_key
-        if command_key not in _commands:
+        for command_name in sorted(keys):
+            func, description = _commands[command_name]
             view.add_message(
-                f"No command named '{command}'",
-                tag="error",
+                [
+                    # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
+                    MessagePart(format_usage(command_name, func), tags=["topic"]),
+                    MessagePart(" - " + description),
+                ]
             )
-            return
 
-        command = _commands[command_key]
-        view.add_message(
-            [
-                MessagePart("Usage: "),
-                MessagePart(format_usage(command_key, command.func), tags=["pinged"]),
-                MessagePart(" - " + command.description),
-            ]
-        )
+        if command is None:
+            view.add_message(
+                "Feel free to ask questions by creating an issue on GitHub: https://github.com/Akuli/mantaray"
+            )
 
     return {
         "/join": (join, "Join a channel"),
