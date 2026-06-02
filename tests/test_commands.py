@@ -220,8 +220,8 @@ def test_help_shows_available_commands(alice, wait_until, help_command):
     alice.entry.insert(0, help_command)
     alice.on_enter_pressed()
     wait_until(lambda: "Available commands:" in alice.text())
-    wait_until(lambda: "/join" in alice.text())
-    wait_until(lambda: "/nick" in alice.text())
+    wait_until(lambda: "/join <channel> - Join a channel" in alice.text())
+    wait_until(lambda: "/nick <new_nick> - Change your nickname" in alice.text())
 
 
 def test_case_insensitive(alice, bob, wait_until):
