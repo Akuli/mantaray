@@ -224,7 +224,7 @@ class View:
 
         self.history = History(self.textwidget)
 
-        self.log_file: IO[str] | None = None
+        self.log_id: int | None = None
         self.reopen_log_file()
 
     def _on_link_leftclick(
@@ -243,16 +243,17 @@ class View:
         if tag == "other-nick":
             nick_right_click(event, self.server_view, text)
 
-    def get_log_name(self) -> str:
+    def get_log_name(self) -> str | None:
         raise NotImplementedError
 
     def close_log_file(self) -> None:
-        if self.log_file is not None:
-            self.irc_widget.log_manager.close_log_file(self.log_file)
+        if self.log_id is not None:
+            self.irc_widget.log_manager.close_log_file(self.log_id)
+            self.log_id = None
 
     def reopen_log_file(self) -> None:
         self.close_log_file()
-        self.log_file = self.irc_widget.log_manager.open_log_file(
+        self.log_id = self.irc_widget.log_manager.open_log_file(
             self.server_view.view_name, self.get_log_name()
         )
 
@@ -345,64 +346,57 @@ class View:
     def add_message(
         self,
         message: str | list[MessagePart],
-        sender: str = "*",
+        sender: str | None = None,
         *,
         sender_tag: str | None = None,
         tag: Literal["info", "error", "privmsg"] = "info",
-        show_in_gui: bool = True,
         pinged: bool = False,
         history_id: int | None = None,
     ) -> None:
         if isinstance(message, str):
             message = [MessagePart(message)]
 
-        if show_in_gui:
-            # scroll down all the way if the user hasn't scrolled up manually
-            do_the_scroll = self.textwidget.yview()[1] == 1.0
+        # scroll down all the way if the user hasn't scrolled up manually
+        do_the_scroll = self.textwidget.yview()[1] == 1.0
 
-            if history_id is not None:
-                # Without gravity, the mark stays at the end as text is inserted
-                self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
-                self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
+        if history_id is not None:
+            # Without gravity, the mark stays at the end as text is inserted
+            self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
+            self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
 
-            self.textwidget.config(state="normal")
-            start = self.textwidget.index("end - 1 char")
-            self.textwidget.insert("end", time.strftime("[%H:%M]"))
-            self.textwidget.insert("end", "\t")
-            self.textwidget.insert(
-                "end", sender, [] if sender_tag is None else [sender_tag]
-            )
-            self.textwidget.insert("end", "\t")
+        self.textwidget.config(state="normal")
+        start = self.textwidget.index("end - 1 char")
+        self.textwidget.insert("end", time.strftime("[%H:%M]"))
+        self.textwidget.insert("end", "\t")
+        self.textwidget.insert(
+            "end", sender or "*", [] if sender_tag is None else [sender_tag]
+        )
+        self.textwidget.insert("end", "\t")
 
-            if message:
-                insert_args: list[Any] = []
-                for part in message:
-                    insert_args.append(part.text)
-                    insert_args.append(part.tags + ["text", tag])
-                self.textwidget.insert("end", *insert_args)
+        if message:
+            insert_args: list[Any] = []
+            for part in message:
+                insert_args.append(part.text)
+                insert_args.append(part.tags + ["text", tag])
+            self.textwidget.insert("end", *insert_args)
 
-            self.textwidget.insert("end", "\n")
-            if pinged:
-                self.textwidget.tag_add("pinged", start, "end - 1 char")
-            self.textwidget.config(state="disabled")
+        self.textwidget.insert("end", "\n")
+        if pinged:
+            self.textwidget.tag_add("pinged", start, "end - 1 char")
+        self.textwidget.config(state="disabled")
 
-            if history_id is not None:
-                self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
-                self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
+        if history_id is not None:
+            self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
+            self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
 
-            textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
+        textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 
-            if do_the_scroll:
-                self.textwidget.see("end")
+        if do_the_scroll:
+            self.textwidget.see("end")
 
-        if self.log_file is not None:
-            print(
-                make_timestamp(),
-                sender,
-                "".join(part.text for part in message),
-                sep="\t",
-                file=self.log_file,
-                flush=True,
+        if self.log_id is not None:
+            self.irc_widget.log_manager.write_to_log(
+                self.log_id, sender, "".join(part.text for part in message)
             )
 
 
@@ -443,12 +437,8 @@ class ServerView(View):
     def start_running(self) -> None:
         self._run_core()
 
-    def get_log_name(self) -> str:
-        # Log to file named logs/foobar/server.log.
-        #
-        # Not a problem if someone is nicknamed "server", because ServerView
-        # opens its log file first.
-        return "server"
+    def get_log_name(self) -> None:
+        return None
 
     @property
     def server_view(self) -> ServerView:

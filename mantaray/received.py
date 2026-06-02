@@ -195,15 +195,18 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     assert channel_view is not None
 
     channel_view.userlist.add_user(nick)
-    channel_view.add_message(
-        [
-            views.MessagePart(nick, tags=["other-nick"]),
-            views.MessagePart(" joined "),
-            views.MessagePart(channel_view.channel_name, tags=["channel"]),
-            views.MessagePart("."),
-        ],
-        show_in_gui=channel_view.server_view.should_show_join_leave_message(nick),
-    )
+    # TODO: Add hidden join/leave messages to log? Would cause trouble when
+    #       parsing the log, because join/leave messages coming from the log
+    #       might need hiding based on user's preferences.
+    if channel_view.server_view.should_show_join_leave_message(nick):
+        channel_view.add_message(
+            [
+                views.MessagePart(nick, tags=["other-nick"]),
+                views.MessagePart(" joined "),
+                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart("."),
+            ],
+        )
 
 
 def _handle_part(
@@ -228,18 +231,16 @@ def _handle_part(
         else:
             extra = " (" + reason + ")"
 
-        channel_view.add_message(
-            [
-                views.MessagePart(parting_nick, tags=["other-nick"]),
-                views.MessagePart(" left "),
-                views.MessagePart(channel_view.channel_name, tags=["channel"]),
-                views.MessagePart("."),
-                views.MessagePart(extra),
-            ],
-            show_in_gui=channel_view.server_view.should_show_join_leave_message(
-                parting_nick
-            ),
-        )
+        if channel_view.server_view.should_show_join_leave_message(parting_nick):
+            channel_view.add_message(
+                [
+                    views.MessagePart(parting_nick, tags=["other-nick"]),
+                    views.MessagePart(" left "),
+                    views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                    views.MessagePart("."),
+                    views.MessagePart(extra),
+                ],
+            )
 
 
 def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
@@ -296,13 +297,13 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
 
     # This isn't perfect, other person's QUIT not received if not both joined on the same channel
     for view in _get_views_relevant_for_nick(server_view, nick):
-        view.add_message(
-            [
-                views.MessagePart(nick, tags=["other-nick"]),
-                views.MessagePart(" quit." + reason_string),
-            ],
-            show_in_gui=view.server_view.should_show_join_leave_message(nick),
-        )
+        if view.server_view.should_show_join_leave_message(nick):
+            view.add_message(
+                [
+                    views.MessagePart(nick, tags=["other-nick"]),
+                    views.MessagePart(" quit." + reason_string),
+                ],
+            )
         if isinstance(view, views.ChannelView):
             view.userlist.remove_user(nick)
 
