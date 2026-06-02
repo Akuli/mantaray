@@ -11,11 +11,6 @@ from mantaray.backend import IrcCore
 from mantaray.views import ChannelView, PMView, View
 
 
-class Command(NamedTuple):
-    func: Callable[..., None]
-    description: str
-
-
 def _send_privmsg(
     view: View, core: IrcCore, message: str, *, history_id: int | None = None
 ) -> None:
@@ -37,7 +32,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
 
     if re.fullmatch(r"/([A-Za-z]+|\?)( .*)?", entry_text):
         try:
-            command = _commands[entry_text.split()[0].lower()]
+            func = _commands[entry_text.split()[0].lower()][0]
         except KeyError:
             view.add_message(
                 f"No command named '{entry_text.split()[0]}'",
@@ -46,7 +41,6 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
             )
             return
 
-        func = command.func
         view_arg, core_arg, *params = inspect.signature(func).parameters.values()
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
         required_params = [p for p in params if p.default == inspect.Parameter.empty]
@@ -92,7 +86,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         _send_privmsg(view, core, line, history_id=history_id)
 
 
-def _define_commands() -> dict[str, Command]:
+def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
     # Channel is required, and not assumed to be the current channel view.
     # So when you have been kicked, you will have to type the current channel
     # name manually to rejoin, which is good because it might give you time
@@ -190,12 +184,12 @@ def _define_commands() -> dict[str, Command]:
 
         if command is None:
             view.add_message("Available commands:")
-            for command_name in sorted(_commands):
-                command = _commands[command_name]
+            for command_name in sorted(_commands.keys()):
+                func, description = _commands[command_name]
                 view.add_message(
-                    format_usage(command_name, command.func)
+                    format_usage(command_name, func)
                     + " - "
-                    + command.description
+                    + description
                 )
             return
 
@@ -218,27 +212,27 @@ def _define_commands() -> dict[str, Command]:
         )
 
     return {
-        "/join": Command(join, "Join a channel"),
-        "/part": Command(part, "Leave a channel"),
-        "/nick": Command(nick, "Change your nickname"),
-        "/topic": Command(topic, "Change the channel topic"),
-        "/me": Command(me, "Send an action message"),
-        "/msg": Command(msg, "Send a private message"),
-        "/ns": Command(msg_nickserv, "Send a message to NickServ"),
-        "/nickserv": Command(msg_nickserv, "Send a message to NickServ"),
-        "/ms": Command(msg_memoserv, "Send a message to MemoServ"),
-        "/memoserv": Command(msg_memoserv, "Send a message to MemoServ"),
-        "/cs": Command(msg_chanserv, "Send a message to ChanServ"),
-        "/chanserv": Command(msg_chanserv, "Send a message to ChanServ"),
-        "/whois": Command(whois, "Show whois information"),
-        "/op": Command(op, "Give operator permissions to a user"),
-        "/deop": Command(deop, "Remove operator permissions from a user"),
-        "/kick": Command(kick, "Kick a user from the channel"),
-        "/away": Command(away, "Set yourself away"),
-        "/back": Command(back, "Return from away"),
-        "/raw": Command(raw, "Send a raw IRC command"),
-        "/help": Command(help, "Show available commands or usage"),
-        "/?": Command(help, "Show available commands or usage"),
+        "/join": (join, "Join a channel"),
+        "/part": (part, "Leave a channel"),
+        "/nick": (nick, "Change your nickname"),
+        "/topic": (topic, "Change the channel topic"),
+        "/me": (me, "Send an action message"),
+        "/msg": (msg, "Send a message"),
+        "/ns": (msg_nickserv, "Send a message to NickServ"),
+        "/nickserv": (msg_nickserv, "Send a message to NickServ"),
+        "/ms": (msg_memoserv, "Send a message to MemoServ"),
+        "/memoserv": (msg_memoserv, "Send a message to MemoServ"),
+        "/cs": (msg_chanserv, "Send a message to ChanServ"),
+        "/chanserv": (msg_chanserv, "Send a message to ChanServ"),
+        "/whois": (whois, "Show whois information"),
+        "/op": (op, "Give operator permissions to a user"),
+        "/deop": (deop, "Remove operator permissions from a user"),
+        "/kick": (kick, "Kick a user from the channel"),
+        "/away": (away, "Mark yourself as being away"),
+        "/back": (back, "Return from away"),
+        "/raw": (raw, "Send a raw IRC command"),
+        "/help": (help, "Show available commands"),
+        "/?": (help, "Show available commands"),
     }
 
 
