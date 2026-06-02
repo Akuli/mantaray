@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import re
 from tkinter import messagebox
-from typing import Callable, NamedTuple
+from typing import Callable
 
 from mantaray.backend import IrcCore
 from mantaray.views import ChannelView, MessagePart, PMView, View
