@@ -11,6 +11,17 @@ from mantaray.backend import IrcCore
 from mantaray.views import ChannelView, MessagePart, PMView, View
 
 
+def _format_usage(command_name: str, func: Callable[..., None], *, skip: int = 2) -> str:
+    params = list(inspect.signature(func).parameters.values())[skip:]
+    usage = command_name
+    for p in params:
+        if p.default == inspect.Parameter.empty:
+            usage += f" <{p.name}>"
+        else:
+            usage += f" [<{p.name}>]"
+    return usage
+
+
 def _send_privmsg(
     view: View, core: IrcCore, message: str, *, history_id: int | None = None
 ) -> None:
@@ -49,13 +60,8 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
         command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
-            usage = command_name
-            for p in params:
-                if p in required_params:
-                    usage += f" <{p.name}>"
-                else:
-                    usage += f" [<{p.name}>]"
             # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
+            usage = _format_usage(command_name, func, skip=2)
             view.add_message(
                 [
                     MessagePart("Usage: "),
@@ -180,16 +186,6 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
         core.send(command)
 
     def help(view: View, core: IrcCore, command: str | None = None) -> None:
-        def format_usage(command_name: str, func: Callable[..., None]) -> str:
-            params = list(inspect.signature(func).parameters.values())[2:]
-            usage = command_name
-            for p in params:
-                if p.default == inspect.Parameter.empty:
-                    usage += f" <{p.name}>"
-                else:
-                    usage += f" [<{p.name}>]"
-            return usage
-
         if command is None:
             # TODO: Which tags to use? "pinged" is not really meant for this.
             view.add_message([MessagePart("Available commands:", tags=["pinged", "underline"])])
@@ -208,7 +204,7 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
             view.add_message(
                 [
                     # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
-                    MessagePart(format_usage(command_name, func), tags=["topic"]),
+                    MessagePart(_format_usage(command_name, func, skip=2), tags=["topic"]),
                     MessagePart(" - " + description),
                 ]
             )
