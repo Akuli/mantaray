@@ -11,8 +11,9 @@ from mantaray.backend import IrcCore
 from mantaray.views import ChannelView, MessagePart, PMView, View
 
 
-def _format_usage(command_name: str, func: Callable[..., None], *, skip: int = 2) -> str:
-    params = list(inspect.signature(func).parameters.values())[skip:]
+def _format_usage(command_name: str, func: Callable[..., None]) -> str:
+    # First two parameters are passed by mantaray, not from user
+    params = list(inspect.signature(func).parameters.values())[2:]
     usage = command_name
     for p in params:
         if p.default == inspect.Parameter.empty:
@@ -64,7 +65,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
                 [
                     MessagePart("Usage: "),
                     # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
-                    MessagePart(_format_usage(command_name, func, skip=2), tags=["pinged"]),
+                    MessagePart(_format_usage(command_name, func), tags=["pinged"]),
                 ],
                 tag="error",
                 history_id=history_id,
@@ -203,7 +204,7 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
             view.add_message(
                 [
                     # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
-                    MessagePart(_format_usage(command_name, func, skip=2), tags=["topic"]),
+                    MessagePart(_format_usage(command_name, func), tags=["topic"]),
                     MessagePart(" - " + description),
                 ]
             )
