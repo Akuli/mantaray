@@ -363,6 +363,15 @@ def test_who_on_join(alice, bob, wait_until, sharing_channels):
     )
 
 
+@pytest.mark.parametrize("help_command", ["/help", "/?"])
+def test_help_shows_available_commands(alice, wait_until, help_command):
+    alice.entry.insert(0, help_command)
+    alice.on_enter_pressed()
+    wait_until(lambda: "Available commands:" in alice.text())
+    wait_until(lambda: "/part [<channel>] - Leave a channel" in alice.text())
+    wait_until(lambda: "/nick <new_nick> - Change your nickname" in alice.text())
+
+
 @pytest.mark.parametrize(
     "command, error",
     [

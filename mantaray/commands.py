@@ -8,7 +8,19 @@ from tkinter import messagebox
 from typing import Callable
 
 from mantaray.backend import IrcCore
-from mantaray.views import ChannelView, PMView, View
+from mantaray.views import ChannelView, MessagePart, PMView, View
+
+
+def _format_usage(command_name: str, func: Callable[..., None]) -> str:
+    # First two parameters are passed by mantaray, not from user
+    params = list(inspect.signature(func).parameters.values())[2:]
+    usage = command_name
+    for p in params:
+        if p.default == inspect.Parameter.empty:
+            usage += f" <{p.name}>"
+        else:
+            usage += f" [<{p.name}>]"
+    return usage
 
 
 def _send_privmsg(
@@ -30,9 +42,9 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
     if not entry_text:
         return
 
-    if re.fullmatch("/[A-Za-z]+( .*)?", entry_text):
+    if re.fullmatch(r"/([A-Za-z]+|\?)( .*)?", entry_text):
         try:
-            func = _commands[entry_text.split()[0].lower()]
+            func = _commands[entry_text.split()[0].lower()][0]
         except KeyError:
             view.add_message(
                 f"No command named '{entry_text.split()[0]}'",
@@ -49,13 +61,15 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
         command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
-            usage = command_name
-            for p in params:
-                if p in required_params:
-                    usage += f" <{p.name}>"
-                else:
-                    usage += f" [<{p.name}>]"
-            view.add_message("Usage: " + usage, tag="error", history_id=history_id)
+            view.add_message(
+                [
+                    MessagePart("Usage: "),
+                    # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
+                    MessagePart(_format_usage(command_name, func), tags=["pinged"]),
+                ],
+                tag="error",
+                history_id=history_id,
+            )
         else:
             func(view, core, *args)
 
@@ -86,7 +100,7 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         _send_privmsg(view, core, line, history_id=history_id)
 
 
-def _define_commands() -> dict[str, Callable[..., None]]:
+def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
     # Channel is required, and not assumed to be the current channel view.
     # So when you have been kicked, you will have to type the current channel
     # name manually to rejoin, which is good because it might give you time
@@ -171,26 +185,57 @@ def _define_commands() -> dict[str, Callable[..., None]]:
     def raw(view: View, core: IrcCore, command: str) -> None:
         core.send(command)
 
+    def help(view: View, core: IrcCore, command: str | None = None) -> None:
+        if command is None:
+            # TODO: Which tags to use? "pinged" is not really meant for this.
+            view.add_message([MessagePart("Available commands:", tags=["pinged", "underline"])])
+            keys = sorted(_commands.keys())
+        else:
+            key = command.lower()
+            if not key.startswith("/"):
+                key = "/" + key
+            if key not in _commands:
+                view.add_message(f"No command named '{command}'", tag="error")
+                return
+            keys = [key]
+
+        for command_name in sorted(keys):
+            func, description = _commands[command_name]
+            view.add_message(
+                [
+                    # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
+                    MessagePart(_format_usage(command_name, func), tags=["topic"]),
+                    MessagePart(" - " + description),
+                ]
+            )
+
+        if command is None:
+            view.add_message(
+                "Feel free to ask questions by creating an issue on GitHub: https://github.com/Akuli/mantaray"
+            )
+
     return {
-        "/join": join,
-        "/part": part,
-        "/nick": nick,
-        "/topic": topic,
-        "/me": me,
-        "/msg": msg,
-        "/ns": msg_nickserv,
-        "/nickserv": msg_nickserv,
-        "/ms": msg_memoserv,
-        "/memoserv": msg_memoserv,
-        "/cs": msg_chanserv,
-        "/chanserv": msg_chanserv,
-        "/whois": whois,
-        "/op": op,
-        "/deop": deop,
-        "/kick": kick,
-        "/away": away,
-        "/back": back,
-        "/raw": raw,
+        "/join": (join, "Join a channel"),
+        "/part": (part, "Leave a channel"),
+        "/nick": (nick, "Change your nickname"),
+        "/topic": (topic, "Change the channel topic"),
+        "/me": (me, "Send an action message"),
+        "/msg": (msg, "Send a message"),
+        "/ns": (msg_nickserv, "Send a message to NickServ"),
+        "/nickserv": (msg_nickserv, "Send a message to NickServ"),
+        "/ms": (msg_memoserv, "Send a message to MemoServ"),
+        "/memoserv": (msg_memoserv, "Send a message to MemoServ"),
+        "/cs": (msg_chanserv, "Send a message to ChanServ"),
+        "/chanserv": (msg_chanserv, "Send a message to ChanServ"),
+        "/whois": (whois, "Show whois information"),
+        "/op": (op, "Give operator permissions to a user"),
+        "/deop": (deop, "Remove operator permissions from a user"),
+        "/kick": (kick, "Kick a user from the channel"),
+        "/away": (away, "Mark yourself as being away"),
+        "/back": (back, "Return from away"),
+        "/raw": (raw, "Send a raw IRC command"),
+        "/help": (help, "Show available commands"),
+        "/?": (help, "Show available commands"),
     }
 
 
