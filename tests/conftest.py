@@ -227,6 +227,7 @@ def alice_and_bob(irc_server, root_window, wait_until, mocker, irc_widgets_dict)
             users_who_join_before = list(irc_widgets_dict.values())
             settings = config.Settings(Path(name), read_only=True)
             settings.load()
+            settings.read_logs = False
             irc_widgets_dict[name] = gui.IrcWidget(
                 root_window,
                 settings,

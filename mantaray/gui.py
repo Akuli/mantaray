@@ -356,12 +356,13 @@ class IrcWidget(ttk.PanedWindow):
     def _create_and_add_server_view(self, settings: config.ServerSettings) -> None:
         view = ServerView(self, settings)
         self.add_view(view)
+        logs.start_logging(view)
         view.start_running()  # Must be after add_view()
 
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
         self.view_selector.delete(view.view_id)
-        view.close_log_file()
+        logs.stop_logging(view)
         view.destroy_widgets()
         del self.views_by_id[view.view_id]
 
@@ -380,7 +381,7 @@ class IrcWidget(ttk.PanedWindow):
             self._select_another_view(server_view)
 
         self.view_selector.delete(server_view.view_id)
-        server_view.close_log_file()
+        logs.stop_logging(server_view)
         server_view.destroy_widgets()
         del self.views_by_id[server_view.view_id]
 

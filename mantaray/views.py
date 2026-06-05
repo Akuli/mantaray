@@ -3,17 +3,16 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-import time
 import tkinter
 import webbrowser
 from tkinter import ttk
 from tkinter.font import Font
-from typing import IO, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any
+from datetime import datetime
 
-from mantaray import backend, config, received, textwidget_tags
+from mantaray import backend, config, received, textwidget_tags, logs
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
-from mantaray.logs import make_timestamp
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -189,6 +188,13 @@ def _show_popup(title: str, text: str) -> None:
         logging.exception("error showing notification popup")
 
 
+def _timestamp_to_string(timestamp: datetime) -> str:
+    # TODO: somehow include day if it's old? That's possible with messages that
+    #       came from reading the log file. In any case this should be kept
+    #       really concise.
+    return timestamp.astimezone().strftime("[%H:%M]")
+
+
 class MessagePart:
     def __init__(self, text: str, *, tags: list[str] = []):
         self.text = text
@@ -224,8 +230,11 @@ class View:
 
         self.history = History(self.textwidget)
 
-        self.log_file: IO[str] | None = None
-        self.reopen_log_file()
+        self.log_id: int | None = None
+
+    # for debug prints
+    def __repr__(self) -> str:
+        return f"<View: {self.view_name!r}>"
 
     def _on_link_leftclick(
         self, event: tkinter.Event[tkinter.Text], tag: str, text: str
@@ -242,19 +251,6 @@ class View:
     ) -> None:
         if tag == "other-nick":
             nick_right_click(event, self.server_view, text)
-
-    def get_log_name(self) -> str:
-        raise NotImplementedError
-
-    def close_log_file(self) -> None:
-        if self.log_file is not None:
-            self.irc_widget.log_manager.close_log_file(self.log_file)
-
-    def reopen_log_file(self) -> None:
-        self.close_log_file()
-        self.log_file = self.irc_widget.log_manager.open_log_file(
-            self.server_view.view_name, self.get_log_name()
-        )
 
     def _update_view_selector(self) -> None:
         if self.notification_count == 0:
@@ -345,64 +341,62 @@ class View:
     def add_message(
         self,
         message: str | list[MessagePart],
-        sender: str = "*",
+        sender: str | None = None,
         *,
         sender_tag: str | None = None,
         tag: Literal["info", "error", "privmsg"] = "info",
-        show_in_gui: bool = True,
         pinged: bool = False,
         history_id: int | None = None,
+        timestamp: datetime | None = None,
     ) -> None:
+        if timestamp is None:
+            timestamp = datetime.now().astimezone()
+        assert timestamp.tzinfo is not None
+
         if isinstance(message, str):
             message = [MessagePart(message)]
 
-        if show_in_gui:
-            # scroll down all the way if the user hasn't scrolled up manually
-            do_the_scroll = self.textwidget.yview()[1] == 1.0
+        # scroll down all the way if the user hasn't scrolled up manually
+        do_the_scroll = self.textwidget.yview()[1] == 1.0
 
-            if history_id is not None:
-                # Without gravity, the mark stays at the end as text is inserted
-                self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
-                self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
+        if history_id is not None:
+            # Without gravity, the mark stays at the end as text is inserted
+            self.textwidget.mark_set(f"history-start-{history_id}", "end - 1 char")
+            self.textwidget.mark_gravity(f"history-start-{history_id}", "left")
 
-            self.textwidget.config(state="normal")
-            start = self.textwidget.index("end - 1 char")
-            self.textwidget.insert("end", time.strftime("[%H:%M]"))
-            self.textwidget.insert("end", "\t")
-            self.textwidget.insert(
-                "end", sender, [] if sender_tag is None else [sender_tag]
-            )
-            self.textwidget.insert("end", "\t")
+        self.textwidget.config(state="normal")
+        start = self.textwidget.index("end - 1 char")
+        self.textwidget.insert("end", _timestamp_to_string(timestamp))
+        self.textwidget.insert("end", "\t")
+        self.textwidget.insert(
+            "end", sender or "*", [] if sender_tag is None else [sender_tag]
+        )
+        self.textwidget.insert("end", "\t")
 
-            if message:
-                insert_args: list[Any] = []
-                for part in message:
-                    insert_args.append(part.text)
-                    insert_args.append(part.tags + ["text", tag])
-                self.textwidget.insert("end", *insert_args)
+        if message:
+            insert_args: list[Any] = []
+            for part in message:
+                insert_args.append(part.text)
+                insert_args.append(part.tags + ["text", tag])
+            self.textwidget.insert("end", *insert_args)
 
-            self.textwidget.insert("end", "\n")
-            if pinged:
-                self.textwidget.tag_add("pinged", start, "end - 1 char")
-            self.textwidget.config(state="disabled")
+        self.textwidget.insert("end", "\n")
+        if pinged:
+            self.textwidget.tag_add("pinged", start, "end - 1 char")
+        self.textwidget.config(state="disabled")
 
-            if history_id is not None:
-                self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
-                self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
+        if history_id is not None:
+            self.textwidget.mark_set(f"history-end-{history_id}", "end - 1 char")
+            self.textwidget.mark_gravity(f"history-end-{history_id}", "left")
 
-            textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
+        textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
 
-            if do_the_scroll:
-                self.textwidget.see("end")
+        if do_the_scroll:
+            self.textwidget.see("end")
 
-        if self.log_file is not None:
-            print(
-                make_timestamp(),
-                sender,
-                "".join(part.text for part in message),
-                sep="\t",
-                file=self.log_file,
-                flush=True,
+        if self.log_id is not None:
+            self.irc_widget.log_manager.write_to_log(
+                self.log_id, timestamp, sender, "".join(part.text for part in message)
             )
 
 
@@ -442,13 +436,6 @@ class ServerView(View):
 
     def start_running(self) -> None:
         self._run_core()
-
-    def get_log_name(self) -> str:
-        # Log to file named logs/foobar/server.log.
-        #
-        # Not a problem if someone is nicknamed "server", because ServerView
-        # opens its log file first.
-        return "server"
 
     @property
     def server_view(self) -> ServerView:
@@ -495,6 +482,8 @@ class ServerView(View):
 
         new_view = PMView(self, nick)
         self.irc_widget.add_view(new_view)  # selects the view
+        logs.read_old_logs(new_view)
+        logs.start_logging(new_view)
         return new_view
 
     def show_config_dialog(self) -> None:
@@ -504,6 +493,12 @@ class ServerView(View):
             connecting_to_new_server=False,
         )
         if user_clicked_reconnect:
+            if self.settings.logging:
+                for subview in self.get_subviews(include_server=True):
+                    logs.start_logging(subview)
+            else:
+                for subview in self.get_subviews(include_server=True):
+                    logs.stop_logging(subview)
             self.core.reconnect()
 
 
@@ -523,9 +518,6 @@ class ChannelView(View):
     @property
     def channel_name(self) -> str:
         return self.view_name
-
-    def get_log_name(self) -> str:
-        return self.channel_name
 
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
@@ -547,6 +539,3 @@ class PMView(View):
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
-
-    def get_log_name(self) -> str:
-        return self.nick_of_other_user

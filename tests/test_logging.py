@@ -1,19 +1,44 @@
+import random
 import re
+import io
 
 import pytest
 
 from mantaray.views import ServerView
+from mantaray.logs import _read_file_backwards
+
+
+@pytest.mark.parametrize(
+    "data, expected",
+    [
+        (b"", []),
+        (b"hello", [b"hello"]),
+        (b"hello\n", [b"hello"]),
+        (b"hello\r\n", [b"hello"]),
+        (b"one\r\ntwo\r\nthree\r\n", [b"three", b"two", b"one"]),
+        (b"one\ntwo\nthree\n\n", [b"", b"three", b"two", b"one"]),
+        (b"\n\n\n", [b"", b"", b""]),
+        (b"a" * 200, [b"a" * 200]),
+        (b"a" * 200 + b"\n", [b"a" * 200]),
+        (
+            b"a"*200 + b"\n" + b"b"*200 + b"\n" + b"c"*200 + b"\n",
+            [b"c"*200, b"b"*200, b"a"*200],
+        ),
+    ],
+)
+def test_backwards_reading(data, expected):
+    f = io.BytesIO(data)
+    # Smaller chunk size to hopefully catch bugs
+    iterator = _read_file_backwards(f, chunk_size=random.randint(1, 100))
+    assert list(iterator) == expected
 
 
 def _read_file(path):
-    string = path.read_text("utf-8")
-    string = re.sub(
+    return re.sub(
         r"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9]\+[0-9][0-9]:[0-9][0-9]",
-        "<time>",
-        string,
+        "%timestamp%",
+        path.read_text("utf-8"),
     )
-    string = string.expandtabs()
-    return string
 
 
 @pytest.fixture
@@ -24,7 +49,10 @@ def check_log(wait_until):
         try:
             wait_until(lambda: _read_file(path) == expected_content)
         except RuntimeError as e:
-            print(path.read_text("utf-8"))
+            print()
+            print("-" * 50)
+            print(_read_file(path))
+            print("-" * 50)
             raise e
 
     return actually_check_log
@@ -46,12 +74,12 @@ def test_basic(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  *       The topic of #autojoin is: (no topic)
-<time>  *       Bob joined #autojoin.
-<time>  Alice   Hello
-<time>  Bob     Hiii
-*** LOGGING ENDS <time>
+*** LOGGING BEGINS %timestamp%
+%timestamp% [#autojoin] * The topic of #autojoin is: (no topic)
+%timestamp% [#autojoin] * Bob joined #autojoin.
+%timestamp% [#autojoin] <Alice> Hello
+%timestamp% [#autojoin] <Bob> Hiii
+*** LOGGING ENDS %timestamp%
 """,
     )
 
@@ -79,30 +107,30 @@ def test_pm_logs(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  *       The topic of #autojoin is: (no topic)
-<time>  *       Bob joined #autojoin.
-<time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
+*** LOGGING BEGINS %timestamp%
+%timestamp% [#autojoin] * The topic of #autojoin is: (no topic)
+%timestamp% [#autojoin] * Bob joined #autojoin.
+%timestamp% [#autojoin] * Bob is now known as blabla.
+*** LOGGING ENDS %timestamp%
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "bob.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  Alice   hey
-<time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
+*** LOGGING BEGINS %timestamp%
+%timestamp% [Bob] <Alice> hey
+%timestamp% [Bob] * Bob is now known as blabla.
+*** LOGGING ENDS %timestamp%
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "blabla.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  Alice   its ur new nick
-*** LOGGING ENDS <time>
+*** LOGGING BEGINS %timestamp%
+%timestamp% [blabla] <Alice> its ur new nick
+*** LOGGING ENDS %timestamp%
 """,
     )
 
@@ -119,8 +147,8 @@ def test_funny_filenames(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_bruh_.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  {Bruh}  blah
+*** LOGGING BEGINS %timestamp%
+%timestamp% [{Bruh}] <{Bruh}> blah
 """,
     )
 
@@ -150,22 +178,14 @@ def test_same_log_file_name(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_foo.log",
         """
 
-*** LOGGING BEGINS <time>
-<time>  {foo    hello 1
-""",
-    )
-
-    check_log(
-        bob.log_manager.log_dir / "localhost" / "_foo(2).log",
-        """
-
-*** LOGGING BEGINS <time>
-<time>  }foo    hello 2
+*** LOGGING BEGINS %timestamp%
+%timestamp% [{foo] <{foo> hello 1
+%timestamp% [}foo] <}foo> hello 2
 """,
     )
 
 
-def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
+def test_someone_has_nickname_server(alice, bob, wait_until):
     alice.entry.insert(0, "/nick server")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as server." in alice.text())
@@ -178,12 +198,8 @@ def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
     bob.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
 
-    check_log(
-        bob.log_manager.log_dir / "localhost" / "server(2).log",
-        """
-
-*** LOGGING BEGINS <time>
-<time>  server  blah
-<time>  Bob     hello there
-""",
-    )
+    # This is special-cased because server.log also contains all the spam that
+    # the IRC server happens to say.
+    bob_server_log = bob.log_manager.log_dir / "localhost" / "server.log"
+    wait_until(lambda: " [server] <server> blah" in bob_server_log.read_text("utf-8", errors="replace"))
+    wait_until(lambda: " [server] <Bob> hello there" in bob_server_log.read_text("utf-8", errors="replace"))

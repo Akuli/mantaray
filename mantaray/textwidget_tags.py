@@ -167,6 +167,7 @@ def config_tags(
     textwidget.tag_configure("self-nick", foreground="#de8c28", underline=True)
     textwidget.tag_configure("other-nick", foreground="#e7b678", underline=True)
     textwidget.tag_configure("privmsg", foreground=get_foreground())
+    textwidget.tag_configure("from-log", foreground="#999999")
 
     if sv_ttk.get_theme() == "light":
         # Used only if the user enables the light theme by editing json.
@@ -180,7 +181,7 @@ def config_tags(
         textwidget.tag_configure("self-nick", foreground="#C15700")
         textwidget.tag_configure("other-nick", foreground="#AC8B00")
 
-    for lower_tag in ["info", "error", "privmsg"]:
+    for lower_tag in ["info", "error", "privmsg", "from-log"]:
         textwidget.tag_lower(lower_tag, "pinged")
     for upper_tag in ["history-selection", "channel", "self-nick", "other-nick"]:
         textwidget.tag_raise(upper_tag, "pinged")
