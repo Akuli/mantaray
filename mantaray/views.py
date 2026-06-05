@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import os
 import logging
 import subprocess
 import sys
-import time
 import tkinter
 import webbrowser
 from tkinter import ttk
 from tkinter.font import Font
-from typing import IO, TYPE_CHECKING, Any
-from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
+from datetime import datetime
 
 from mantaray import backend, config, received, textwidget_tags, logs
 from mantaray.history import History
