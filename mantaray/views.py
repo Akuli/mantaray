@@ -283,7 +283,7 @@ class View:
     def reopen_log_file(self) -> None:
         self.close_log_file()
         self.log_id = self.irc_widget.log_manager.open_log_file(
-            self.server_view.view_name, self.get_log_name()
+            self.server_view.view_name, self.get_log_name(), is_dm=isinstance(self, PMView),
         )
 
     def _update_view_selector(self) -> None:

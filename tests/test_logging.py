@@ -38,7 +38,7 @@ def _read_file(path):
     string = path.read_text("utf-8")
     string = re.sub(
         r"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9]\+[0-9][0-9]:[0-9][0-9]",
-        "<time>",
+        "%timestamp%",
         string,
     )
     string = string.expandtabs()
@@ -78,12 +78,12 @@ def test_basic(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       #autojoin
-<time>  *       The topic of #autojoin is: (no topic)
-<time>  *       Bob joined #autojoin.
-<time>  Alice   Hello
-<time>  Bob     Hiii
-*** LOGGING ENDS        <time>  localhost       #autojoin
+*** LOGGING BEGINS %timestamp%
+%timestamp% [#autojoin] * The topic of #autojoin is: (no topic)
+%timestamp% [#autojoin] * Bob joined #autojoin.
+%timestamp% [#autojoin] <Alice> Hello
+%timestamp% [#autojoin] <Bob> Hiii
+*** LOGGING ENDS %timestamp%
 """,
     )
 
@@ -111,30 +111,30 @@ def test_pm_logs(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       #autojoin
-<time>  *       The topic of #autojoin is: (no topic)
-<time>  *       Bob joined #autojoin.
-<time>  *       Bob is now known as blabla.
-*** LOGGING ENDS        <time>  localhost       #autojoin
+*** LOGGING BEGINS %timestamp%
+%timestamp% [#autojoin] * The topic of #autojoin is: (no topic)
+%timestamp% [#autojoin] * Bob joined #autojoin.
+%timestamp% [#autojoin] * Bob is now known as blabla.
+*** LOGGING ENDS %timestamp%
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "bob.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       Bob
-<time>  Alice   hey
-<time>  *       Bob is now known as blabla.
-*** LOGGING ENDS        <time>  localhost       Bob
+*** LOGGING BEGINS %timestamp%
+%timestamp% [Bob] <Alice> hey
+%timestamp% [Bob] * Bob is now known as blabla.
+*** LOGGING ENDS %timestamp%
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "blabla.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       blabla
-<time>  Alice   its ur new nick
-*** LOGGING ENDS        <time>  localhost       blabla
+*** LOGGING BEGINS %timestamp%
+%timestamp% [blabla] <Alice> its ur new nick
+*** LOGGING ENDS %timestamp%
 """,
     )
 
@@ -151,8 +151,8 @@ def test_funny_filenames(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_bruh_.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       {Bruh}
-<time>  {Bruh}  blah
+*** LOGGING BEGINS %timestamp%
+%timestamp% [{Bruh}] <{Bruh}> blah
 """,
     )
 
@@ -182,22 +182,14 @@ def test_same_log_file_name(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_foo.log",
         """
 
-*** LOGGING BEGINS      <time>  localhost       {foo
-<time>  {foo    hello 1
-""",
-    )
-
-    check_log(
-        bob.log_manager.log_dir / "localhost" / "_foo(2).log",
-        """
-
-*** LOGGING BEGINS      <time>  localhost       }foo
-<time>  }foo    hello 2
+*** LOGGING BEGINS %timestamp%
+%timestamp% [{foo] <{foo> hello 1
+%timestamp% [}foo] <}foo> hello 2
 """,
     )
 
 
-def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
+def test_someone_has_nickname_server(alice, bob, wait_until):
     alice.entry.insert(0, "/nick server")
     alice.on_enter_pressed()
     wait_until(lambda: "You are now known as server." in alice.text())
@@ -210,12 +202,8 @@ def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
     bob.on_enter_pressed()
     wait_until(lambda: "hello there" in alice.text())
 
-    check_log(
-        bob.log_manager.log_dir / "localhost" / "server(2).log",
-        """
-
-*** LOGGING BEGINS      <time>  localhost       server
-<time>  server  blah
-<time>  Bob     hello there
-""",
-    )
+    # This is special-cased because server.log also contains all the spam that
+    # the IRC server happens to say.
+    server_log = (bob.log_manager.log_dir / "localhost" / "server.log").read_text("utf-8")
+    assert " [server] <server> blah" in server_log
+    assert " [server] <Bob> hello there" in server_log
