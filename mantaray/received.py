@@ -5,8 +5,9 @@ from __future__ import annotations
 import sys
 import re
 from base64 import b64encode
+from datetime import datetime
 
-from mantaray import backend, textwidget_tags, views
+from mantaray import backend, textwidget_tags, views, logs
 
 if sys.version_info >= (3, 11):
     from typing import assert_never
@@ -87,7 +88,11 @@ def _add_privmsg_to_view(
     pinged: bool = False,
     history_id: int | None = None,
     notification: bool = False,
+    timestamp: datetime | None = None,
 ) -> None:
+    if timestamp is not None:
+        assert timestamp.tzinfo is not None
+
     # /me asdf --> "\x01ACTION asdf\x01"
     if text.startswith("\x01ACTION ") and text.endswith("\x01"):
         slash_me = True
@@ -124,6 +129,7 @@ def _add_privmsg_to_view(
             + parts,
             pinged=pinged,
             history_id=history_id,
+            timestamp=timestamp,
         )
     else:
         view.add_message(
@@ -133,6 +139,7 @@ def _add_privmsg_to_view(
             tag="privmsg",
             pinged=pinged,
             history_id=history_id,
+            timestamp=timestamp,
         )
 
     if notification:
@@ -147,6 +154,46 @@ def _add_privmsg_to_view(
                 view.add_notification(text)
 
 
+# Also used for messages loaded from logs.
+def add_received_privmsg_to_view(
+    view: views.ChannelView | views.PMView,
+    sender: str,
+    text: str,
+    *,
+    already_seen: bool = False,
+    timestamp: datetime | None = None,
+) -> None:
+    if timestamp is not None:
+        assert timestamp.tzinfo is not None
+
+    if isinstance(view, views.PMView):
+        _add_privmsg_to_view(view, sender, text, notification=(not already_seen), timestamp=timestamp)
+        if not already_seen:
+            view.add_view_selector_tag("new_message")
+    else:
+        pinged = any(
+            tag == "self-nick"
+            for substring, tag in backend.find_nicks(
+                text, view.server_view.settings.nick, [view.server_view.settings.nick]
+            )
+        )
+        _add_privmsg_to_view(
+            view,
+            sender,
+            text,
+            pinged=pinged,
+            notification=(
+                (not already_seen)
+                and (
+                    pinged
+                    or view.channel_name in view.server_view.settings.extra_notifications
+                )
+            ),
+            timestamp=timestamp,
+        )
+        view.add_view_selector_tag("pinged" if pinged else "new_message")
+
+
 # privmsg can be a message to a channel or a PM (actual Private Message directly to the user)
 def _handle_privmsg(
     server_view: views.ServerView, sender: str, args: list[str]
@@ -156,33 +203,11 @@ def _handle_privmsg(
 
     if recipient == server_view.settings.nick:  # actual PM
         pm_view = server_view.find_or_open_pm(sender)
-        _add_privmsg_to_view(pm_view, sender, text, notification=True)
-        pm_view.add_view_selector_tag("new_message")
-
+        add_received_privmsg_to_view(pm_view, sender, text)
     else:
         channel_view = server_view.find_channel(recipient)
         assert channel_view is not None
-
-        pinged = any(
-            tag == "self-nick"
-            for substring, tag in backend.find_nicks(
-                text, server_view.settings.nick, [server_view.settings.nick]
-            )
-        )
-        _add_privmsg_to_view(
-            channel_view,
-            sender,
-            text,
-            pinged=pinged,
-            notification=(
-                pinged
-                or (
-                    channel_view.channel_name
-                    in server_view.settings.extra_notifications
-                )
-            ),
-        )
-        channel_view.add_view_selector_tag("pinged" if pinged else "new_message")
+        add_received_privmsg_to_view(channel_view, sender, text)
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -285,8 +310,9 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 if old_view is not None and old_view != view:
                     server_view.irc_widget.remove_view(old_view)
 
+                logs.stop_logging(view)
                 view.view_name = new_nick
-                view.reopen_log_file()
+                logs.start_logging(view)
 
 
 def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -519,6 +545,8 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     if channel_view is None:
         channel_view = views.ChannelView(server_view, channel, join.nicks)
         server_view.irc_widget.add_view(channel_view)
+        logs.read_old_logs(channel_view)
+        logs.start_logging(channel_view)
     else:
         # Can exist already, when has been disconnected from server
         channel_view.userlist.set_nicks(join.nicks)
@@ -757,9 +785,11 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
         server_view.irc_widget.update_nick_button()
 
     elif isinstance(event, backend.HostChanged):
+        for subview in server_view.get_subviews(include_server=True):
+            logs.stop_logging(subview)
         server_view.view_name = event.new
         for subview in server_view.get_subviews(include_server=True):
-            subview.reopen_log_file()
+            logs.start_logging(subview)
 
     elif isinstance(event, backend.SentPrivmsg):
         channel_view = server_view.find_channel(event.nick_or_channel)

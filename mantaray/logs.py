@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import io
 import re
@@ -7,6 +9,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import IO
 from collections.abc import Iterator
+
+from mantaray import views, received
 
 
 @dataclass
@@ -81,7 +85,7 @@ class LogManager:
     # This doesn't hand out the file object directly. By forcing file writing
     # to happen here, it remains easy to figure out what exactly the file
     # format is.
-    def open_log_file(self, server_name: str, channel_or_nick: str | None, *, is_dm: bool) -> int:
+    def open_log_file(self, server_name: str, channel_or_nick: str | None) -> int:
         path = self._make_path(server_name, channel_or_nick)
 
         file = None
@@ -192,7 +196,8 @@ class LogManager:
                             # So old that we don't care about it
                             if timestamp < since - timedelta(hours=24):
                                 # So old that it's safe to assume everything
-                                # before this line is also too old.
+                                # before this line is also too old, even if
+                                # computer's clock was adjusted.
                                 break
                             continue
 
@@ -203,8 +208,62 @@ class LogManager:
                     except ValueError:
                         print(f"Cannot parse IRC log line in {path}: {line}")
 
+        except FileNotFoundError:
+            pass
+
         except OSError as e:
             print(f"Failed to read log from {path}: {e}")
 
         results.reverse()
         return results
+
+
+def read_old_logs(view: views.ChannelView | views.PMView) -> None:
+    assert view.log_id is None  # TODO: read logs dynamically when scrolling up?
+
+    # TODO: Add some way to disable this in GUI.
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return
+
+    if isinstance(view, views.ChannelView):
+        channel_or_nick = view.channel_name
+    else:
+        channel_or_nick = view.nick_of_other_user
+
+    now = datetime.now().astimezone()
+    old_logs = view.irc_widget.log_manager.read_old_logs(
+        server_name=view.server_view.view_name,
+        channel_or_nick=channel_or_nick,
+        since=(now - timedelta(days=1)),  # TODO: make this configurable?
+    )
+
+    old_end = view.textwidget.index("end - 1 char")
+
+    for timestamp, sender, message in old_logs:
+        if sender is None:
+            view.add_message(message, timestamp=timestamp)
+        else:
+            received.add_received_privmsg_to_view(view, sender, message, timestamp=timestamp, already_seen=True)
+
+    view.textwidget.tag_add("from-log", old_end, "end - 1 char")
+
+
+def start_logging(view: views.View) -> None:
+    assert view.log_id is None
+
+    if isinstance(view, views.ChannelView):
+        channel_or_nick = view.channel_name
+    elif isinstance(view, views.PMView):
+        channel_or_nick = view.nick_of_other_user
+    else:
+        assert isinstance(view, views.ServerView)
+        channel_or_nick = None
+
+    assert view.log_id is None
+    view.log_id = view.irc_widget.log_manager.open_log_file(view.server_view.view_name, channel_or_nick)
+
+
+def stop_logging(view: views.View) -> None:
+    assert view.log_id is not None
+    view.irc_widget.log_manager.close_log_file(view.log_id)
+    view.log_id = None

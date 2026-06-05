@@ -12,7 +12,7 @@ from tkinter.font import Font
 from typing import IO, TYPE_CHECKING, Any
 from datetime import datetime, timedelta
 
-from mantaray import backend, config, received, textwidget_tags
+from mantaray import backend, config, received, textwidget_tags, logs
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 
@@ -232,29 +232,11 @@ class View:
 
         self.history = History(self.textwidget)
 
-        # Fetch old messages from log files
-        # TODO: Add some way to disable this in GUI.
-        # TODO: this is hacky in other ways tooo....
-        if "PYTEST_CURRENT_TEST" not in os.environ and self.get_log_name() is not None:
-            channel_or_nick = self.get_log_name()
-            assert channel_or_nick is not None
-            now = datetime.now().astimezone()
-            old_logs = irc_widget.log_manager.read_old_logs(
-                server_name=self.server_view.view_name,
-                channel_or_nick=channel_or_nick,
-                since=(now - timedelta(days=3)),
-            )
-            gonna_insert = "".join(
-                f"{_timestamp_to_string(timestamp)}\t{sender or '*'}\t{message}\n"
-                for timestamp, sender, message in old_logs
-            )
-            self.textwidget.config(state="normal")
-            self.textwidget.insert("end", gonna_insert, ["from-log"])
-            self.textwidget.config(state="disabled")
-            self.textwidget.after_idle(self.textwidget.see, "end")
-
         self.log_id: int | None = None
-        self.reopen_log_file()
+
+    # for debug prints
+    def __repr__(self) -> str:
+        return f"<View: {self.view_name!r}>"
 
     def _on_link_leftclick(
         self, event: tkinter.Event[tkinter.Text], tag: str, text: str
@@ -271,20 +253,6 @@ class View:
     ) -> None:
         if tag == "other-nick":
             nick_right_click(event, self.server_view, text)
-
-    def get_log_name(self) -> str | None:
-        raise NotImplementedError
-
-    def close_log_file(self) -> None:
-        if self.log_id is not None:
-            self.irc_widget.log_manager.close_log_file(self.log_id)
-            self.log_id = None
-
-    def reopen_log_file(self) -> None:
-        self.close_log_file()
-        self.log_id = self.irc_widget.log_manager.open_log_file(
-            self.server_view.view_name, self.get_log_name(), is_dm=isinstance(self, PMView),
-        )
 
     def _update_view_selector(self) -> None:
         if self.notification_count == 0:
@@ -381,8 +349,11 @@ class View:
         tag: Literal["info", "error", "privmsg"] = "info",
         pinged: bool = False,
         history_id: int | None = None,
+        timestamp: datetime | None = None,
     ) -> None:
-        timestamp = datetime.now().astimezone()
+        if timestamp is None:
+            timestamp = datetime.now().astimezone()
+        assert timestamp.tzinfo is not None
 
         if isinstance(message, str):
             message = [MessagePart(message)]
@@ -468,9 +439,6 @@ class ServerView(View):
     def start_running(self) -> None:
         self._run_core()
 
-    def get_log_name(self) -> None:
-        return None
-
     @property
     def server_view(self) -> ServerView:
         return self
@@ -516,6 +484,8 @@ class ServerView(View):
 
         new_view = PMView(self, nick)
         self.irc_widget.add_view(new_view)  # selects the view
+        logs.read_old_logs(new_view)
+        logs.start_logging(new_view)
         return new_view
 
     def show_config_dialog(self) -> None:
@@ -545,9 +515,6 @@ class ChannelView(View):
     def channel_name(self) -> str:
         return self.view_name
 
-    def get_log_name(self) -> str:
-        return self.channel_name
-
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()
@@ -568,6 +535,3 @@ class PMView(View):
     @property
     def nick_of_other_user(self) -> str:
         return self.view_name
-
-    def get_log_name(self) -> str:
-        return self.nick_of_other_user

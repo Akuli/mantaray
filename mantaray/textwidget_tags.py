@@ -181,7 +181,7 @@ def config_tags(
         textwidget.tag_configure("self-nick", foreground="#C15700")
         textwidget.tag_configure("other-nick", foreground="#AC8B00")
 
-    for lower_tag in ["info", "error", "privmsg"]:
+    for lower_tag in ["info", "error", "privmsg", "from-log"]:
         textwidget.tag_lower(lower_tag, "pinged")
     for upper_tag in ["history-selection", "channel", "self-nick", "other-nick"]:
         textwidget.tag_raise(upper_tag, "pinged")
