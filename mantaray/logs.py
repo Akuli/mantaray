@@ -18,7 +18,7 @@ class _Log:
 
 
 # We can't read the whole file from start because it can be huge.
-def _read_file_backwards(file: IO[bytes], *, chunk_size: int = 1_000_000) -> Iterator[str]:
+def _read_file_backwards(file: IO[bytes], *, chunk_size: int = 1_000_000) -> Iterator[bytes]:
     file.seek(0, io.SEEK_END)  # Go to end of file
     pos = file.tell()
     first = True
@@ -34,14 +34,14 @@ def _read_file_backwards(file: IO[bytes], *, chunk_size: int = 1_000_000) -> Ite
 
         remaining, *whole_lines = (chunk + remaining).split(b"\n")
         for line in reversed(whole_lines):
-            line_string = line.rstrip(b"\r").decode("utf-8", errors="replace")
+            line_string = line.rstrip(b"\r")
             # File typically ends with "bla bla bla\n" or "bla bla bla\r\n"
             # That doesn't mean we should produce an empty string.
             if line_string or not first:
                 yield line_string
             first = False
 
-    line_string = remaining.rstrip(b"\r").decode("utf-8", errors="replace")
+    line_string = remaining.rstrip(b"\r")
     if line_string or not first:
         yield line_string
 
@@ -168,7 +168,9 @@ class LogManager:
 
         try:
             with path.open("rb") as f:
-                for line in _read_file_backwards(f):
+                for line_bytes in _read_file_backwards(f):
+                    line = line_bytes.decode("utf-8", errors="replace")
+
                     try:
                         if line.startswith("***") or not line:
                             continue
