@@ -1,3 +1,4 @@
+import os
 import io
 import re
 import sys
@@ -5,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import IO
+from collections.abc import Iterator
 
 
 @dataclass
@@ -14,6 +16,46 @@ class _Log:
     path: Path
     file: IO[str]
     lines_written: int
+
+
+# We can't read the whole file from start because it can be huge.
+def _read_file_backwards(file: IO[bytes], *, chunk_size: int = 1_000_000) -> Iterator[str]:
+    file.seek(0, io.SEEK_END)  # Go to end of file
+    pos = file.tell()
+    first = True
+    remaining = b""
+
+    while pos > 0:
+        # Don't read more data than available
+        actual_chunk_size = min(chunk_size, pos)
+        pos -= actual_chunk_size
+        assert pos >= 0
+        file.seek(pos)
+        chunk = file.read(actual_chunk_size)
+
+        remaining, *whole_lines = (chunk + remaining).split(b"\n")
+        for line in reversed(whole_lines):
+            line_string = line.rstrip(b"\r").decode("utf-8", errors="replace")
+            # File typically ends with "bla bla bla\n" or "bla bla bla\r\n"
+            # That doesn't mean we should produce an empty string.
+            if line_string or not first:
+                yield line_string
+            first = False
+
+    line_string = remaining.rstrip(b"\r").decode("utf-8", errors="replace")
+    if line_string or not first:
+        yield line_string
+
+
+def _parse_normal_line(line: str) -> tuple[datetime, str | None, str]:
+    # It's important to specify maxsplit here because the message may contain
+    # tab characters. (I think?)
+    timestamp, sender, message = line.split("\t", maxsplit=2)
+    return (
+        datetime.fromisoformat(timestamp),
+        None if sender == "*" else sender,
+        message,
+    )
 
 
 class LogManager:
@@ -82,7 +124,7 @@ class LogManager:
     def close_log_file(self, log_id: int) -> None:
         log = self._opened_logs.pop(log_id)
         print(
-            "\n\n*** LOGGING ENDS",
+            "*** LOGGING ENDS",
             datetime.now().astimezone().isoformat(),
             log.server_name,
             log.channel_or_nick or "*",
@@ -153,86 +195,36 @@ class LogManager:
 
             try:
                 with path.open("rb") as f:
-                    # This is tricky. We can't read the whole file from start
-                    # because it can be huge. It's better to start from the end
-                    # and stop when timestamps are no longer recent enough.
-                    f.seek(0, io.SEEK_END)  # Go to end of file
-                    pos = f.tell()
-                    chunks: list[bytes] = []
-                    while pos > 0:
-                        # See comments elsewhere in this file to understand why 1MB.
-                        actual_chunk_size = min(1_000_000, pos)
-                        pos -= actual_chunk_size
-                        assert pos >= 0
-                        f.seek(pos)
-                        chunk = f.read(actual_chunk_size)
-                        chunks.append(chunk)
-                        # Stop early if we get a chunk that is old enough
-                        #
-                        # Newlines can be b"\r\n" or b"\n", so we can't look for
-                        # b"\n\n***" but we can look for b"\n***". That works
-                        # even if the file actually contains b"\r\n***".
-                        #
-                        # This requires a tab after the timestamp to ensure the
-                        # timestamp isn't getting truncated.
-                        #
-                        # This does not handle markers that are split into two
-                        # chunks, and that's fine because markers occur so
-                        # often that every chunk should fully contain at least
-                        # one marker.
-                        m = re.search(rb"\n\*\*\* [^\t\r\n]+\t([^\t\r\n]+)\t", chunk)
-                        if m:
-                            try:
-                                timestamp_in_chunk = datetime.fromisoformat(m.group(1).decode("ascii"))
-                            except (ValueError, UnicodeError):
-                                pass
+                    # Due to file name sanitization duplicates, the same log
+                    # file can contain logs from e.g. DMs with multiple different
+                    # users. When we read the last lines of the file, we don't
+                    # know whether we care about them until we hit a "***" marker.
+                    maybe_relevant = []
+                    is_relevant = None
+
+                    for line in _read_file_backwards_line_by_line(f):
+                        if not line:
+                            continue
+
+                        try:
+                            if line.startswith("***"):
+                                is_relevant = (line.split("\t")[2:4] == [server_name, channel_or_nick])
+                                if is_relevant:
+                                    results.extend(maybe_relevant)
+                                maybe_relevant.clear()
                             else:
-                                if timestamp_in_chunk < since:
-                                    break
+                                match is_relevant:
+                                    case False:
+                                        pass
+                                    case True:
+                                        results.append(_parse_normal_line(line))
+                                    case None:
+                                        maybe_relevant.append(_parse_normal_line(line))
+                        except ValueError:
+                            print(f"IRC log line doesn't seem to be from mantaray: {line!r}")
 
             except OSError:
                 continue
-
-            chunks.reverse()
-            # First line may be damaged because the first chunk we took
-            # might contain only a part of it. But we never need the
-            # first line anyway: if it's from start of file, it should
-            # be blank because the "LOGGING BEGINS" thing has blank
-            # lines in front of it.
-            lines = b"".join(chunks).decode("utf-8", errors="replace").splitlines()[1:]
-
-            # Due to file name sanitization duplicates, the same log file can
-            # contain logs from e.g. DMs with multiple different users.
-            #
-            # Figure out what the messages the start of the log are from.
-            is_relevant = False
-            for line in lines:
-                if line.startswith("***"):
-                    is_relevant = (line.split("\t")[2:4] == [server_name, channel_or_nick])
-                    break
-
-            for line in lines:
-                if not line:
-                    continue
-                try:
-                    if line.startswith("***"):
-                        is_relevant = (line.split("\t")[2:4] == [server_name, channel_or_nick])
-                    else:
-                        if is_relevant:
-                            # It's important to specify maxsplit here because
-                            # the message may contain tab characters. (I think?)
-                            timestamp, sender, message = line.split("\t", maxsplit=2)
-                            results.append((
-                                datetime.fromisoformat(timestamp),
-                                None if sender == "*" else sender,
-                                message,
-                            ))
-                except ValueError:
-                    print(f"IRC log line doesn't seem to be from mantaray: {line!r}")
-
-            # Might help with memory usage... probably doesn't matter
-            chunks.clear()
-            lines.clear()
 
         # Combine results from all files and sort by timestamp.
         # Works because timestamp is the first field.

@@ -1,8 +1,37 @@
+import random
 import re
+import io
+import os
 
 import pytest
 
 from mantaray.views import ServerView
+from mantaray.logs import _read_file_backwards
+
+
+@pytest.mark.parametrize(
+    "data, expected",
+    [
+        (b"", []),
+        (b"hello", ["hello"]),
+        (b"hello\n", ["hello"]),
+        (b"hello\r\n", ["hello"]),
+        (b"one\r\ntwo\r\nthree\r\n", ["three", "two", "one"]),
+        (b"one\ntwo\nthree\n\n", ["", "three", "two", "one"]),
+        (b"\n\n\n", ["", "", ""]),
+        (b"a" * 200, ["a" * 200]),
+        (b"a" * 200 + b"\n", ["a" * 200]),
+        (
+            b"a"*200 + b"\n" + b"b"*200 + b"\n" + b"c"*200 + b"\n",
+            ["c"*200, "b"*200, "a"*200],
+        ),
+    ],
+)
+def test_backwards_reading(data, expected):
+    f = io.BytesIO(data)
+    # Smaller chunk size to hopefully catch bugs
+    iterator = _read_file_backwards(f, chunk_size=random.randint(1, 100))
+    assert list(iterator) == expected
 
 
 def _read_file(path):
@@ -24,7 +53,10 @@ def check_log(wait_until):
         try:
             wait_until(lambda: _read_file(path) == expected_content)
         except RuntimeError as e:
-            print(path.read_text("utf-8"))
+            print()
+            print("-" * 50)
+            print(_read_file(path))
+            print("-" * 50)
             raise e
 
     return actually_check_log
@@ -46,12 +78,12 @@ def test_basic(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       #autojoin
 <time>  *       The topic of #autojoin is: (no topic)
 <time>  *       Bob joined #autojoin.
 <time>  Alice   Hello
 <time>  Bob     Hiii
-*** LOGGING ENDS <time>
+*** LOGGING ENDS        <time>  localhost       #autojoin
 """,
     )
 
@@ -79,30 +111,30 @@ def test_pm_logs(alice, bob, wait_until, check_log):
         alice.log_manager.log_dir / "localhost" / "#autojoin.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       #autojoin
 <time>  *       The topic of #autojoin is: (no topic)
 <time>  *       Bob joined #autojoin.
 <time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
+*** LOGGING ENDS        <time>  localhost       #autojoin
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "bob.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       Bob
 <time>  Alice   hey
 <time>  *       Bob is now known as blabla.
-*** LOGGING ENDS <time>
+*** LOGGING ENDS        <time>  localhost       Bob
 """,
     )
     check_log(
         alice.log_manager.log_dir / "localhost" / "blabla.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       blabla
 <time>  Alice   its ur new nick
-*** LOGGING ENDS <time>
+*** LOGGING ENDS        <time>  localhost       blabla
 """,
     )
 
@@ -119,7 +151,7 @@ def test_funny_filenames(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_bruh_.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       {Bruh}
 <time>  {Bruh}  blah
 """,
     )
@@ -150,7 +182,7 @@ def test_same_log_file_name(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_foo.log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       {foo
 <time>  {foo    hello 1
 """,
     )
@@ -159,7 +191,7 @@ def test_same_log_file_name(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "_foo(2).log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       }foo
 <time>  }foo    hello 2
 """,
     )
@@ -182,7 +214,7 @@ def test_someone_has_nickname_server(alice, bob, wait_until, check_log):
         bob.log_manager.log_dir / "localhost" / "server(2).log",
         """
 
-*** LOGGING BEGINS <time>
+*** LOGGING BEGINS      <time>  localhost       server
 <time>  server  blah
 <time>  Bob     hello there
 """,
