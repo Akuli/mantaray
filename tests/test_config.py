@@ -52,6 +52,8 @@ def test_old_config_format(tmp_path, root_window):
                         "show_by_default": True,
                         "exception_nicks": [],
                     },
+                    "logging": True,
+                    "read_logs": True
                 }
             ],
             "font_family": Font(name="TkFixedFont", exists=True)["family"],
@@ -205,6 +207,8 @@ def test_default_server_settings():
         "extra_notifications": [],
         "audio_notification": False,
         "join_leave_hiding": {"show_by_default": True, "exception_nicks": []},
+        "logging": True,
+        "read_logs": True
     }
 
 

@@ -221,8 +221,7 @@ class LogManager:
 def read_old_logs(view: views.ChannelView | views.PMView) -> None:
     assert view.log_id is None  # TODO: read logs dynamically when scrolling up?
 
-    # TODO: Add some way to disable this in GUI.
-    if "PYTEST_CURRENT_TEST" in os.environ:
+    if not view.server_view.settings.read_logs:
         return
 
     if isinstance(view, views.ChannelView):
@@ -249,7 +248,13 @@ def read_old_logs(view: views.ChannelView | views.PMView) -> None:
 
 
 def start_logging(view: views.View) -> None:
-    assert view.log_id is None
+    if view.log_id is not None:
+        # already logging
+        return
+
+    if not view.server_view.settings.logging:
+        # user doesn't want us to log anything
+        return
 
     if isinstance(view, views.ChannelView):
         channel_or_nick = view.channel_name
@@ -264,6 +269,6 @@ def start_logging(view: views.View) -> None:
 
 
 def stop_logging(view: views.View) -> None:
-    assert view.log_id is not None
-    view.irc_widget.log_manager.close_log_file(view.log_id)
-    view.log_id = None
+    if view.log_id is not None:
+        view.irc_widget.log_manager.close_log_file(view.log_id)
+        view.log_id = None

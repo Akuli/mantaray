@@ -204,6 +204,6 @@ def test_someone_has_nickname_server(alice, bob, wait_until):
 
     # This is special-cased because server.log also contains all the spam that
     # the IRC server happens to say.
-    server_log = (bob.log_manager.log_dir / "localhost" / "server.log").read_text("utf-8")
-    assert " [server] <server> blah" in server_log
-    assert " [server] <Bob> hello there" in server_log
+    bob_server_log = bob.log_manager.log_dir / "localhost" / "server.log"
+    wait_until(lambda: " [server] <server> blah" in bob_server_log.read_text("utf-8", errors="replace"))
+    wait_until(lambda: " [server] <Bob> hello there" in bob_server_log.read_text("utf-8", errors="replace"))

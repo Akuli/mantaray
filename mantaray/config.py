@@ -129,6 +129,8 @@ class ServerSettings:
             "join_leave_hiding", {"show_by_default": True, "exception_nicks": []}
         )
         self.audio_notification: bool = dict_from_file.get("audio_notification", False)
+        self.logging: bool = dict_from_file.get("logging", True)
+        self.read_logs: bool = dict_from_file.get("read_logs", True)
 
     def get_json(self) -> dict[str, Any]:
         return {
@@ -143,6 +145,8 @@ class ServerSettings:
             "extra_notifications": list(self.extra_notifications),
             "join_leave_hiding": self.join_leave_hiding,
             "audio_notification": self.audio_notification,
+            "logging": self.logging,
+            "read_logs": self.read_logs,
         }
 
     # Please save the settings after changing them.
@@ -265,28 +269,6 @@ class _DialogContent(ttk.Frame):
             self._realname_entry = self._create_entry()
             self._add_row("Real* name:", self._realname_entry)
 
-        if connecting_to_new_server:
-            self._join_part_quit = None
-        else:
-            self._join_part_quit = _JoinLeaveWidget(self)
-            self._join_part_quit.grid(
-                row=self._rownumber, column=0, columnspan=3, sticky="we"
-            )
-            self._rownumber += 1
-
-        self._audio_var = tkinter.BooleanVar(value=settings.audio_notification)
-        if connecting_to_new_server:
-            self.audio_notification_checkbox = None
-        else:
-            self.audio_notification_checkbox = ttk.Checkbutton(
-                self, text="Enable audio notification on ping", variable=self._audio_var
-            )
-            self.audio_notification_checkbox.grid(
-                row=self._rownumber, column=0, sticky="w", padx=5, pady=10
-            )
-            self._rownumber += 1
-
-        if self._realname_entry is not None:
             infolabel = ttk.Label(
                 self,
                 text=(
@@ -298,6 +280,38 @@ class _DialogContent(ttk.Frame):
                 row=self._rownumber, column=0, columnspan=3, sticky="w", padx=5, pady=5
             )
             self._rownumber += 1
+
+        if connecting_to_new_server:
+            self._join_part_quit = None
+        else:
+            self._join_part_quit = _JoinLeaveWidget(self)
+            self._join_part_quit.grid(
+                row=self._rownumber, column=0, columnspan=3, sticky="we", pady=10
+            )
+            self._rownumber += 1
+
+        self._audio_var = tkinter.BooleanVar(value=settings.audio_notification)
+        if not connecting_to_new_server:
+            self._add_row(None, ttk.Checkbutton(
+                self, text="Enable audio notification on ping", variable=self._audio_var
+            ))
+
+        self._logging_var = tkinter.BooleanVar(value=settings.logging)
+        if not connecting_to_new_server:
+            self._add_row(None, ttk.Checkbutton(
+                self, text="Save conversations to log files", variable=self._logging_var
+            ))
+
+        self._read_logs_var = tkinter.BooleanVar(value=settings.read_logs)
+        if not connecting_to_new_server:
+            # TODO: Currently settings like this need a reconnect to be applied!
+            #       That is IMO ridiculous. We can do better.
+            self._read_logs_checkbox = ttk.Checkbutton(
+                self,
+                text="Show conversations loaded from logs in channels and private messages",
+                variable=self._read_logs_var,
+            )
+            self._add_row(None, self._read_logs_checkbox)
 
         self._statuslabel = ttk.Label(self)
         self._statuslabel.grid(
@@ -350,10 +364,16 @@ class _DialogContent(ttk.Frame):
         entry.bind("<Return>", self.connect_clicked, add=True)
         entry.bind("<Escape>", self.cancel, add=True)
 
-    def _add_row(self, label: str, widget: ttk.Entry) -> None:
-        ttk.Label(self, text=label).grid(row=self._rownumber, column=0, sticky="w")
-        widget.grid(row=self._rownumber, column=1, columnspan=2, sticky="we")
-        self._setup_entry_bindings(widget)
+    def _add_row(self, label: str | None, widget: ttk.Widget) -> None:
+        if label is not None:
+            ttk.Label(self, text=label).grid(row=self._rownumber, column=0, padx=(0, 10), sticky="w")
+            widget.grid(row=self._rownumber, column=1, columnspan=2, sticky="we")
+        else:
+            widget.grid(row=self._rownumber, column=0, columnspan=3, sticky="we")
+
+        if isinstance(widget, ttk.Entry):
+            self._setup_entry_bindings(widget)
+
         self._rownumber += 1
 
     def _guess_port_based_on_ssl(self, *junk: object) -> None:
@@ -396,10 +416,10 @@ class _DialogContent(ttk.Frame):
 
         try:
             port = int(self._port_entry.get())
-            if port <= 0:
+            if port not in range(1, 2**16):
                 raise ValueError
         except ValueError:
-            self._statuslabel.config(text="The port must be a positive integer.")
+            self._statuslabel.config(text="The port must be an integer between 1 and 65535.")
             return False
 
         self._statuslabel.config(text="")
@@ -430,9 +450,11 @@ class _DialogContent(ttk.Frame):
         self._settings.password = self._password_entry.get() or None
         if self._channel_entry is not None:
             self._settings.joined_channels = self._channel_entry.get().split()
-        self._settings.audio_notification = self._audio_var.get()
         if self._join_part_quit is not None:
             self._settings.join_leave_hiding = self._join_part_quit.get_config()
+        self._settings.audio_notification = self._audio_var.get()
+        self._settings.logging = self._logging_var.get()
+        self._settings.read_logs = self._read_logs_var.get()
 
         self._settings.save()
         self.user_clicked_connect_or_reconnect = True
@@ -457,7 +479,7 @@ def show_connection_settings_dialog(
         dialog.title("Server settings")
         dialog.minsize(450, 300)
 
-    content.pack(fill="both", expand=True)
+    content.pack(fill="both", expand=True, padx=5, pady=5)
     if transient_to is not None:
         dialog.transient(transient_to)
     dialog.wait_window()

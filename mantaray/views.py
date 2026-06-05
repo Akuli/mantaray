@@ -495,6 +495,12 @@ class ServerView(View):
             connecting_to_new_server=False,
         )
         if user_clicked_reconnect:
+            if self.settings.logging:
+                for subview in self.get_subviews(include_server=True):
+                    logs.start_logging(subview)
+            else:
+                for subview in self.get_subviews(include_server=True):
+                    logs.stop_logging(subview)
             self.core.reconnect()
 
 
