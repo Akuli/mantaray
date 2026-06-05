@@ -34,14 +34,11 @@ def test_backwards_reading(data, expected):
 
 
 def _read_file(path):
-    string = path.read_text("utf-8")
-    string = re.sub(
+    return re.sub(
         r"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9]\+[0-9][0-9]:[0-9][0-9]",
         "%timestamp%",
-        string,
+        path.read_text("utf-8"),
     )
-    string = string.expandtabs()
-    return string
 
 
 @pytest.fixture

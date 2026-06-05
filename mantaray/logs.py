@@ -49,17 +49,6 @@ def _read_file_backwards(file: IO[bytes], *, chunk_size: int = 1_000_000) -> Ite
         yield line_string
 
 
-def _parse_normal_line(line: str) -> tuple[datetime, str | None, str]:
-    # It's important to specify maxsplit here because the message may contain
-    # tab characters. (I think?)
-    timestamp, sender, message = line.split("\t", maxsplit=2)
-    return (
-        datetime.fromisoformat(timestamp),
-        None if sender == "*" else sender,
-        message,
-    )
-
-
 class LogManager:
     def __init__(self, log_dir: Path):
         self.log_dir = log_dir
