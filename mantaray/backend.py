@@ -264,11 +264,6 @@ class IrcCore:
         # To evaluate how many more ACK/NAKs will be received from server
         self._pending_cap_count = 0
 
-        # Keep track of whether the current user is away or not.
-        # User lists do that for all users on a channel, but that's not enough if
-        # the user does not join any channels and only chats with private messages.
-        self.is_away = False
-
         # While waiting for a response to a WHO, don't send another WHO.
         # This prevents the server from deciding to disconnect because it's
         # being asked to send a lot of data quickly.
@@ -277,6 +272,11 @@ class IrcCore:
         #
         # TODO: clear this when reconnecting
         self._pending_who_sends: list[str] | None = None
+
+        # Keep track of whether the current user is away or not.
+        # User lists do that for all users on a channel, but that's not enough if
+        # the user does not join any channels and only chats with private messages.
+        self.is_away = False
 
         self._events: list[IrcEvent] = []
 
@@ -335,9 +335,11 @@ class IrcCore:
             # Time to reconnect. Clearing data from previous connections.
             self._send_queue.clear()
             self._receive_buffer.clear()
+            self._joins_in_progress.clear()
             self._cap_req.clear()
             self._cap_list.clear()
-            # TODO: should we reset _pending_cap_count?
+            self._pending_cap_count = 0
+            self._pending_who_sends = None
             self.is_away = False
             self._nickmask = None
 
