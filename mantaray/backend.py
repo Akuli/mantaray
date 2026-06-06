@@ -517,7 +517,13 @@ class IrcCore:
                 # joining a channel finished
                 join = self._joins_in_progress.pop(channel)
 
+                # We already know the nicks of people on the channel, but we
+                # don't know which ones are marked as being away.
                 if "away-notify" in self._cap_list:
+                    # The server supports tracking which users are away. Let's
+                    # start that tracking by asking who is away now. The server
+                    # will later notify us when someone is marked as away or
+                    # back.
                     if self._pending_who_sends is None:
                         # no WHO sending is currently going on
                         self._pending_who_sends = []
