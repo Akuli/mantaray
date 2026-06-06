@@ -461,12 +461,6 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
         server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
 
 
-def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
-    channel, topic = args[1:]
-    join = server_view.core.joins_in_progress.setdefault(channel, backend._JoinInProgress())  # TODO(refactor): !!!
-    join.topic = topic
-
-
 def _handle_whois_reply(
     server_view: views.ServerView, msg: backend.MessageFromServer
 ) -> None:
@@ -692,9 +686,6 @@ def _handle_received_message(
 
     elif msg.command == RPL_ENDOFMOTD:
         _handle_endofmotd(server_view)
-
-    elif msg.command == RPL_TOPIC:
-        _handle_numeric_rpl_topic(server_view, msg.args)
 
     elif msg.command in WHOIS_REPLY_CODES:
         assert isinstance(msg, backend.MessageFromServer)

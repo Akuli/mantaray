@@ -176,6 +176,7 @@ class _JoinInProgress:
 # It treats RPL_NAMREPLY as a local variable and _Codes.RPL_NAMREPLY as a constant.
 class _Codes:
     RPL_NAMREPLY = "353"
+    RPL_TOPIC = "332"
 
 
 class IrcCore:
@@ -423,6 +424,10 @@ class IrcCore:
                 # https://modern.ircdocs.horse/#channel-membership-prefixes
                 join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
+
+            case MessageFromServer(command=_Codes.RPL_TOPIC, args=[_, channel, topic]):
+                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join.topic = topic
 
             # Fallback
             case m:
