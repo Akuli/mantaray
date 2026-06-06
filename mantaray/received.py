@@ -420,39 +420,6 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
         )
 
 
-def _handle_cap(server_view: views.ServerView, args: list[str]) -> None:
-    subcommand = args[1]
-    if subcommand == "ACK":
-        acknowledged = args[-1].split()
-        server_view.core.pending_cap_count -= len(acknowledged)
-
-        if "sasl" in acknowledged:
-            server_view.core.send("AUTHENTICATE PLAIN")
-
-        for capability in acknowledged:
-            server_view.core.cap_list.add(capability)
-
-    elif subcommand == "NAK":
-        rejected = args[-1].split()
-        server_view.core.pending_cap_count -= len(rejected)
-        if "sasl" in rejected:
-            # TODO: this good?
-            raise ValueError("The server does not support SASL.")
-
-    else:
-        server_view.core.send("CAP END")
-        raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
-
-    # If we use SASL, we can't send CAP END until all SASL stuff is done.
-    # If "sasl" is in cap_list, Mantaray sends CAP END after the server
-    # has replied with RPL_SASLSUCCESS or ERR_SASLFAIL
-    if (
-        server_view.core.pending_cap_count == 0
-        and "sasl" not in server_view.core.cap_list
-    ):
-        server_view.core.send("CAP END")
-
-
 def _handle_authenticate(server_view: views.ServerView) -> None:
     query = f"\0{server_view.settings.username}\0{server_view.settings.password}"
     b64_query = b64encode(query.encode("utf-8")).decode("utf-8")
@@ -632,9 +599,6 @@ def _handle_received_message(
     elif msg.command == "AWAY":
         assert isinstance(msg, backend.MessageFromUser)
         _handle_away(server_view, msg.sender_nick, msg.args)
-
-    elif msg.command == "CAP":
-        _handle_cap(server_view, msg.args)
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)

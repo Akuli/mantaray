@@ -206,14 +206,12 @@ class IrcCore:
         self._joins_in_progress: dict[str, _JoinInProgress] = {}
 
         # Will contain the capabilities to negotiate with the server
-        # TODO(refactor): make this "private"
-        self.cap_req: list[str] = []
+        self._cap_req: list[str] = []
         # "CAP LIST" shows capabilities enabled on the client's connection
-        # TODO(refactor): make this "private"
-        self.cap_list: set[str] = set()
+        self._cap_list: set[str] = set()
         # To evaluate how many more ACK/NAKs will be received from server
-        # TODO(refactor): make this "private"
-        self.pending_cap_count = 0
+        self._pending_cap_count = 0
+
         # Keep track of whether the current user is away or not.
         # User lists do that for all users on a channel, but that's not enough if
         # the user does not join any channels and only chats with private messages.
@@ -285,9 +283,9 @@ class IrcCore:
             # Time to reconnect. Clearing data from previous connections.
             self._send_queue.clear()
             self._receive_buffer.clear()
-            self.cap_req.clear()
-            self.cap_list.clear()
-            # TODO: should we reset pending_cap_count?
+            self._cap_req.clear()
+            self._cap_list.clear()
+            # TODO: should we reset _pending_cap_count?
             self.is_away = False
             self._nickmask = None
 
@@ -328,11 +326,11 @@ class IrcCore:
             self._connection_state.setblocking(False)
 
             if self.settings.password is not None:
-                self.cap_req.append("sasl")
-            self.cap_req.append("away-notify")
+                self._cap_req.append("sasl")
+            self._cap_req.append("away-notify")
 
-            self.pending_cap_count = len(self.cap_req)
-            for capability in self.cap_req:
+            self._pending_cap_count = len(self._cap_req)
+            for capability in self._cap_req:
                 self.send(f"CAP REQ {capability}")
 
             self.send(f"NICK {self.settings.nick}")
@@ -489,7 +487,7 @@ class IrcCore:
                 # joining a channel finished
                 join = self._joins_in_progress.pop(channel)
 
-                if "away-notify" in self.cap_list:
+                if "away-notify" in self._cap_list:
                     if self._pending_who_sends is None:
                         # no WHO sending is currently going on
                         self._pending_who_sends = []
@@ -499,6 +497,34 @@ class IrcCore:
                         self._pending_who_sends.append(channel)
 
                 self._events.append(IJoinedChannel(channel, join.nicks, join.topic))
+
+            case ("CAP", args):
+                match args:
+                    case [_, "ACK", caps]:
+                        acknowledged = caps.split()
+                        self._pending_cap_count -= len(acknowledged)
+                        if "sasl" in acknowledged:
+                            self.send("AUTHENTICATE PLAIN")
+                        self._cap_list.update(acknowledged)
+                    case [_, "NAK", caps]:
+                        rejected = caps.split()
+                        self._pending_cap_count -= len(rejected)
+                        if "sasl" in rejected:
+                            # TODO: this good?
+                            raise ValueError("The server does not support SASL.")
+                    case _:
+                        self.send("CAP END")
+                        # TODO: this good?
+                        raise ValueError("Invalid CAP response. Aborting Capability Negotiation.")
+
+                # If we use SASL, we can't send CAP END until all SASL stuff is done.
+                # If "sasl" is in _cap_list, Mantaray sends CAP END after the server
+                # has replied with RPL_SASLSUCCESS or ERR_SASLFAIL
+                if (
+                    self._pending_cap_count == 0
+                    and "sasl" not in self._cap_list
+                ):
+                    self.send("CAP END")
 
             case _:
                 self._events.append(MessageFromServer(sender, command, args))
