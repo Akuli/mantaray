@@ -207,6 +207,16 @@ class IrcCore:
         # the user does not join any channels and only chats with private messages.
         self.is_away = False
 
+        # While waiting for a response to a WHO, don't send another WHO.
+        # This prevents the server from deciding to disconnect because it's
+        # being asked to send a lot of data quickly.
+        #
+        # None means we're not waiting for any WHO to complete.
+        #
+        # TODO: clear this when reconnecting
+        # TODO(refactor): make this "private"
+        self.pending_who_sends: list[str] | None = None
+
         self._events: list[IrcEvent] = []
 
         # Unfortunately there's no such thing as non-blocking connect().

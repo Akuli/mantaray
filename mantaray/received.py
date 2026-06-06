@@ -494,14 +494,6 @@ def _handle_other_user_away_reply(
             view.userlist.set_away(nick, is_away=True, reason=reason)
 
 
-# While waiting for a response to a WHO, don't send another WHO.
-# This prevents the server from deciding to disconnect because it's
-# being asked to send a lot of data quickly.
-#
-# TODO: clear this when reconnecting
-_pending_who_sends: dict[views.ServerView, list[str]] = {}
-
-
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
@@ -518,12 +510,12 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         channel_view.userlist.set_nicks(join.nicks)
 
     if "away-notify" in server_view.core.cap_list:
-        if server_view in _pending_who_sends:
-            # WHO sending is currently in progress, queue the next one
-            _pending_who_sends[server_view].append(channel)
-        else:
-            _pending_who_sends[server_view] = []
+        if server_view.core.pending_who_sends is None:  # no WHO currently going on
+            server_view.core.pending_who_sends = []
             server_view.core.send(f"WHO {channel}")
+        else:
+            # WHO sending is currently in progress, queue the next one
+            server_view.core.pending_who_sends.append(channel)
 
     topic = join.topic or "(no topic)"
     channel_view.add_message(
@@ -576,11 +568,11 @@ def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
 
 
 def _handle_endofwho(server_view: views.ServerView) -> None:
-    if _pending_who_sends[server_view]:
-        channel = _pending_who_sends[server_view].pop()
+    if server_view.core.pending_who_sends:
+        channel = server_view.core.pending_who_sends.pop()
         server_view.core.send(f"WHO {channel}")
     else:
-        del _pending_who_sends[server_view]
+        server_view.core.pending_who_sends = None
 
 
 def _handle_literally_topic(
