@@ -553,11 +553,7 @@ def _handle_unknown_message(
     )
     text = " ".join([msg.command] + msg.args)
 
-    # Errors seem to always be 4xx, 5xx or 7xx.
-    # Not all 6xx responses are errors, e.g. RPL_STARTTLS = 670
-    if isinstance(msg, backend.MessageFromServer) and msg.command.startswith(
-        ("4", "5", "7")
-    ):
+    if isinstance(msg, backend.MessageFromServer) and msg.is_error:
         for view in server_view.get_subviews(include_server=True):
             view.add_message(text, sender, tag="error")
     else:
@@ -607,11 +603,6 @@ def _handle_received_message(
         # Use whatever nickname the server tells us to use.
         # Needed e.g. when nick is in use and you changed nick during connecting.
         _handle_nick(server_view, server_view.settings.nick, msg.args)
-
-    elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
-        assert isinstance(msg, backend.MessageFromServer)
-        server_view.add_message(f"{msg.command} {' '.join(msg.args)}", msg.server)
-        server_view.core.send("CAP END")
 
     elif msg.command == RPL_ENDOFMOTD:
         _handle_endofmotd(server_view)

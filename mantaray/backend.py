@@ -67,6 +67,7 @@ class MessageFromServer:
     server: str
     command: str
     args: list[str]
+    is_error: bool
 
 
 @dataclasses.dataclass
@@ -187,6 +188,35 @@ class _Codes:
     RPL_TOPIC = "332"
     RPL_ENDOFWHO = "315"
     RPL_ENDOFNAMES = "366"
+    RPL_SASLSUCCESS = "903"
+
+    # Please note that all ERR_ codes are listed again below
+    ERR_STARTTLS = "691"
+    ERR_INVALIDMODEPARAM = "696"
+    ERR_NOPRIVS = "723"
+    ERR_NICKLOCKED = "902"
+    ERR_SASLFAIL = "904"
+    ERR_SASLTOOLONG = "905"
+    ERR_SASLABORTED = "906"
+    ERR_SASLALREADY = "907"
+
+
+# Detecting whether a code is an error is weirdly inconsistent.
+# See: https://modern.ircdocs.horse/
+def _is_error_code(command: str) -> bool:
+    return (
+        command.startswith(("4", "5"))
+        or command in (
+            _Codes.ERR_STARTTLS,
+            _Codes.ERR_INVALIDMODEPARAM,
+            _Codes.ERR_NOPRIVS,
+            _Codes.ERR_NICKLOCKED,
+            _Codes.ERR_SASLFAIL,
+            _Codes.ERR_SASLTOOLONG,
+            _Codes.ERR_SASLABORTED,
+            _Codes.ERR_SASLALREADY,
+        )
+    )
 
 
 class IrcCore:
@@ -527,7 +557,10 @@ class IrcCore:
                     self.send("CAP END")
 
             case _:
-                self._events.append(MessageFromServer(sender, command, args))
+                if command == _Codes.RPL_SASLSUCCESS or command == _Codes.ERR_SASLFAIL:
+                    # We want to show this in UI and send CAP END
+                    self.send("CAP END")
+                self._events.append(MessageFromServer(sender, command, args, is_error=_is_error_code(command)))
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
