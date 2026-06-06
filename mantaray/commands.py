@@ -27,15 +27,19 @@ def _send_privmsg(
     view: View, core: IrcCore, message: str, *, history_id: int | None = None
 ) -> None:
     if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message, history_id=history_id)
+        privmsg_line = f"PRIVMSG {view.channel_name} :{message}"
     elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message, history_id=history_id)
+        privmsg_line = f"PRIVMSG {view.nick_of_other_user} :{message}"
     else:
         view.add_message(
             "You can't send messages here. Join a channel instead and send messages there.",
             tag="error",
-            history_id=history_id,
         )
+        return
+
+    core.send(privmsg_line)
+    if history_id is not None:
+        view.sent_privmsg_line_to_history_id[privmsg_line] = history_id
 
 
 def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> None:
@@ -140,7 +144,7 @@ def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
 
     # TODO: /msg <nick>, should open up PMView
     def msg(view: View, core: IrcCore, nick: str, message: str) -> None:
-        core.send_privmsg(nick, message)
+        core.send(f"PRIVMSG {nick} :{message}")
 
     def msg_nickserv(view: View, core: IrcCore, message: str) -> None:
         return msg(view, core, "NickServ", message)

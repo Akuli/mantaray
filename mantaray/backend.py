@@ -16,6 +16,7 @@ import socket
 import ssl
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime
 from typing import Iterator, Union, cast, Any
 
 import certifi
@@ -36,6 +37,102 @@ NICK_REGEX = r"[A-Za-z%s][A-Za-z0-9-%s]{0,15}" % (_special, _special)
 #    <siren.de.SpotChat.org> | toottootttt # Channel # is forbidden: Bad
 #                              Channel Name, exposes client bugs
 CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
+
+
+# These can't be global variables because Python's match statement works weirdly.
+# It treats RPL_NAMREPLY as a local variable and _Codes.RPL_NAMREPLY as a constant.
+class _Codes:
+    RPL_NAMREPLY = "353"
+    RPL_TOPIC = "332"
+    RPL_ENDOFWHO = "315"
+    RPL_ENDOFNAMES = "366"
+    RPL_SASLSUCCESS = "903"
+
+    # Please note that all ERR_ codes are listed again below
+    ERR_STARTTLS = "691"
+    ERR_INVALIDMODEPARAM = "696"
+    ERR_NOPRIVS = "723"
+    ERR_NICKLOCKED = "902"
+    ERR_SASLFAIL = "904"
+    ERR_SASLTOOLONG = "905"
+    ERR_SASLABORTED = "906"
+    ERR_SASLALREADY = "907"
+
+
+# Detecting whether a code is an error is weirdly inconsistent.
+# See: https://modern.ircdocs.horse/
+def _is_error_code(command: str) -> bool:
+    return (
+        command.startswith(("4", "5"))
+        or command in (
+            _Codes.ERR_STARTTLS,
+            _Codes.ERR_INVALIDMODEPARAM,
+            _Codes.ERR_NOPRIVS,
+            _Codes.ERR_NICKLOCKED,
+            _Codes.ERR_SASLFAIL,
+            _Codes.ERR_SASLTOOLONG,
+            _Codes.ERR_SASLABORTED,
+            _Codes.ERR_SASLALREADY,
+        )
+    )
+
+
+@dataclasses.dataclass
+class ParsedLine:
+    # ":nick!user@host PRIVMSG #foo :hello"
+    #   --> sender = "nick!user@host"
+    #       sender_nick = "nick"
+    #
+    # ":some.server.net ..." --> sender="some.server.net"
+    #   --> sender = "some.server.net"
+    #       sender_nick = None
+    #
+    # "PRIVMSG #foo :hello"
+    #   --> sender = None
+    #       sender_nick = None
+    sender: str | None
+    sender_nick: str | None
+
+    command: str    # e.g. "PRIVMSG"
+    args: list[str]
+
+    def get_human_readable_sender(self) -> str:
+        return self.sender_nick or self.sender or "???"
+
+
+def parse_line(line: str) -> ParsedLine:
+    """Returns (sender, command, args)
+
+    ":nick!user@host PRIVMSG #foo :hello world"
+        --> ("nick", "PRIVMSG", ["#foo", "hello world"])
+
+    "PRIVMSG #foo :hello world"
+        --> (None, "PRIVMSG", ["#foo", "hello world"])
+    """
+    assert "\n" not in line
+
+    if line.startswith(":"):
+        # Most received messages are like this.
+        sender, command, *args = line[1:].split(" ")
+        if "!" in sender:
+            sender_nick = sender.split("!")[0]
+        else:
+            sender_nick = None
+    else:
+        # Server sends PING this way, for example.
+        # And most messages sent by mantaray are like this too.
+        command, *args = line.split(" ")
+        sender = None
+        sender_nick = None
+
+    for n, arg in enumerate(args):
+        if arg.startswith(":"):
+            temp = args[:n]
+            temp.append(" ".join(args[n:])[1:])
+            args = temp
+            break
+
+    return ParsedLine(sender=sender, sender_nick=sender_nick, command=command, args=args)
 
 
 def find_nicks(
@@ -78,6 +175,12 @@ class MessageFromUser:
 
 
 @dataclasses.dataclass
+class Sent:
+    timestamp: datetime
+    line: str  # IRC message without \r\n, e.g. "PRIVMSG #foo :hello"
+
+
+@dataclasses.dataclass
 class ConnectivityMessage:
     message: str  # one line
     is_error: bool
@@ -87,13 +190,6 @@ class ConnectivityMessage:
 class HostChanged:
     old: str
     new: str
-
-
-@dataclasses.dataclass  # TODO: split into channel and DM variants
-class SentPrivmsg:
-    nick_or_channel: str
-    text: str
-    history_id: int | None
 
 
 @dataclasses.dataclass
@@ -140,7 +236,7 @@ IrcEvent = Union[
     MessageFromUser,
     ConnectivityMessage,
     HostChanged,
-    SentPrivmsg,
+    Sent,
     ReceivedPM,
     ChannelMessage,
     IJoinedChannel,
@@ -203,44 +299,6 @@ class _JoinInProgress:
         self.nicks: list[str] = []
 
 
-# These can't be global variables because Python's match statement works weirdly.
-# It treats RPL_NAMREPLY as a local variable and _Codes.RPL_NAMREPLY as a constant.
-class _Codes:
-    RPL_NAMREPLY = "353"
-    RPL_TOPIC = "332"
-    RPL_ENDOFWHO = "315"
-    RPL_ENDOFNAMES = "366"
-    RPL_SASLSUCCESS = "903"
-
-    # Please note that all ERR_ codes are listed again below
-    ERR_STARTTLS = "691"
-    ERR_INVALIDMODEPARAM = "696"
-    ERR_NOPRIVS = "723"
-    ERR_NICKLOCKED = "902"
-    ERR_SASLFAIL = "904"
-    ERR_SASLTOOLONG = "905"
-    ERR_SASLABORTED = "906"
-    ERR_SASLALREADY = "907"
-
-
-# Detecting whether a code is an error is weirdly inconsistent.
-# See: https://modern.ircdocs.horse/
-def _is_error_code(command: str) -> bool:
-    return (
-        command.startswith(("4", "5"))
-        or command in (
-            _Codes.ERR_STARTTLS,
-            _Codes.ERR_INVALIDMODEPARAM,
-            _Codes.ERR_NOPRIVS,
-            _Codes.ERR_NICKLOCKED,
-            _Codes.ERR_SASLFAIL,
-            _Codes.ERR_SASLTOOLONG,
-            _Codes.ERR_SASLABORTED,
-            _Codes.ERR_SASLALREADY,
-        )
-    )
-
-
 class IrcCore:
     def __init__(self, settings: config.ServerSettings, *, verbose: bool):
         self.settings = settings
@@ -250,9 +308,7 @@ class IrcCore:
         # change, we reconnect shortly after and that's when this updates.
         self.host = settings.host
 
-        self._send_queue: collections.deque[
-            tuple[bytes, SentPrivmsg | _Quit | None]
-        ] = collections.deque()
+        self._send_queue: collections.deque[tuple[bytes, str | _Quit]] = collections.deque()
         self._receive_buffer = bytearray()
 
         self._joins_in_progress: dict[str, _JoinInProgress] = {}
@@ -458,8 +514,7 @@ class IrcCore:
                 self._send_queue.popleft()
                 if isinstance(done_event, _Quit):
                     return True
-                if done_event is not None:
-                    self._events.append(done_event)
+                self._events.append(Sent(datetime.now().astimezone(), done_event))
             else:
                 self._send_queue[0] = (data[n:], done_event)
 
@@ -604,10 +659,8 @@ class IrcCore:
                     self.send("CAP END")
                 self._events.append(MessageFromServer(sender, command, args, is_error=_is_error_code(command)))
 
-    def send(
-        self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
-    ) -> None:
-        self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
+    def send(self, line: str, *, done_event: _Quit | None = None) -> None:
+        self._send_queue.append((line.encode("utf-8") + b"\r\n", done_event or line))
         self.run_one_step()
 
     # Reconnecting is needed e.g. after changing settings.
@@ -627,14 +680,6 @@ class IrcCore:
             sock = cast(_Socket, self._connection_state)  # TODO: make this more type-safe
             sock.close()
         self._connection_state = time.monotonic()  # reconnect asap
-
-    def send_privmsg(
-        self, nick_or_channel: str, text: str, *, history_id: int | None = None
-    ) -> None:
-        self.send(
-            f"PRIVMSG {nick_or_channel} :{text}",
-            done_event=SentPrivmsg(nick_or_channel, text, history_id),
-        )
 
     def quit(self, *, wait: bool = False) -> None:
         if (

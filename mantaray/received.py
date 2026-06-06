@@ -659,6 +659,43 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             _handle_back(server_view, event)
             return
 
+        case backend.Sent(line=line):
+            # Special-case PRIVMSG sending, because for some reason, servers
+            # don't send back a "your message was sent successfully" message
+            # like they do with basically everything else.
+
+            # TODO: Explain why this shows up as a message "from server" even
+            #       though we sent it.
+            parsed = backend.parse_line(line)
+            if parsed.sender is None and parsed.command.upper() == "PRIVMSG" and len(parsed.args) == 2:
+                recipient, text = parsed.args
+
+                channel_view = server_view.find_channel(recipient)
+                if channel_view:
+                    _add_privmsg_to_view(
+                        channel_view,
+                        server_view.settings.nick,
+                        text,
+                        history_id=channel_view.sent_privmsg_line_to_history_id.pop(line, None),
+                    )
+                elif not re.fullmatch(backend.CHANNEL_REGEX, recipient):
+                    pm_view = server_view.find_or_open_pm(recipient)
+
+                    # /msg NickServ identify <password>   --> hide password
+                    if (
+                        recipient.lower() == "nickserv"
+                        and text.lower().startswith("identify ")
+                    ):
+                        text = text[:9] + "********"
+
+                    _add_privmsg_to_view(
+                        pm_view,
+                        server_view.settings.nick,
+                        text,
+                        history_id=pm_view.sent_privmsg_line_to_history_id.pop(line, None),
+                    )
+            return
+
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
         _handle_received_message(server_view, event)
 
@@ -676,33 +713,6 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
         server_view.view_name = event.new
         for subview in server_view.get_subviews(include_server=True):
             logs.start_logging(subview)
-
-    elif isinstance(event, backend.SentPrivmsg):
-        channel_view = server_view.find_channel(event.nick_or_channel)
-        if channel_view is None:
-            assert not re.fullmatch(backend.CHANNEL_REGEX, event.nick_or_channel), (
-                event.nick_or_channel
-            )
-            pm_view = server_view.find_or_open_pm(event.nick_or_channel)
-
-            # /msg NickServ identify <password>   --> hide password
-            text = event.text
-            if (
-                pm_view.nick_of_other_user.lower() == "nickserv"
-                and text.lower().startswith("identify ")
-            ):
-                text = text[:9] + "********"
-
-            _add_privmsg_to_view(
-                pm_view, server_view.settings.nick, text, history_id=event.history_id
-            )
-        else:
-            _add_privmsg_to_view(
-                channel_view,
-                server_view.settings.nick,
-                event.text,
-                history_id=event.history_id,
-            )
 
     else:
         assert_never(event)

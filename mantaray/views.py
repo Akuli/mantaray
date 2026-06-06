@@ -230,6 +230,16 @@ class View:
 
         self.history = History(self.textwidget)
 
+        # Unfortunately IRC servers send nothing back after successfully
+        # handling a PRIVMSG (message to channel or user). For most other
+        # things it does say whether the thing succeeded or failed, but PRIVMSG
+        # is weird.
+        #
+        # This is used to make it so that after sending a PRIVMSG succeeds and
+        # is shown in the GUI, you can get the same message back into the text
+        # entry by pressing up arrow key.
+        self.sent_privmsg_line_to_history_id: dict[str, int] = {}
+
         self.log_id: int | None = None
 
     # for debug prints
