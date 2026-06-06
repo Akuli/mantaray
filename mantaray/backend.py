@@ -203,8 +203,7 @@ class IrcCore:
         ] = collections.deque()
         self._receive_buffer = bytearray()
 
-        # TODO(refactor): make this "private"
-        self.joins_in_progress: dict[str, _JoinInProgress] = {}
+        self._joins_in_progress: dict[str, _JoinInProgress] = {}
 
         # Will contain the capabilities to negotiate with the server
         # TODO(refactor): make this "private"
@@ -227,8 +226,7 @@ class IrcCore:
         # None means we're not waiting for any WHO to complete.
         #
         # TODO: clear this when reconnecting
-        # TODO(refactor): make this "private"
-        self.pending_who_sends: list[str] | None = None
+        self._pending_who_sends: list[str] | None = None
 
         self._events: list[IrcEvent] = []
 
@@ -473,32 +471,32 @@ class IrcCore:
                 # TODO: the prefixes have meanings
                 # TODO: get the prefixes actually used from RPL_ISUPPORT
                 # https://modern.ircdocs.horse/#channel-membership-prefixes
-                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join = self._joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
             case (_Codes.RPL_TOPIC, [_, channel, topic]):
-                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join = self._joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.topic = topic
 
             case (_Codes.RPL_ENDOFWHO, _):
-                if self.pending_who_sends:
-                    channel = self.pending_who_sends.pop()
+                if self._pending_who_sends:
+                    channel = self._pending_who_sends.pop()
                     self.send(f"WHO {channel}")
                 else:
-                    self.pending_who_sends = None
+                    self._pending_who_sends = None
 
             case (_Codes.RPL_ENDOFNAMES, [_, channel, _]):
                 # joining a channel finished
-                join = self.joins_in_progress.pop(channel)
+                join = self._joins_in_progress.pop(channel)
 
                 if "away-notify" in self.cap_list:
-                    if self.pending_who_sends is None:
+                    if self._pending_who_sends is None:
                         # no WHO sending is currently going on
-                        self.pending_who_sends = []
+                        self._pending_who_sends = []
                         self.send(f"WHO {channel}")
                     else:
                         # WHO sending is currently in progress, queue the next one
-                        self.pending_who_sends.append(channel)
+                        self._pending_who_sends.append(channel)
 
                 self._events.append(IJoinedChannel(channel, join.nicks, join.topic))
 
