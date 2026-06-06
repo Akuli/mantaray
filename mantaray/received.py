@@ -37,7 +37,6 @@ RPL_WHOISSECURE = "671"
 RPL_ENDOFWHOIS = "318"
 RPL_ENDOFMOTD = "376"
 RPL_AWAY = "301"
-RPL_ENDOFNAMES = "366"
 RPL_WHOREPLY = "352"
 RPL_ENDOFWHO = "315"
 RPL_SASLSUCCESS = "903"
@@ -494,30 +493,18 @@ def _handle_other_user_away_reply(
             view.userlist.set_away(nick, is_away=True, reason=reason)
 
 
-def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
-    # joining a channel finished
-    channel, human_readable_message = args[-2:]
-    join = server_view.core.joins_in_progress.pop(channel)
-
-    channel_view = server_view.find_channel(channel)
+def _handle_i_joined_channel(server_view: views.ServerView, event: backend.IJoinedChannel) -> None:
+    channel_view = server_view.find_channel(event.channel)
     if channel_view is None:
-        channel_view = views.ChannelView(server_view, channel, join.nicks)
+        channel_view = views.ChannelView(server_view, event.channel, event.nicks)
         server_view.irc_widget.add_view(channel_view)
         logs.read_old_logs(channel_view)
         logs.start_logging(channel_view)
     else:
         # Can exist already, when has been disconnected from server
-        channel_view.userlist.set_nicks(join.nicks)
+        channel_view.userlist.set_nicks(event.nicks)
 
-    if "away-notify" in server_view.core.cap_list:
-        if server_view.core.pending_who_sends is None:  # no WHO currently going on
-            server_view.core.pending_who_sends = []
-            server_view.core.send(f"WHO {channel}")
-        else:
-            # WHO sending is currently in progress, queue the next one
-            server_view.core.pending_who_sends.append(channel)
-
-    topic = join.topic or "(no topic)"
+    topic = event.topic or "(no topic)"
     channel_view.add_message(
         [
             views.MessagePart("The topic of "),
@@ -528,10 +515,10 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     )
 
     if (
-        channel == server_view.last_slash_join_channel
-        and channel not in server_view.settings.joined_channels
+        event.channel == server_view.last_slash_join_channel
+        and event.channel not in server_view.settings.joined_channels
     ):
-        server_view.settings.joined_channels.append(channel)
+        server_view.settings.joined_channels.append(event.channel)
         server_view.last_slash_join_channel = None
 
 
@@ -614,10 +601,7 @@ def _handle_received_message(
     server_view: views.ServerView,
     msg: backend.MessageFromServer | backend.MessageFromUser,
 ) -> None:
-    if msg.command == "PRIVMSG":
-        assert False
-
-    elif msg.command == "JOIN":
+    if msg.command == "JOIN":
         assert isinstance(msg, backend.MessageFromUser)
         _handle_join(server_view, msg.sender_nick, msg.args)
 
@@ -664,9 +648,6 @@ def _handle_received_message(
         assert isinstance(msg, backend.MessageFromServer)
         server_view.add_message(f"{msg.command} {' '.join(msg.args)}", msg.server)
         server_view.core.send("CAP END")
-
-    elif msg.command == RPL_ENDOFNAMES:
-        _handle_endofnames(server_view, msg.args)
 
     elif msg.command == RPL_ENDOFMOTD:
         _handle_endofmotd(server_view)
@@ -719,6 +700,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             return
         case backend.ChannelMessage():
             _handle_channel_message(server_view, event)
+            return
+        case backend.IJoinedChannel():
+            _handle_i_joined_channel(server_view, event)
             return
 
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):

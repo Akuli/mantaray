@@ -109,8 +109,10 @@ class ChannelMessage:
 
 
 @dataclasses.dataclass
-class _Quit:
-    pass
+class IJoinedChannel:
+    channel: str
+    nicks: list[str]  # All users that are currently on the channel
+    topic: str | None
 
 
 IrcEvent = Union[
@@ -121,8 +123,14 @@ IrcEvent = Union[
     SentPrivmsg,
     ReceivePM,
     ChannelMessage,
+    IJoinedChannel,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
+
+
+@dataclasses.dataclass
+class _Quit:
+    pass
 
 
 def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
@@ -178,6 +186,7 @@ class _Codes:
     RPL_NAMREPLY = "353"
     RPL_TOPIC = "332"
     RPL_ENDOFWHO = "315"
+    RPL_ENDOFNAMES = "366"
 
 
 class IrcCore:
@@ -198,10 +207,13 @@ class IrcCore:
         self.joins_in_progress: dict[str, _JoinInProgress] = {}
 
         # Will contain the capabilities to negotiate with the server
+        # TODO(refactor): make this "private"
         self.cap_req: list[str] = []
         # "CAP LIST" shows capabilities enabled on the client's connection
+        # TODO(refactor): make this "private"
         self.cap_list: set[str] = set()
         # To evaluate how many more ACK/NAKs will be received from server
+        # TODO(refactor): make this "private"
         self.pending_cap_count = 0
         # Keep track of whether the current user is away or not.
         # User lists do that for all users on a channel, but that's not enough if
@@ -474,6 +486,21 @@ class IrcCore:
                     self.send(f"WHO {channel}")
                 else:
                     self.pending_who_sends = None
+
+            case (_Codes.RPL_ENDOFNAMES, [_, channel, _]):
+                # joining a channel finished
+                join = self.joins_in_progress.pop(channel)
+
+                if "away-notify" in self.cap_list:
+                    if self.pending_who_sends is None:
+                        # no WHO sending is currently going on
+                        self.pending_who_sends = []
+                        self.send(f"WHO {channel}")
+                    else:
+                        # WHO sending is currently in progress, queue the next one
+                        self.pending_who_sends.append(channel)
+
+                self._events.append(IJoinedChannel(channel, join.nicks, join.topic))
 
             case _:
                 self._events.append(MessageFromServer(sender, command, args))
