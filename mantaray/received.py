@@ -37,7 +37,6 @@ RPL_WHOISSECURE = "671"
 RPL_ENDOFWHOIS = "318"
 RPL_ENDOFMOTD = "376"
 RPL_AWAY = "301"
-RPL_NAMREPLY = "353"
 RPL_ENDOFNAMES = "366"
 RPL_WHOREPLY = "352"
 RPL_ENDOFWHO = "315"
@@ -501,19 +500,6 @@ def _handle_other_user_away_reply(
             view.userlist.set_away(nick, is_away=True, reason=reason)
 
 
-def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
-    # TODO: wtf are the first 2 args?
-    # rfc1459 doesn't mention them, but freenode
-    # gives 4-element msg.args lists
-    channel, names = args[-2:]
-
-    # TODO: the prefixes have meanings
-    # TODO: get the prefixes actually used from RPL_ISUPPORT
-    # https://modern.ircdocs.horse/#channel-membership-prefixes
-    join = server_view.core.joins_in_progress.setdefault(channel, backend._JoinInProgress())  # TODO(refactor): !!!
-    join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
-
-
 # While waiting for a response to a WHO, don't send another WHO.
 # This prevents the server from deciding to disconnect because it's
 # being asked to send a lot of data quickly.
@@ -700,9 +686,6 @@ def _handle_received_message(
         assert isinstance(msg, backend.MessageFromServer)
         server_view.add_message(f"{msg.command} {' '.join(msg.args)}", msg.server)
         server_view.core.send("CAP END")
-
-    elif msg.command == RPL_NAMREPLY:
-        _handle_namreply(server_view, msg.args)
 
     elif msg.command == RPL_ENDOFNAMES:
         _handle_endofnames(server_view, msg.args)

@@ -172,6 +172,12 @@ class _JoinInProgress:
         self.nicks: list[str] = []
 
 
+# These can't be global variables because Python's match statement works weirdly.
+# It treats RPL_NAMREPLY as a local variable and _Codes.RPL_NAMREPLY as a constant.
+class _Codes:
+    RPL_NAMREPLY = "353"
+
+
 class IrcCore:
     def __init__(self, settings: config.ServerSettings, *, verbose: bool):
         self.settings = settings
@@ -407,6 +413,16 @@ class IrcCore:
                     # someone sent a message to a channel
                     # TODO(refactor): check if channel is in the active channels
                     self._events.append(ChannelMessage(channel=recipient, sender_nick=sender, text=text))
+
+            # TODO: wtf are the first 2 args?
+            # rfc1459 doesn't mention them, but freenode
+            # gives 4-element msg.args lists
+            case MessageFromServer(command=_Codes.RPL_NAMREPLY, args=[_, _, channel, names]):
+                # TODO: the prefixes have meanings
+                # TODO: get the prefixes actually used from RPL_ISUPPORT
+                # https://modern.ircdocs.horse/#channel-membership-prefixes
+                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
             # Fallback
             case m:
