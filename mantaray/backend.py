@@ -166,6 +166,12 @@ def _cast_future(future: Future[Any]) -> Future[_Socket]:
     return cast(Future[_Socket], future)
 
 
+class _JoinInProgress:
+    def __init__(self) -> None:
+        self.topic: str | None = None
+        self.nicks: list[str] = []
+
+
 class IrcCore:
     def __init__(self, settings: config.ServerSettings, *, verbose: bool):
         self.settings = settings
@@ -179,6 +185,9 @@ class IrcCore:
             tuple[bytes, SentPrivmsg | _Quit | None]
         ] = collections.deque()
         self._receive_buffer = bytearray()
+
+        # TODO(refactor): make this "private"
+        self.joins_in_progress: dict[str, _JoinInProgress] = {}
 
         # Will contain the capabilities to negotiate with the server
         self.cap_req: list[str] = []

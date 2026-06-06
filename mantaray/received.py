@@ -462,18 +462,9 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
         server_view.core.send("AUTHENTICATE " + b64_query[i : i + 400])
 
 
-class _JoinInProgress:
-    def __init__(self) -> None:
-        self.topic: str | None = None
-        self.nicks: list[str] = []
-
-
-_joins_in_progress: dict[tuple[views.ServerView, str], _JoinInProgress] = {}
-
-
 def _handle_numeric_rpl_topic(server_view: views.ServerView, args: list[str]) -> None:
     channel, topic = args[1:]
-    join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
+    join = server_view.core.joins_in_progress.setdefault(channel, backend._JoinInProgress())  # TODO(refactor): !!!
     join.topic = topic
 
 
@@ -519,7 +510,7 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # TODO: the prefixes have meanings
     # TODO: get the prefixes actually used from RPL_ISUPPORT
     # https://modern.ircdocs.horse/#channel-membership-prefixes
-    join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
+    join = server_view.core.joins_in_progress.setdefault(channel, backend._JoinInProgress())  # TODO(refactor): !!!
     join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
 
@@ -534,7 +525,7 @@ _pending_who_sends: dict[views.ServerView, list[str]] = {}
 def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     # joining a channel finished
     channel, human_readable_message = args[-2:]
-    join = _joins_in_progress.pop((server_view, channel))
+    join = server_view.core.joins_in_progress.pop(channel)
 
     channel_view = server_view.find_channel(channel)
     if channel_view is None:
