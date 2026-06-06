@@ -192,7 +192,7 @@ def add_received_privmsg_to_view(
         view.add_view_selector_tag("pinged" if pinged else "new_message")
 
 
-def _handle_received_pm(server_view: views.ServerView, event: backend.ReceivePM) -> None:
+def _handle_received_pm(server_view: views.ServerView, event: backend.ReceivedPM) -> None:
     pm_view = server_view.find_or_open_pm(event.sender_nick)
     add_received_privmsg_to_view(pm_view, event.sender_nick, event.text)
 
@@ -640,7 +640,7 @@ def _handle_received_message(
 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
     match event:
-        case backend.ReceivePM():
+        case backend.ReceivedPM():
             _handle_received_pm(server_view, event)
             return
         case backend.ChannelMessage():

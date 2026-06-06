@@ -97,7 +97,7 @@ class SentPrivmsg:
 
 
 @dataclasses.dataclass
-class ReceivePM:
+class ReceivedPM:
     sender_nick: str
     text: str
 
@@ -141,7 +141,7 @@ IrcEvent = Union[
     ConnectivityMessage,
     HostChanged,
     SentPrivmsg,
-    ReceivePM,
+    ReceivedPM,
     ChannelMessage,
     IJoinedChannel,
     OtherUserJoinedChannel,
@@ -503,7 +503,7 @@ class IrcCore:
             case ("PRIVMSG", [recipient, text]):
                 if recipient == self.settings.nick:
                     # message from some other user to this user
-                    self._events.append(ReceivePM(sender_nick=sender_nick, text=text))
+                    self._events.append(ReceivedPM(sender_nick=sender_nick, text=text))
                 else:
                     # someone sent a message to a channel
                     # TODO(refactor): check if channel is in the active channels
