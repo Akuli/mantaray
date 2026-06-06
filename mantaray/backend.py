@@ -72,7 +72,6 @@ class MessageFromServer:
 @dataclasses.dataclass
 class MessageFromUser:
     sender_nick: str
-    sender_user_mask: str  # nick!user@host
     command: str
     args: list[str]
 
@@ -89,11 +88,24 @@ class HostChanged:
     new: str
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass  # TODO: split into channel and DM variants
 class SentPrivmsg:
     nick_or_channel: str
     text: str
     history_id: int | None
+
+
+@dataclasses.dataclass
+class ReceivePM:
+    sender_nick: str
+    text: str
+
+
+@dataclasses.dataclass
+class ChannelMessage:
+    channel: str
+    sender_nick: str
+    text: str
 
 
 @dataclasses.dataclass
@@ -107,6 +119,8 @@ IrcEvent = Union[
     ConnectivityMessage,
     HostChanged,
     SentPrivmsg,
+    ReceivePM,
+    ChannelMessage,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
 
@@ -373,9 +387,21 @@ class IrcCore:
             # https://tools.ietf.org/html/rfc2812#section-2.3.1
             return
 
-        self._events.append(
-            self._parse_received_message(line.decode("utf-8", errors="replace"))
-        )
+        message = self._parse_received_message(line.decode("utf-8", errors="replace"))
+
+        match message:
+            case MessageFromUser(command="PRIVMSG", sender_nick=sender, args=[recipient, text]):
+                if recipient == self.settings.nick:
+                    # message from some other user to this user
+                    self._events.append(ReceivePM(sender_nick=sender, text=text))
+                else:
+                    # someone sent a message to a channel
+                    # TODO(refactor): check if channel is in the active channels
+                    self._events.append(ChannelMessage(channel=recipient, sender_nick=sender, text=text))
+
+            # Fallback
+            case m:
+                self._events.append(m)
 
     def send(
         self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
@@ -404,7 +430,6 @@ class IrcCore:
         if sender is not None and "!" in sender:
             return MessageFromUser(
                 sender_nick=sender.split("!")[0],
-                sender_user_mask=sender,
                 command=command,
                 args=args,
             )

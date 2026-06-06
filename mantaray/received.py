@@ -194,20 +194,15 @@ def add_received_privmsg_to_view(
         view.add_view_selector_tag("pinged" if pinged else "new_message")
 
 
-# privmsg can be a message to a channel or a PM (actual Private Message directly to the user)
-def _handle_privmsg(
-    server_view: views.ServerView, sender: str, args: list[str]
-) -> None:
-    # recipient is server or nick
-    recipient, text = args
+def _handle_received_pm(server_view: views.ServerView, event: backend.ReceivePM) -> None:
+    pm_view = server_view.find_or_open_pm(event.sender_nick)
+    add_received_privmsg_to_view(pm_view, event.sender_nick, event.text)
 
-    if recipient == server_view.settings.nick:  # actual PM
-        pm_view = server_view.find_or_open_pm(sender)
-        add_received_privmsg_to_view(pm_view, sender, text)
-    else:
-        channel_view = server_view.find_channel(recipient)
-        assert channel_view is not None
-        add_received_privmsg_to_view(channel_view, sender, text)
+
+def _handle_channel_message(server_view: views.ServerView, event: backend.ChannelMessage) -> None:
+    channel_view = server_view.find_channel(event.channel)
+    assert channel_view is not None
+    add_received_privmsg_to_view(channel_view, event.sender_nick, event.text)
 
 
 def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -665,8 +660,7 @@ def _handle_received_message(
     msg: backend.MessageFromServer | backend.MessageFromUser,
 ) -> None:
     if msg.command == "PRIVMSG":
-        assert isinstance(msg, backend.MessageFromUser)
-        _handle_privmsg(server_view, msg.sender_nick, msg.args)
+        assert False
 
     elif msg.command == "JOIN":
         assert isinstance(msg, backend.MessageFromUser)
@@ -773,6 +767,14 @@ def _handle_received_message(
 
 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
+    match event:
+        case backend.ReceivePM():
+            _handle_received_pm(server_view, event)
+            return
+        case backend.ChannelMessage():
+            _handle_channel_message(server_view, event)
+            return
+
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
         _handle_received_message(server_view, event)
 
