@@ -327,13 +327,16 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             view.userlist.remove_user(nick)
 
 
-def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
-    for view in _get_views_relevant_for_nick(server_view, nick):
+def _handle_away(server_view: views.ServerView, event: backend.Away) -> None:
+    for view in _get_views_relevant_for_nick(server_view, event.nick):
         if isinstance(view, views.ChannelView):
-            if args and args[0]:
-                view.userlist.set_away(nick, is_away=True, reason=args[0])
-            else:
-                view.userlist.set_away(nick, is_away=False)
+            view.userlist.set_away(event.nick, is_away=True, reason=event.reason)
+
+
+def _handle_back(server_view: views.ServerView, event: backend.Back) -> None:
+    for view in _get_views_relevant_for_nick(server_view, event.nick):
+        if isinstance(view, views.ChannelView):
+            view.userlist.set_away(event.nick, is_away=False)
 
 
 def _handle_ping(server_view: views.ServerView, args: list[str]) -> None:
@@ -592,10 +595,6 @@ def _handle_received_message(
         assert isinstance(msg, backend.MessageFromUser)
         _handle_kick(server_view, msg.sender_nick, msg.args)
 
-    elif msg.command == "AWAY":
-        assert isinstance(msg, backend.MessageFromUser)
-        _handle_away(server_view, msg.sender_nick, msg.args)
-
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
@@ -658,6 +657,12 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             return
         case backend.IJoinedChannel():
             _handle_i_joined_channel(server_view, event)
+            return
+        case backend.Away():
+            _handle_away(server_view, event)
+            return
+        case backend.Back():
+            _handle_back(server_view, event)
             return
 
     if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):

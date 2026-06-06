@@ -116,6 +116,17 @@ class IJoinedChannel:
     topic: str | None
 
 
+@dataclasses.dataclass
+class Away:
+    nick: str
+    reason: str | None  # None means unknown reason
+
+
+@dataclasses.dataclass
+class Back:  # no longer away
+    nick: str
+
+
 IrcEvent = Union[
     MessageFromServer,
     MessageFromUser,
@@ -125,6 +136,8 @@ IrcEvent = Union[
     ReceivePM,
     ChannelMessage,
     IJoinedChannel,
+    Away,
+    Back,
 ]
 _Socket = Union[socket.socket, ssl.SSLSocket]
 
@@ -486,6 +499,13 @@ class IrcCore:
                     # someone sent a message to a channel
                     # TODO(refactor): check if channel is in the active channels
                     self._events.append(ChannelMessage(channel=recipient, sender_nick=sender_nick, text=text))
+
+            # According to https://modern.ircdocs.horse/ marking someone as
+            # back can be done with no parameters or empty parameter.
+            case ("AWAY", []) | ("AWAY", [""]):
+                self._events.append(Back(sender_nick))
+            case ("AWAY", [reason]):
+                self._events.append(Away(sender_nick, reason=reason))
 
             case _:
                 self._events.append(MessageFromUser(sender_nick, command, args))
