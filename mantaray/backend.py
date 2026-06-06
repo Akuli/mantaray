@@ -403,62 +403,19 @@ class IrcCore:
 
         return False
 
-    def _handle_received_line(self, line: bytes) -> None:
+    def _handle_received_line(self, line_bytes: bytes) -> None:
         if self._verbose:
-            print("Recv:", line)
+            print("Recv:", line_bytes)
         # Allow \r\n line endings, or \r in middle of message
-        line = line.replace(b"\r\n", b"\n").rstrip(b"\n")
+        line_bytes = line_bytes.replace(b"\r\n", b"\n").rstrip(b"\n")
 
-        if not line:
+        if not line_bytes:
             # "Empty messages are silently ignored"
             # https://tools.ietf.org/html/rfc2812#section-2.3.1
             return
 
-        message = self._parse_received_message(line.decode("utf-8", errors="replace"))
+        line = line_bytes.decode("utf-8", errors="replace")
 
-        match message:
-            case MessageFromUser(command="PRIVMSG", sender_nick=sender, args=[recipient, text]):
-                if recipient == self.settings.nick:
-                    # message from some other user to this user
-                    self._events.append(ReceivePM(sender_nick=sender, text=text))
-                else:
-                    # someone sent a message to a channel
-                    # TODO(refactor): check if channel is in the active channels
-                    self._events.append(ChannelMessage(channel=recipient, sender_nick=sender, text=text))
-
-            # TODO: wtf are the first 2 args?
-            # rfc1459 doesn't mention them, but freenode
-            # gives 4-element msg.args lists
-            case MessageFromServer(command=_Codes.RPL_NAMREPLY, args=[_, _, channel, names]):
-                # TODO: the prefixes have meanings
-                # TODO: get the prefixes actually used from RPL_ISUPPORT
-                # https://modern.ircdocs.horse/#channel-membership-prefixes
-                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
-                join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
-
-            case MessageFromServer(command=_Codes.RPL_TOPIC, args=[_, channel, topic]):
-                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
-                join.topic = topic
-
-            case MessageFromServer(command=_Codes.RPL_ENDOFWHO):
-                if self.pending_who_sends:
-                    channel = server_view.core.pending_who_sends.pop()
-                    self.send(f"WHO {channel}")
-                else:
-                    self.pending_who_sends = None
-
-            # Fallback
-            case m:
-                self._events.append(m)
-
-    def send(
-        self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
-    ) -> None:
-        self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
-        self.run_one_step()
-
-    @staticmethod
-    def _parse_received_message(line: str) -> MessageFromServer | MessageFromUser:
         if not line.startswith(":"):
             # Server sends PING this way, for example
             sender = "???"
@@ -476,13 +433,56 @@ class IrcCore:
                 break
 
         if sender is not None and "!" in sender:
-            return MessageFromUser(
-                sender_nick=sender.split("!")[0],
-                command=command,
-                args=args,
-            )
+            sender_nick = sender.split("!")[0]   # sender is nick!user@host
+            self._handle_message_from_user(sender_nick, command, args)
         else:
-            return MessageFromServer(server=sender, command=command, args=args)
+            self._handle_message_from_server(sender, command, args)
+
+    def _handle_message_from_user(self, sender_nick: str, command: str, args: list[str]) -> None:
+        match (command, args):
+            case ("PRIVMSG", [recipient, text]):
+                if recipient == self.settings.nick:
+                    # message from some other user to this user
+                    self._events.append(ReceivePM(sender_nick=sender_nick, text=text))
+                else:
+                    # someone sent a message to a channel
+                    # TODO(refactor): check if channel is in the active channels
+                    self._events.append(ChannelMessage(channel=recipient, sender_nick=sender_nick, text=text))
+
+            case _:
+                self._events.append(MessageFromUser(sender_nick, command, args))
+
+    def _handle_message_from_server(self, sender: str, command: str, args: list[str]) -> None:
+        match (command, args):
+            # TODO: wtf are the first 2 args?
+            # rfc1459 doesn't mention them, but freenode
+            # gives 4-element msg.args lists
+            case (_Codes.RPL_NAMREPLY, [_, _, channel, names]):
+                # TODO: the prefixes have meanings
+                # TODO: get the prefixes actually used from RPL_ISUPPORT
+                # https://modern.ircdocs.horse/#channel-membership-prefixes
+                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
+
+            case (_Codes.RPL_TOPIC, [_, channel, topic]):
+                join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
+                join.topic = topic
+
+            case (_Codes.RPL_ENDOFWHO, _):
+                if self.pending_who_sends:
+                    channel = self.pending_who_sends.pop()
+                    self.send(f"WHO {channel}")
+                else:
+                    self.pending_who_sends = None
+
+            case _:
+                self._events.append(MessageFromServer(sender, command, args))
+
+    def send(
+        self, message: str, *, done_event: SentPrivmsg | _Quit | None = None
+    ) -> None:
+        self._send_queue.append((message.encode("utf-8") + b"\r\n", done_event))
+        self.run_one_step()
 
     # Reconnecting is needed e.g. after changing settings.
     def reconnect(self) -> None:
