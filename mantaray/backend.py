@@ -117,6 +117,14 @@ class IJoinedChannel:
 
 
 @dataclasses.dataclass
+class OtherUserJoinedChannel:
+    nick: str
+    channel: str
+    # TODO: might be good to show user masks somewhere, at least in log?
+    #user_mask: str  # nick!user@host
+
+
+@dataclasses.dataclass
 class Away:
     nick: str
     reason: str | None  # None means unknown reason
@@ -136,6 +144,7 @@ IrcEvent = Union[
     ReceivePM,
     ChannelMessage,
     IJoinedChannel,
+    OtherUserJoinedChannel,
     Away,
     Back,
 ]
@@ -506,6 +515,11 @@ class IrcCore:
                 self._events.append(Back(sender_nick))
             case ("AWAY", [reason]):
                 self._events.append(Away(sender_nick, reason=reason))
+
+            case ("JOIN", [channel]):
+                # This user joining a channel is handled in RPL_ENDOFNAMES
+                if sender_nick != self.settings.nick:
+                    self._events.append(OtherUserJoinedChannel(nick=sender_nick, channel=channel))
 
             case _:
                 self._events.append(MessageFromUser(sender_nick, command, args))

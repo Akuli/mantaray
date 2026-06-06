@@ -203,30 +203,6 @@ def _handle_channel_message(server_view: views.ServerView, event: backend.Channe
     add_received_privmsg_to_view(channel_view, event.sender_nick, event.text)
 
 
-def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> None:
-    # When this user joins a channel, wait for RPL_ENDOFNAMES
-    if nick == server_view.settings.nick:
-        return
-
-    [channel] = args
-    channel_view = server_view.find_channel(channel)
-    assert channel_view is not None
-
-    channel_view.userlist.add_user(nick)
-    # TODO: Add hidden join/leave messages to log? Would cause trouble when
-    #       parsing the log, because join/leave messages coming from the log
-    #       might need hiding based on user's preferences.
-    if channel_view.server_view.should_show_join_leave_message(nick):
-        channel_view.add_message(
-            [
-                views.MessagePart(nick, tags=["other-nick"]),
-                views.MessagePart(" joined "),
-                views.MessagePart(channel_view.channel_name, tags=["channel"]),
-                views.MessagePart("."),
-            ],
-        )
-
-
 def _handle_part(
     server_view: views.ServerView, parting_nick: str, args: list[str]
 ) -> None:
@@ -492,6 +468,25 @@ def _handle_i_joined_channel(server_view: views.ServerView, event: backend.IJoin
         server_view.last_slash_join_channel = None
 
 
+def _handle_other_user_joined_channel(server_view: views.ServerView, event: backend.OtherUserJoinedChannel) -> None:
+    channel_view = server_view.find_channel(event.channel)
+    assert channel_view is not None
+
+    channel_view.userlist.add_user(event.nick)
+    # TODO: Add hidden join/leave messages to log? Would cause trouble when
+    #       parsing the log, because join/leave messages coming from the log
+    #       might need hiding based on user's preferences.
+    if channel_view.server_view.should_show_join_leave_message(event.nick):
+        channel_view.add_message(
+            [
+                views.MessagePart(event.nick, tags=["other-nick"]),
+                views.MessagePart(" joined "),
+                views.MessagePart(channel_view.channel_name, tags=["channel"]),
+                views.MessagePart("."),
+            ],
+        )
+
+
 def _handle_endofmotd(server_view: views.ServerView) -> None:
     server_view.core.send(f"WHOIS {server_view.settings.nick}")
 
@@ -567,11 +562,7 @@ def _handle_received_message(
     server_view: views.ServerView,
     msg: backend.MessageFromServer | backend.MessageFromUser,
 ) -> None:
-    if msg.command == "JOIN":
-        assert isinstance(msg, backend.MessageFromUser)
-        _handle_join(server_view, msg.sender_nick, msg.args)
-
-    elif msg.command == "PART":
+    if msg.command == "PART":
         assert isinstance(msg, backend.MessageFromUser)
         _handle_part(server_view, msg.sender_nick, msg.args)
 
@@ -657,6 +648,9 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             return
         case backend.IJoinedChannel():
             _handle_i_joined_channel(server_view, event)
+            return
+        case backend.OtherUserJoinedChannel():
+            _handle_other_user_joined_channel(server_view, event)
             return
         case backend.Away():
             _handle_away(server_view, event)
