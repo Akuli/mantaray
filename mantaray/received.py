@@ -567,14 +567,6 @@ def _handle_whoreply(server_view: views.ServerView, args: list[str]) -> None:
         view.userlist.set_away(nick, is_away=True, reason=None)
 
 
-def _handle_endofwho(server_view: views.ServerView) -> None:
-    if server_view.core.pending_who_sends:
-        channel = server_view.core.pending_who_sends.pop()
-        server_view.core.send(f"WHO {channel}")
-    else:
-        server_view.core.pending_who_sends = None
-
-
 def _handle_literally_topic(
     server_view: views.ServerView, who_changed: str, args: list[str]
 ) -> None:
@@ -688,9 +680,6 @@ def _handle_received_message(
 
     elif msg.command == RPL_WHOREPLY:
         _handle_whoreply(server_view, msg.args)
-
-    elif msg.command == RPL_ENDOFWHO:
-        _handle_endofwho(server_view)
 
     elif msg.command == RPL_UNAWAY:
         back_notification = msg.args[1]

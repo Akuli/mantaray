@@ -177,6 +177,7 @@ class _JoinInProgress:
 class _Codes:
     RPL_NAMREPLY = "353"
     RPL_TOPIC = "332"
+    RPL_ENDOFWHO = "315"
 
 
 class IrcCore:
@@ -438,6 +439,13 @@ class IrcCore:
             case MessageFromServer(command=_Codes.RPL_TOPIC, args=[_, channel, topic]):
                 join = self.joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.topic = topic
+
+            case MessageFromServer(command=_Codes.RPL_ENDOFWHO):
+                if self.pending_who_sends:
+                    channel = server_view.core.pending_who_sends.pop()
+                    self.send(f"WHO {channel}")
+                else:
+                    self.pending_who_sends = None
 
             # Fallback
             case m:
