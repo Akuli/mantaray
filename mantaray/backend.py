@@ -61,7 +61,7 @@ class _Codes:
 
 # Detecting whether a code is an error is weirdly inconsistent.
 # See: https://modern.ircdocs.horse/
-def _is_error_code(command: str) -> bool:
+def is_error_code(command: str) -> bool:
     return (
         command.startswith(("4", "5"))
         or command in (
@@ -160,24 +160,15 @@ PING_TIMEOUT_SECONDS = 30
 
 
 @dataclasses.dataclass
-class MessageFromServer:
-    server: str
-    command: str
-    args: list[str]
-    is_error: bool
-
-
-@dataclasses.dataclass
-class MessageFromUser:
-    sender_nick: str
-    command: str
-    args: list[str]
-
-
-@dataclasses.dataclass
 class Sent:
     timestamp: datetime
     line: str  # IRC message without \r\n, e.g. "PRIVMSG #foo :hello"
+
+
+@dataclasses.dataclass
+class Received:
+    timestamp: datetime
+    line: str
 
 
 @dataclasses.dataclass
@@ -232,11 +223,10 @@ class Back:  # no longer away
 
 
 IrcEvent = Union[
-    MessageFromServer,
-    MessageFromUser,
     ConnectivityMessage,
     HostChanged,
     Sent,
+    Received,
     ReceivedPM,
     ChannelMessage,
     IJoinedChannel,
@@ -533,29 +523,16 @@ class IrcCore:
 
         line = line_bytes.decode("utf-8", errors="replace")
 
-        if not line.startswith(":"):
-            # Server sends PING this way, for example
-            sender = "???"
-            command, *args = line.split(" ")
+        parsed = parse_line(line)
+        if parsed.sender_nick:
+            handled = self._handle_message_from_user(parsed.sender_nick, parsed.command, parsed.args)
         else:
-            # Most messages are like this.
-            sender, command, *args = line.split(" ")
-            sender = sender[1:]
+            handled = self._handle_message_from_server(parsed.sender or "???", parsed.command, parsed.args)
 
-        for n, arg in enumerate(args):
-            if arg.startswith(":"):
-                temp = args[:n]
-                temp.append(" ".join(args[n:])[1:])
-                args = temp
-                break
+        if not handled:
+            self._events.append(Received(datetime.now().astimezone(), line))
 
-        if sender is not None and "!" in sender:
-            sender_nick = sender.split("!")[0]   # sender is nick!user@host
-            self._handle_message_from_user(sender_nick, command, args)
-        else:
-            self._handle_message_from_server(sender, command, args)
-
-    def _handle_message_from_user(self, sender_nick: str, command: str, args: list[str]) -> None:
+    def _handle_message_from_user(self, sender_nick: str, command: str, args: list[str]) -> bool:
         match (command, args):
             case ("PRIVMSG", [recipient, text]):
                 if recipient == self.settings.nick:
@@ -579,9 +556,11 @@ class IrcCore:
                     self._events.append(OtherUserJoinedChannel(nick=sender_nick, channel=channel))
 
             case _:
-                self._events.append(MessageFromUser(sender_nick, command, args))
+                return False
 
-    def _handle_message_from_server(self, sender: str, command: str, args: list[str]) -> None:
+        return True
+
+    def _handle_message_from_server(self, sender: str, command: str, args: list[str]) -> bool:
         match (command, args):
             # TODO: wtf are the first 2 args?
             # rfc1459 doesn't mention them, but freenode
@@ -657,7 +636,9 @@ class IrcCore:
                 if command == _Codes.RPL_SASLSUCCESS or command == _Codes.ERR_SASLFAIL:
                     # We want to show this in UI and send CAP END
                     self.send("CAP END")
-                self._events.append(MessageFromServer(sender, command, args, is_error=_is_error_code(command)))
+                return False
+
+        return True
 
     def send(self, line: str, *, done_event: _Quit | None = None) -> None:
         self._send_queue.append((line.encode("utf-8") + b"\r\n", done_event or line))

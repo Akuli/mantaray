@@ -407,7 +407,7 @@ def _handle_authenticate(server_view: views.ServerView) -> None:
 
 
 def _handle_whois_reply(
-    server_view: views.ServerView, msg: backend.MessageFromServer
+    server_view: views.ServerView, msg: backend.ParsedLine
 ) -> None:
     nick = msg.args[1]
 
@@ -544,14 +544,12 @@ def _handle_literally_topic(
 
 def _handle_unknown_message(
     server_view: views.ServerView,
-    msg: backend.MessageFromServer | backend.MessageFromUser,
+    msg: backend.ParsedLine,
 ) -> None:
-    sender = (
-        msg.server if isinstance(msg, backend.MessageFromServer) else msg.sender_nick
-    )
+    sender = msg.sender_nick or msg.sender or "???"
     text = " ".join([msg.command] + msg.args)
 
-    if isinstance(msg, backend.MessageFromServer) and msg.is_error:
+    if msg.sender_nick is None and backend.is_error_code(msg.command):
         for view in server_view.get_subviews(include_server=True):
             view.add_message(text, sender, tag="error")
     else:
@@ -560,18 +558,18 @@ def _handle_unknown_message(
 
 def _handle_received_message(
     server_view: views.ServerView,
-    msg: backend.MessageFromServer | backend.MessageFromUser,
+    msg: backend.ParsedLine,
 ) -> None:
     if msg.command == "PART":
-        assert isinstance(msg, backend.MessageFromUser)
+        assert msg.sender_nick is not None
         _handle_part(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "NICK":
-        assert isinstance(msg, backend.MessageFromUser)
+        assert msg.sender_nick is not None
         _handle_nick(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "QUIT":
-        assert isinstance(msg, backend.MessageFromUser)
+        assert msg.sender_nick is not None
         _handle_quit(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "PING":
@@ -579,11 +577,11 @@ def _handle_received_message(
 
     # TODO: figure out what MODE with 2 or 4 args is
     elif msg.command == "MODE" and len(msg.args) == 3:
-        assert isinstance(msg, backend.MessageFromUser)
+        assert msg.sender_nick is not None
         _handle_mode(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "KICK":
-        assert isinstance(msg, backend.MessageFromUser)
+        assert msg.sender_nick is not None
         _handle_kick(server_view, msg.sender_nick, msg.args)
 
     elif msg.command == "AUTHENTICATE":
@@ -598,7 +596,7 @@ def _handle_received_message(
         _handle_endofmotd(server_view)
 
     elif msg.command in WHOIS_REPLY_CODES:
-        assert isinstance(msg, backend.MessageFromServer)
+        assert isinstance(msg, backend.ParsedLine)
         _handle_whois_reply(server_view, msg)
 
     elif msg.command == RPL_AWAY:
@@ -631,7 +629,7 @@ def _handle_received_message(
         server_view.core.is_away = True
         server_view.irc_widget.update_nick_button()
 
-    elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
+    elif msg.command == "TOPIC" and msg.sender_nick is not None:
         _handle_literally_topic(server_view, msg.sender_nick, msg.args)
 
     else:
@@ -696,18 +694,22 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                     )
             return
 
-    if isinstance(event, (backend.MessageFromServer, backend.MessageFromUser)):
-        _handle_received_message(server_view, event)
+        case backend.Received(line=line):
+            _handle_received_message(server_view, backend.parse_line(line))
+            return
 
-    elif isinstance(event, backend.ConnectivityMessage):
-        for view in server_view.get_subviews(include_server=True):
-            view.add_message(event.message, tag=("error" if event.is_error else "info"))
+        case backend.ConnectivityMessage(message=message, is_error=is_error):
+            for view in server_view.get_subviews(include_server=True):
+                view.add_message(event.message, tag=("error" if event.is_error else "info"))
 
-        # When reconnecting, the user is marked as not being away.
-        # This can affect the nick button because it shows whether the user is away.
-        server_view.irc_widget.update_nick_button()
+            # When reconnecting, the user is marked as not being away.
+            # This can affect the nick button because it shows whether the user is away.
+            #
+            # TODO: should be a separate thing
+            server_view.irc_widget.update_nick_button()
+            return
 
-    elif isinstance(event, backend.HostChanged):
+    if isinstance(event, backend.HostChanged):
         for subview in server_view.get_subviews(include_server=True):
             logs.stop_logging(subview)
         server_view.view_name = event.new
