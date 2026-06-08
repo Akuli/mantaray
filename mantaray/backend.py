@@ -358,9 +358,6 @@ class IrcCore:
 
         self._nickmask: str | None = None
 
-    def get_nick(self) -> str:
-        return self._state.nick
-
     def _set_nick_to_state(self, nick: str) -> None:
         if self._state.nick != nick:
             self._state.nick = nick

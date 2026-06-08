@@ -416,6 +416,18 @@ class ServerView(View):
         self.settings = settings
         self.core = backend.IrcCore(settings, verbose=irc_widget.verbose)
 
+        # tl;dr: When handling events that come from the core, use this nick.
+        #
+        # This is different from the nick in settings if the server decides to
+        # change the user's nick to something like "Guest123" instead of what
+        # the settings say.
+        #
+        # This may also be different than the nick stored internally in the
+        # core. Events are queued, so if the user changes nick twice very
+        # quickly, A --> B then B --> C, the core might already have nick C
+        # by the time the UI handles the A --> B event.
+        self.nick = settings.nick
+
         # A bit weird, but "/join #foo" causes mantaray to join #foo automatically
         # when started only if joining a channel named #foo succeeds. This only
         # applies to the /join command, because if you use the GUI to join a channel,

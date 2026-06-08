@@ -104,7 +104,7 @@ def _add_whois(menu: tkinter.Menu, server_view: ServerView, nick: str) -> None:
         command=(lambda: server_view.core.send(f"WHOIS {nick}")),
         # Discourage running /whois on the current user
         # TODO: why is that?
-        state=("disabled" if nick == server_view.core.get_nick() else "normal"),
+        state=("disabled" if nick == server_view.nick else "normal"),
     )
 
 
