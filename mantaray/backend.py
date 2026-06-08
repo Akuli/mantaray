@@ -546,33 +546,30 @@ class IrcCore:
 
         parsed = parse_line(line)
         if parsed.sender_nick:
-            handled = self._handle_message_from_user(parsed.sender_nick, parsed.command, parsed.args)
+            self._handle_message_from_user(line, parsed.sender_nick, parsed.command, parsed.args)
         else:
-            handled = self._handle_message_from_server(parsed.sender or "???", parsed.command, parsed.args)
+            self._handle_message_from_server(line, parsed.sender or "???", parsed.command, parsed.args)
 
-        if not handled:
-            self._events.append(Received(datetime.now().astimezone(), line))
-
-    def _handle_message_from_user(self, sender_nick: str, command: str, args: list[str]) -> bool:
+    def _handle_message_from_user(self, line: str, sender_nick: str, command: str, args: list[str]) -> None:
         match (command, args):
             # According to https://modern.ircdocs.horse/ marking someone as
             # back can be done with no parameters or empty parameter.
             case ("AWAY", []) | ("AWAY", [""]):
                 self._events.append(Back(sender_nick))
+                return
             case ("AWAY", [reason]):
                 self._events.append(Away(sender_nick, reason=reason))
+                return
 
             case ("JOIN", [channel]):
                 # This user joining a channel is handled in RPL_ENDOFNAMES
                 if sender_nick != self._state.nick:
                     self._events.append(OtherUserJoinedChannel(nick=sender_nick, channel=channel))
+                return
 
-            case _:
-                return False
+        self._events.append(Received(datetime.now().astimezone(), line))
 
-        return True
-
-    def _handle_message_from_server(self, sender: str, command: str, args: list[str]) -> bool:
+    def _handle_message_from_server(self, line: str, sender: str, command: str, args: list[str]) -> None:
         match (command, args):
             # TODO: wtf are the first 2 args?
             # rfc1459 doesn't mention them, but freenode
@@ -583,10 +580,12 @@ class IrcCore:
                 # https://modern.ircdocs.horse/#channel-membership-prefixes
                 join = self._joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
+                return
 
             case (_Codes.RPL_TOPIC, [_, channel, topic]):
                 join = self._joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.topic = topic
+                return
 
             case (_Codes.RPL_ENDOFWHO, _):
                 if self._pending_who_sends:
@@ -594,6 +593,7 @@ class IrcCore:
                     self.send(f"WHO {channel}")
                 else:
                     self._pending_who_sends = None
+                return
 
             case (_Codes.RPL_ENDOFNAMES, [_, channel, _]):
                 # joining a channel finished
@@ -615,6 +615,7 @@ class IrcCore:
                         self._pending_who_sends.append(channel)
 
                 self._events.append(IJoinedChannel(channel, join.nicks, join.topic))
+                return
 
             case ("CAP", args):
                 match args:
@@ -644,13 +645,14 @@ class IrcCore:
                 ):
                     self.send("CAP END")
 
-            case _:
-                if command == _Codes.RPL_SASLSUCCESS or command == _Codes.ERR_SASLFAIL:
-                    # We want to show this in UI and send CAP END
-                    self.send("CAP END")
-                return False
+                return
 
-        return True
+            case (_Codes.RPL_SASLSUCCESS, _) | (_Codes.ERR_SASLFAIL, _):
+                self.send("CAP END")
+                # Don't return here, so that wrong password error and similar
+                # are shown in UI.
+
+        self._events.append(Received(datetime.now().astimezone(), line))
 
     def send(self, line: str, *, done_event: _Quit | None = None) -> None:
         self._send_queue.append((line.encode("utf-8") + b"\r\n", done_event or line))
