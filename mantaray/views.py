@@ -411,9 +411,6 @@ class View:
 
 
 class ServerView(View):
-    # help mypy with some weird errors...
-    core: backend.IrcCore
-
     def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
         super().__init__(irc_widget, settings.host)
         self.settings = settings

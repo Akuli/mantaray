@@ -160,6 +160,33 @@ PING_TIMEOUT_SECONDS = 30
 
 
 @dataclasses.dataclass
+class State:
+    nick: str
+    host: str
+    # TODO(refactor)
+    #away: set[str]
+    #channels: dict[str, set[str]]  # values are nicks who are on the channel
+
+
+@dataclasses.dataclass
+class StateChanged:
+    new_nick: str
+    new_host: str
+
+    # TODO(refactor): add these
+    #away_added: set[str]
+    #away_removed: set[str]
+
+    # TODO(refactor): add these
+    # This is also used to add a new channel.
+    #added_to_channels: dict[str, set[str]]
+
+    # TODO(refactor): add these
+    # Channel is considered gone if 0 users are left
+    #removed_from_channels: dict[str, set[str]]
+
+
+@dataclasses.dataclass
 class Sent:
     timestamp: datetime
     line: str  # IRC message without \r\n, e.g. "PRIVMSG #foo :hello"
@@ -175,12 +202,6 @@ class Received:
 class ConnectivityMessage:
     message: str  # one line
     is_error: bool
-
-
-@dataclasses.dataclass
-class HostChanged:
-    old: str
-    new: str
 
 
 @dataclasses.dataclass
@@ -210,8 +231,8 @@ class Back:  # no longer away
 
 
 IrcEvent = Union[
+    StateChanged,
     ConnectivityMessage,
-    HostChanged,
     Sent,
     Received,
     IJoinedChannel,
@@ -219,13 +240,14 @@ IrcEvent = Union[
     Away,
     Back,
 ]
-_Socket = Union[socket.socket, ssl.SSLSocket]
 
 
 @dataclasses.dataclass
 class _Quit:
     pass
 
+
+_Socket = Union[socket.socket, ssl.SSLSocket]
 
 def _create_connection(host: str, port: int, use_ssl: bool) -> _Socket:
     if use_ssl:
@@ -279,9 +301,9 @@ class IrcCore:
         self.settings = settings
         self._verbose = verbose
 
-        # This is where we are actually connected to. When the settings
-        # change, we reconnect shortly after and that's when this updates.
-        self.host = settings.host
+        # Nick is stored here. Do not use it directly from settings, that may
+        # be out of date.
+        self._state = State(nick=settings.nick, host=settings.host)
 
         self._send_queue: collections.deque[tuple[bytes, str | _Quit]] = collections.deque()
         self._receive_buffer = bytearray()
@@ -317,9 +339,7 @@ class IrcCore:
         #
         # (asyncio calls getaddrinfo() in a separate thread, and manages
         # to do it in a way that makes connecting slow on my system)
-        self._connect_pool = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix=f"connect-{self.host}-{hex(id(self))}"
-        )
+        self._connect_pool = ThreadPoolExecutor(max_workers=1)
 
         # Possible states:
         #   Future: currently connecting
@@ -337,6 +357,19 @@ class IrcCore:
 
         self._nickmask: str | None = None
 
+    def get_nick(self) -> str:
+        return self._state.nick
+
+    # TODO(refactor): should NOT be public!!!
+    def set_nick_to_state(self, nick: str) -> None:
+        if self._state.nick != nick:
+            self._state.nick = nick
+            # TODO(refactor): Careful... we WILL need to update a lot of other things too!
+            self._events.append(StateChanged(
+                new_nick=self._state.nick,
+                new_host=self._state.host,
+            ))
+
     def get_events(self) -> list[IrcEvent]:
         result = self._events.copy()
         self._events.clear()
@@ -345,7 +378,7 @@ class IrcCore:
     def get_nickmask(self) -> str | None:
         if self._nickmask is None:
             return None
-        return self.settings.nick + self._nickmask
+        return self._state.nick + self._nickmask
 
     def set_nickmask(self, user: str, host: str) -> None:
         self._nickmask = f"!{user}@{host}"
@@ -374,18 +407,21 @@ class IrcCore:
             self.is_away = False
             self._nickmask = None
 
-            if self.host != self.settings.host:
-                self._events.append(HostChanged(old=self.host, new=self.settings.host))
-                self.host = self.settings.host
+            if self._state.host != self.settings.host:
+                self._state.host = self.settings.host
+                self._events.append(StateChanged(
+                    new_nick=self._state.nick,
+                    new_host=self._state.host,
+                ))
 
             self._events.append(
                 ConnectivityMessage(
-                    f"Connecting to {self.host} port {self.settings.port}...",
+                    f"Connecting to {self._state.host} port {self.settings.port}...",
                     is_error=False,
                 )
             )
             self._connection_state = self._connect_pool.submit(
-                _create_connection, self.host, self.settings.port, self.settings.ssl
+                _create_connection, self._state.host, self.settings.port, self.settings.ssl
             )
 
         elif isinstance(self._connection_state, Future):
@@ -418,7 +454,7 @@ class IrcCore:
             for capability in self._cap_req:
                 self.send(f"CAP REQ {capability}")
 
-            self.send(f"NICK {self.settings.nick}")
+            self.send(f"NICK {self._state.nick}")
             self.send(f"USER {self.settings.username} 0 * :{self.settings.realname}")
 
         else:
@@ -528,7 +564,7 @@ class IrcCore:
 
             case ("JOIN", [channel]):
                 # This user joining a channel is handled in RPL_ENDOFNAMES
-                if sender_nick != self.settings.nick:
+                if sender_nick != self._state.nick:
                     self._events.append(OtherUserJoinedChannel(nick=sender_nick, channel=channel))
 
             case _:

@@ -100,23 +100,23 @@ def _add_privmsg_to_view(
 
     if isinstance(view, views.ChannelView):
         all_nicks = list(view.userlist.get_nicks())
-        if view.server_view.settings.nick not in all_nicks:
+        if view.server_view.core.get_nick() not in all_nicks:
             # Possible, if user is kicked
-            all_nicks.append(view.server_view.settings.nick)
+            all_nicks.append(view.server_view.core.get_nick())
     else:
-        all_nicks = [view.nick_of_other_user, view.server_view.settings.nick]
+        all_nicks = [view.nick_of_other_user, view.server_view.core.get_nick()]
 
     parts = []
     for substring, base_tags in textwidget_tags.parse_text(text):
         for subsubstring, nick_tag in backend.find_nicks(
-            substring, view.server_view.settings.nick, all_nicks
+            substring, view.server_view.core.get_nick(), all_nicks
         ):
             tags = base_tags.copy()
             if nick_tag is not None:
                 tags.append(nick_tag)
             parts.append(views.MessagePart(subsubstring, tags=tags))
 
-    if sender == view.server_view.settings.nick:
+    if sender == view.server_view.core.get_nick():
         sender_tag = "self-nick"
     else:
         sender_tag = "other-nick"
@@ -172,7 +172,7 @@ def add_received_privmsg_to_view(
         pinged = any(
             tag == "self-nick"
             for substring, tag in backend.find_nicks(
-                text, view.server_view.settings.nick, [view.server_view.settings.nick]
+                text, view.server_view.core.get_nick(), [view.server_view.core.get_nick()]
             )
         )
         _add_privmsg_to_view(
@@ -198,7 +198,7 @@ def _handle_privmsg(
     # recipient is server or nick
     recipient, text = args
 
-    if recipient == server_view.settings.nick:  # actual PM
+    if recipient == server_view.core.get_nick():  # actual PM
         pm_view = server_view.find_or_open_pm(sender)
         add_received_privmsg_to_view(pm_view, sender, text)
     else:
@@ -216,7 +216,7 @@ def _handle_part(
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
-    if parting_nick == server_view.settings.nick:
+    if parting_nick == server_view.core.get_nick():
         server_view.irc_widget.remove_view(channel_view)
         if channel_view.channel_name in server_view.settings.joined_channels:
             server_view.settings.joined_channels.remove(channel_view.channel_name)
@@ -243,14 +243,8 @@ def _handle_part(
 
 def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
     new_nick = args[0]
-    if old_nick == server_view.settings.nick:
-        # Refactoring note: The nick stored in settings will be used to interpret
-        # events coming from the backend. If you don't want to save the nick to
-        # settings as soon as it changes, you need to separately keep track of the
-        # nick that is currently being used.
-        server_view.settings.nick = new_nick
-        server_view.settings.save()
-        server_view.irc_widget.update_nick_button()
+    if old_nick == server_view.core.get_nick():
+        server_view.core.set_nick_to_state(new_nick)
 
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
@@ -339,12 +333,12 @@ def _handle_mode(
     else:
         message = f"sets mode {mode_flags} on"
 
-    if target_nick == channel_view.server_view.settings.nick:
+    if target_nick == channel_view.server_view.core.get_nick():
         target_tag = "self-nick"
     else:
         target_tag = "other-nick"
 
-    if setter_nick == channel_view.server_view.settings.nick:
+    if setter_nick == channel_view.server_view.core.get_nick():
         setter_tag = "self-nick"
     else:
         setter_tag = "other-nick"
@@ -366,12 +360,12 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
     assert channel_view is not None
 
     channel_view.userlist.remove_user(kicked_nick)
-    if kicker == channel_view.server_view.settings.nick:
+    if kicker == channel_view.server_view.core.get_nick():
         kicker_tag = "self-nick"
     else:
         kicker_tag = "other-nick"
 
-    if kicked_nick == channel_view.server_view.settings.nick:
+    if kicked_nick == channel_view.server_view.core.get_nick():
         channel_view.add_message(
             [
                 views.MessagePart(kicker, tags=[kicker_tag]),
@@ -422,7 +416,7 @@ def _handle_whois_reply(
     else:
         text = f"{msg.command} {nick} {' '.join(msg.args[2:])}"
 
-    if nick == server_view.settings.nick:
+    if nick == server_view.core.get_nick():
         # This is a reply to running WHOIS on the current user.
         if msg.command == RPL_WHOISUSER:
             server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
@@ -492,7 +486,7 @@ def _handle_other_user_joined_channel(server_view: views.ServerView, event: back
 
 
 def _handle_endofmotd(server_view: views.ServerView) -> None:
-    server_view.core.send(f"WHOIS {server_view.settings.nick}")
+    server_view.core.send(f"WHOIS {server_view.core.get_nick()}")
 
     channel_views = [
         v for v in server_view.get_subviews() if isinstance(v, views.ChannelView)
@@ -530,7 +524,7 @@ def _handle_literally_topic(
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
-    if who_changed == channel_view.server_view.settings.nick:
+    if who_changed == channel_view.server_view.core.get_nick():
         nick_tag = "self-nick"
     else:
         nick_tag = "other-nick"
@@ -595,10 +589,10 @@ def _handle_received_message(
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
 
-    elif msg.command == RPL_WELCOME and msg.args[0] != server_view.settings.nick:
+    elif msg.command == RPL_WELCOME and msg.args[0] != server_view.core.get_nick():
         # Use whatever nickname the server tells us to use.
         # Needed e.g. when nick is in use and you changed nick during connecting.
-        _handle_nick(server_view, server_view.settings.nick, msg.args)
+        _handle_nick(server_view, server_view.core.get_nick(), msg.args)
 
     elif msg.command == RPL_ENDOFMOTD:
         _handle_endofmotd(server_view)
@@ -618,7 +612,7 @@ def _handle_received_message(
         for user_view in server_view.get_subviews(include_server=True):
             user_view.add_message(back_notification)
             if isinstance(user_view, views.ChannelView):
-                user_view.userlist.set_away(server_view.settings.nick, False)
+                user_view.userlist.set_away(server_view.core.get_nick(), False)
 
         server_view.core.is_away = False
         server_view.irc_widget.update_nick_button()
@@ -629,7 +623,7 @@ def _handle_received_message(
             user_view.add_message(away_notification)
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(
-                    server_view.settings.nick,
+                    server_view.core.get_nick(),
                     is_away=True,
                     reason=server_view.last_away_status,
                 )
@@ -674,7 +668,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
                 if channel_view:
                     _add_privmsg_to_view(
                         channel_view,
-                        server_view.settings.nick,
+                        server_view.core.get_nick(),
                         text,
                         history_id=channel_view.sent_privmsg_line_to_history_id.pop(line, None),
                     )
@@ -690,7 +684,7 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
 
                     _add_privmsg_to_view(
                         pm_view,
-                        server_view.settings.nick,
+                        server_view.core.get_nick(),
                         text,
                         history_id=pm_view.sent_privmsg_line_to_history_id.pop(line, None),
                     )
@@ -707,16 +701,19 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
             # When reconnecting, the user is marked as not being away.
             # This can affect the nick button because it shows whether the user is away.
             #
-            # TODO: should be a separate thing
+            # TODO(refactor): yeet this crap out
             server_view.irc_widget.update_nick_button()
             return
 
-    if isinstance(event, backend.HostChanged):
-        for subview in server_view.get_subviews(include_server=True):
-            logs.stop_logging(subview)
-        server_view.view_name = event.new
-        for subview in server_view.get_subviews(include_server=True):
-            logs.start_logging(subview)
+        case backend.StateChanged(new_nick=nick, new_host=host):
+            server_view.irc_widget.update_nick_button()
 
-    else:
-        assert_never(event)
+            if server_view.view_name != host:
+                for subview in server_view.get_subviews(include_server=True):
+                    logs.stop_logging(subview)
+                server_view.view_name = host
+                for subview in server_view.get_subviews(include_server=True):
+                    logs.start_logging(subview)
+
+        case _:
+            assert_never(event)
