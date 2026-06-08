@@ -192,15 +192,19 @@ def add_received_privmsg_to_view(
         view.add_view_selector_tag("pinged" if pinged else "new_message")
 
 
-def _handle_received_pm(server_view: views.ServerView, event: backend.ReceivedPM) -> None:
-    pm_view = server_view.find_or_open_pm(event.sender_nick)
-    add_received_privmsg_to_view(pm_view, event.sender_nick, event.text)
+def _handle_privmsg(
+    server_view: views.ServerView, sender: str, args: list[str]
+) -> None:
+    # recipient is server or nick
+    recipient, text = args
 
-
-def _handle_channel_message(server_view: views.ServerView, event: backend.ChannelMessage) -> None:
-    channel_view = server_view.find_channel(event.channel)
-    assert channel_view is not None
-    add_received_privmsg_to_view(channel_view, event.sender_nick, event.text)
+    if recipient == server_view.settings.nick:  # actual PM
+        pm_view = server_view.find_or_open_pm(sender)
+        add_received_privmsg_to_view(pm_view, sender, text)
+    else:
+        channel_view = server_view.find_channel(recipient)
+        assert channel_view is not None
+        add_received_privmsg_to_view(channel_view, sender, text)
 
 
 def _handle_part(
@@ -560,6 +564,10 @@ def _handle_received_message(
     server_view: views.ServerView,
     msg: backend.ParsedLine,
 ) -> None:
+    if msg.command == "PRIVMSG":
+        assert msg.sender_nick is not None
+        _handle_privmsg(server_view, msg.sender_nick, msg.args)
+
     if msg.command == "PART":
         assert msg.sender_nick is not None
         _handle_part(server_view, msg.sender_nick, msg.args)
@@ -638,12 +646,6 @@ def _handle_received_message(
 
 def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None:
     match event:
-        case backend.ReceivedPM():
-            _handle_received_pm(server_view, event)
-            return
-        case backend.ChannelMessage():
-            _handle_channel_message(server_view, event)
-            return
         case backend.IJoinedChannel():
             _handle_i_joined_channel(server_view, event)
             return

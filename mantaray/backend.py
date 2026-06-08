@@ -184,19 +184,6 @@ class HostChanged:
 
 
 @dataclasses.dataclass
-class ReceivedPM:
-    sender_nick: str
-    text: str
-
-
-@dataclasses.dataclass
-class ChannelMessage:
-    channel: str
-    sender_nick: str
-    text: str
-
-
-@dataclasses.dataclass
 class IJoinedChannel:
     channel: str
     nicks: list[str]  # All users that are currently on the channel
@@ -227,8 +214,6 @@ IrcEvent = Union[
     HostChanged,
     Sent,
     Received,
-    ReceivedPM,
-    ChannelMessage,
     IJoinedChannel,
     OtherUserJoinedChannel,
     Away,
@@ -534,15 +519,6 @@ class IrcCore:
 
     def _handle_message_from_user(self, sender_nick: str, command: str, args: list[str]) -> bool:
         match (command, args):
-            case ("PRIVMSG", [recipient, text]):
-                if recipient == self.settings.nick:
-                    # message from some other user to this user
-                    self._events.append(ReceivedPM(sender_nick=sender_nick, text=text))
-                else:
-                    # someone sent a message to a channel
-                    # TODO(refactor): check if channel is in the active channels
-                    self._events.append(ChannelMessage(channel=recipient, sender_nick=sender_nick, text=text))
-
             # According to https://modern.ircdocs.horse/ marking someone as
             # back can be done with no parameters or empty parameter.
             case ("AWAY", []) | ("AWAY", [""]):
