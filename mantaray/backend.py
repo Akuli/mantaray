@@ -40,8 +40,9 @@ CHANNEL_REGEX = r"[&#+!][^ \x07,]{1,49}"
 
 
 # These can't be global variables because Python's match statement works weirdly.
-# It treats RPL_NAMREPLY as a local variable and _Codes.RPL_NAMREPLY as a constant.
-class _Codes:
+# It treats RPL_NAMREPLY as a local variable and Codes.RPL_NAMREPLY as a constant.
+class Codes:
+    RPL_WELCOME = "001"
     RPL_NAMREPLY = "353"
     RPL_TOPIC = "332"
     RPL_ENDOFWHO = "315"
@@ -65,14 +66,14 @@ def is_error_code(command: str) -> bool:
     return (
         command.startswith(("4", "5"))
         or command in (
-            _Codes.ERR_STARTTLS,
-            _Codes.ERR_INVALIDMODEPARAM,
-            _Codes.ERR_NOPRIVS,
-            _Codes.ERR_NICKLOCKED,
-            _Codes.ERR_SASLFAIL,
-            _Codes.ERR_SASLTOOLONG,
-            _Codes.ERR_SASLABORTED,
-            _Codes.ERR_SASLALREADY,
+            Codes.ERR_STARTTLS,
+            Codes.ERR_INVALIDMODEPARAM,
+            Codes.ERR_NOPRIVS,
+            Codes.ERR_NICKLOCKED,
+            Codes.ERR_SASLFAIL,
+            Codes.ERR_SASLTOOLONG,
+            Codes.ERR_SASLABORTED,
+            Codes.ERR_SASLALREADY,
         )
     )
 
@@ -360,8 +361,7 @@ class IrcCore:
     def get_nick(self) -> str:
         return self._state.nick
 
-    # TODO(refactor): should NOT be public!!!
-    def set_nick_to_state(self, nick: str) -> None:
+    def _set_nick_to_state(self, nick: str) -> None:
         if self._state.nick != nick:
             self._state.nick = nick
             # TODO(refactor): Careful... we WILL need to update a lot of other things too!
@@ -561,6 +561,11 @@ class IrcCore:
                 self._events.append(Away(sender_nick, reason=reason))
                 return
 
+            case ("NICK", [new_nick]):
+                # TODO(refactor): this logic needs to grow with the state
+                if sender_nick == self._state.nick:
+                    self._set_nick_to_state(new_nick)
+
             case ("JOIN", [channel]):
                 # This user joining a channel is handled in RPL_ENDOFNAMES
                 if sender_nick != self._state.nick:
@@ -571,10 +576,15 @@ class IrcCore:
 
     def _handle_message_from_server(self, line: str, sender: str, command: str, args: list[str]) -> None:
         match (command, args):
+            case (Codes.RPL_WELCOME, [actual_nick, message]):
+                # Use whatever nickname the server tells us to use.
+                # Needed e.g. when nick is in use and you changed nick during connecting.
+                self._set_nick_to_state(actual_nick)
+
             # TODO: wtf are the first 2 args?
             # rfc1459 doesn't mention them, but freenode
             # gives 4-element msg.args lists
-            case (_Codes.RPL_NAMREPLY, [_, _, channel, names]):
+            case (Codes.RPL_NAMREPLY, [_, _, channel, names]):
                 # TODO: the prefixes have meanings
                 # TODO: get the prefixes actually used from RPL_ISUPPORT
                 # https://modern.ircdocs.horse/#channel-membership-prefixes
@@ -582,12 +592,12 @@ class IrcCore:
                 join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
                 return
 
-            case (_Codes.RPL_TOPIC, [_, channel, topic]):
+            case (Codes.RPL_TOPIC, [_, channel, topic]):
                 join = self._joins_in_progress.setdefault(channel, _JoinInProgress())
                 join.topic = topic
                 return
 
-            case (_Codes.RPL_ENDOFWHO, _):
+            case (Codes.RPL_ENDOFWHO, _):
                 if self._pending_who_sends:
                     channel = self._pending_who_sends.pop()
                     self.send(f"WHO {channel}")
@@ -595,7 +605,7 @@ class IrcCore:
                     self._pending_who_sends = None
                 return
 
-            case (_Codes.RPL_ENDOFNAMES, [_, channel, _]):
+            case (Codes.RPL_ENDOFNAMES, [_, channel, _]):
                 # joining a channel finished
                 join = self._joins_in_progress.pop(channel)
 
@@ -647,7 +657,7 @@ class IrcCore:
 
                 return
 
-            case (_Codes.RPL_SASLSUCCESS, _) | (_Codes.ERR_SASLFAIL, _):
+            case (Codes.RPL_SASLSUCCESS, _) | (Codes.ERR_SASLFAIL, _):
                 self.send("CAP END")
                 # Don't return here, so that wrong password error and similar
                 # are shown in UI.

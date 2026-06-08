@@ -242,10 +242,12 @@ def _handle_part(
 
 
 def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) -> None:
-    new_nick = args[0]
-    if old_nick == server_view.core.get_nick():
-        server_view.core.set_nick_to_state(new_nick)
+    [new_nick] = args
 
+    # This checks against new nick, because when this runs, the core already
+    # knows about the new nick, and we have already updated the UI to show the
+    # new nick instead of the old one.
+    if new_nick == server_view.core.get_nick():
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
                 [
@@ -588,11 +590,6 @@ def _handle_received_message(
 
     elif msg.command == "AUTHENTICATE":
         _handle_authenticate(server_view)
-
-    elif msg.command == RPL_WELCOME and msg.args[0] != server_view.core.get_nick():
-        # Use whatever nickname the server tells us to use.
-        # Needed e.g. when nick is in use and you changed nick during connecting.
-        _handle_nick(server_view, server_view.core.get_nick(), msg.args)
 
     elif msg.command == RPL_ENDOFMOTD:
         _handle_endofmotd(server_view)
