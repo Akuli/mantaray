@@ -10,7 +10,7 @@ from tkinter.font import Font
 from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
-from mantaray import backend, config, received, textwidget_tags, logs
+from mantaray import backend, config, received, textwidget_tags, logs, utils
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 
@@ -366,17 +366,19 @@ class View:
 
         self.textwidget.config(state="normal")
         start = self.textwidget.index("end - 1 char")
-        self.textwidget.insert("end", _timestamp_to_string(timestamp))
+        self.textwidget.insert("end", utils.tkinter_safe_string(_timestamp_to_string(timestamp)))
         self.textwidget.insert("end", "\t")
         self.textwidget.insert(
-            "end", sender or "*", [] if sender_tag is None else [sender_tag]
+            "end",
+            utils.tkinter_safe_string(sender or "*"),
+            [] if sender_tag is None else [sender_tag],
         )
         self.textwidget.insert("end", "\t")
 
         if message:
             insert_args: list[Any] = []
             for part in message:
-                insert_args.append(part.text)
+                insert_args.append(utils.tkinter_safe_string(part.text))
                 insert_args.append(part.tags + ["text", tag])
             self.textwidget.insert("end", *insert_args)
 

@@ -1,5 +1,6 @@
 import os
 
+from mantaray import views
 import pytest
 
 
@@ -95,6 +96,12 @@ def test_slash_r_character(alice, bob, wait_until):
     alice.entry.insert(0, "hello \rlol\r world")
     alice.on_enter_pressed()
     wait_until(lambda: "hello \rlol\r world" in bob.text())
+
+
+def test_unicode_sanitization(alice, bob, wait_until):
+    alice.entry.insert(0, "hello \U0001F4A9 world")
+    alice.on_enter_pressed()
+    wait_until(lambda: "hello � world\n" in bob.text())
 
 
 @pytest.mark.skipif(
