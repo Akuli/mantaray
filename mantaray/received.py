@@ -166,18 +166,21 @@ def _add_privmsg_to_view(
         sender_tag = "other-nick"
 
     if slash_me:
-        view.add_message(
+        _render_message(
+            view,
             [views.MessagePart(sender, tags=[sender_tag]), views.MessagePart(" ")]
             + parts,
+            sender=sender,
+            tag="privmsg",
             pinged=pinged,
             history_id=history_id,
             timestamp=timestamp,
         )
     else:
-        view.add_message(
+        _render_message(
+            view,
             parts,
-            sender,
-            sender_tag=sender_tag,
+            sender=sender,
             tag="privmsg",
             pinged=pinged,
             history_id=history_id,
@@ -236,6 +239,53 @@ def add_received_privmsg_to_view(
         view.add_view_selector_tag("pinged" if pinged else "new_message")
 
 
+def _make_message_state(
+    message: str | list[views.MessagePart],
+    sender: str | None = None,
+    *,
+    tag: str = "info",
+    pinged: bool = False,
+    history_id: int | None = None,
+    timestamp: datetime | None = None,
+) -> state.MessageState:
+    if timestamp is None:
+        timestamp = datetime.now().astimezone()
+    assert timestamp.tzinfo is not None
+
+    if isinstance(message, str):
+        message = [views.MessagePart(message)]
+
+    return state.MessageState(
+        sender=sender,
+        parts=[state.MessagePartState(part.text, tags=part.tags) for part in message],
+        tag=tag,
+        pinged=pinged,
+        history_id=history_id,
+        timestamp=timestamp,
+    )
+
+
+def _render_message(
+    view: views.View,
+    message: str | list[views.MessagePart],
+    sender: str | None = None,
+    *,
+    tag: str = "info",
+    pinged: bool = False,
+    history_id: int | None = None,
+    timestamp: datetime | None = None,
+) -> None:
+    message_state = _make_message_state(
+        message,
+        sender,
+        tag=tag,
+        pinged=pinged,
+        history_id=history_id,
+        timestamp=timestamp,
+    )
+    view.add_message_state(message_state)
+
+
 # privmsg can be a message to a channel or a PM (actual Private Message directly to the user)
 def _handle_privmsg(
     server_view: views.ServerView, sender: str, args: list[str]
@@ -270,7 +320,8 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     #       parsing the log, because join/leave messages coming from the log
     #       might need hiding based on user's preferences.
     if channel_view.server_view.should_show_join_leave_message(nick):
-        channel_view.add_message(
+        _render_message(
+            channel_view,
             [
                 views.MessagePart(nick, tags=["other-nick"]),
                 views.MessagePart(" joined "),
@@ -354,7 +405,8 @@ def _handle_part(
             extra = " (" + reason + ")"
 
         if channel_view.server_view.should_show_join_leave_message(parting_nick):
-            channel_view.add_message(
+            _render_message(
+                channel_view,
                 [
                     views.MessagePart(parting_nick, tags=["other-nick"]),
                     views.MessagePart(" left "),
@@ -381,12 +433,13 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             server_state.nick = new_nick
 
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(
+            _render_message(
+                view,
                 [
                     views.MessagePart("You are now known as "),
                     views.MessagePart(new_nick, tags=["self-nick"]),
                     views.MessagePart("."),
-                ]
+                ],
             )
             if isinstance(view, views.ChannelView):
                 view.userlist.change_nick(old_nick, new_nick)
@@ -397,13 +450,14 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
             _rename_nick_in_userlists(server_state, old_nick, new_nick)
 
         for view in _get_views_relevant_for_nick(server_view, old_nick):
-            view.add_message(
+            _render_message(
+                view,
                 [
                     views.MessagePart(old_nick, tags=["other-nick"]),
                     views.MessagePart(" is now known as "),
                     views.MessagePart(new_nick, tags=["other-nick"]),
                     views.MessagePart("."),
-                ]
+                ],
             )
 
             if isinstance(view, views.ChannelView):
@@ -430,12 +484,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
     server_state = _get_server_state(server_view)
     for view in _get_views_relevant_for_nick(server_view, nick):
         if view.server_view.should_show_join_leave_message(nick):
-            view.add_message(
-                [
-                    views.MessagePart(nick, tags=["other-nick"]),
-                    views.MessagePart(" quit." + reason_string),
-                ],
-            )
+            _render_message(view, [views.MessagePart(" quit." + reason_string)])
         if isinstance(view, views.ChannelView):
             view.userlist.remove_user(nick)
             if server_state is not None:
@@ -481,13 +530,14 @@ def _handle_mode(
     else:
         setter_tag = "other-nick"
 
-    channel_view.add_message(
+    _render_message(
+        channel_view,
         [
             views.MessagePart(setter_nick, tags=[setter_tag]),
             views.MessagePart(f" {message} "),
             views.MessagePart(target_nick, tags=[target_tag]),
             views.MessagePart("."),
-        ]
+        ],
     )
 
 
@@ -508,7 +558,8 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
         kicker_tag = "other-nick"
 
     if kicked_nick == channel_view.server_view.settings.nick:
-        channel_view.add_message(
+        _render_message(
+            channel_view,
             [
                 views.MessagePart(kicker, tags=[kicker_tag]),
                 views.MessagePart(" has kicked you from "),
@@ -526,7 +577,8 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
             tag="error",
         )
     else:
-        channel_view.add_message(
+        _render_message(
+            channel_view,
             [
                 views.MessagePart(kicker, tags=[kicker_tag]),
                 views.MessagePart(" has kicked "),
@@ -535,7 +587,7 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
                 # TODO: Make channel tag clickable?
                 views.MessagePart(channel_view.channel_name, tags=["channel"]),
                 views.MessagePart(f". (Reason: {reason})"),
-            ]
+            ],
         )
 
 
@@ -610,9 +662,9 @@ def _handle_whois_reply(
         # This is a reply to running WHOIS on the current user.
         if msg.command == RPL_WHOISUSER:
             server_view.core.set_nickmask(user=msg.args[2], host=msg.args[3])
-        server_view.add_message(text)
+        _render_message(server_view, text)
     else:
-        server_view.find_or_open_pm(nick, select_existing=True).add_message(text)
+        _render_message(server_view.find_or_open_pm(nick, select_existing=True), text)
 
 
 # This can be part of a WHOIS response or it can appear separately.
@@ -622,7 +674,7 @@ def _handle_other_user_away_reply(
     nick, reason = args[1:]
     for view in _get_views_relevant_for_nick(server_view, nick):
         if isinstance(view, views.PMView):
-            view.add_message(f"{nick} is marked as being away: {reason}")
+            _render_message(view, f"{nick} is marked as being away: {reason}")
         else:
             view.userlist.set_away(nick, is_away=True, reason=reason)
 
@@ -638,10 +690,6 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     # https://modern.ircdocs.horse/#channel-membership-prefixes
     join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
     join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
-
-    server_state = _get_server_state(server_view)
-    if server_state is not None:
-        _sync_channel_userlist(server_state, channel, join.nicks)
 
     server_state = _get_server_state(server_view)
     if server_state is not None:
@@ -684,13 +732,14 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
             server_view.core.send(f"WHO {channel}")
 
     topic = join.topic or "(no topic)"
-    channel_view.add_message(
+    _render_message(
+        channel_view,
         [
             views.MessagePart("The topic of "),
             views.MessagePart(channel_view.channel_name, tags=["channel"]),
             views.MessagePart(" is: "),
             views.MessagePart(topic, tags=["topic"]),
-        ]
+        ],
     )
 
     if (
@@ -756,14 +805,15 @@ def _handle_literally_topic(
     else:
         nick_tag = "other-nick"
 
-    channel_view.add_message(
+    _render_message(
+        channel_view,
         [
             views.MessagePart(who_changed, tags=[nick_tag]),
             views.MessagePart(" changed the topic of "),
             views.MessagePart(channel_view.channel_name, tags=["channel"]),
             views.MessagePart(": "),
             views.MessagePart(topic, tags=["topic"]),
-        ]
+        ],
     )
 
 
@@ -782,9 +832,9 @@ def _handle_unknown_message(
         ("4", "5", "7")
     ):
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(text, sender, tag="error")
+            _render_message(view, text, sender, tag="error")
     else:
-        server_view.add_message(text, sender)
+        _render_message(server_view, text, sender)
 
 
 def _handle_received_message(
@@ -840,7 +890,7 @@ def _handle_received_message(
 
     elif msg.command == RPL_SASLSUCCESS or msg.command == ERR_SASLFAIL:
         assert isinstance(msg, backend.MessageFromServer)
-        server_view.add_message(f"{msg.command} {' '.join(msg.args)}", msg.server)
+        _render_message(server_view, f"{msg.command} {' '.join(msg.args)}", msg.server)
         server_view.core.send("CAP END")
 
     elif msg.command == RPL_NAMREPLY:
@@ -871,7 +921,7 @@ def _handle_received_message(
     elif msg.command == RPL_UNAWAY:
         back_notification = msg.args[1]
         for user_view in server_view.get_subviews(include_server=True):
-            user_view.add_message(back_notification)
+            _render_message(user_view, back_notification)
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
@@ -884,7 +934,7 @@ def _handle_received_message(
     elif msg.command == RPL_NOWAWAY:
         away_notification = msg.args[1]
         for user_view in server_view.get_subviews(include_server=True):
-            user_view.add_message(away_notification)
+            _render_message(user_view, away_notification)
             if isinstance(user_view, views.ChannelView):
                 user_view.userlist.set_away(
                     server_view.settings.nick,
@@ -911,7 +961,11 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
 
     elif isinstance(event, backend.ConnectivityMessage):
         for view in server_view.get_subviews(include_server=True):
-            view.add_message(event.message, tag=("error" if event.is_error else "info"))
+            _render_message(
+                view,
+                event.message,
+                tag=("error" if event.is_error else "info"),
+            )
 
         # When reconnecting, the user is marked as not being away.
         # This can affect the nick button because it shows whether the user is away.

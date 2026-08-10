@@ -424,7 +424,74 @@ class View:
             history_id=history_id,
             timestamp=timestamp,
         )
+        self.add_message_state(message_state)
+
+    def add_message_state(self, message_state: state.MessageState) -> None:
+        if message_state.sender is None:
+            sender_tag = None
+        elif message_state.sender == self.server_view.settings.nick:
+            sender_tag = "self-nick"
+        else:
+            sender_tag = "other-nick"
+
+        if message_state.timestamp is None:
+            raise AssertionError("MessageState must have a timestamp")
+
+        do_the_scroll = self.textwidget.yview()[1] == 1.0
+
+        if message_state.history_id is not None:
+            self.textwidget.mark_set(
+                f"history-start-{message_state.history_id}", "end - 1 char"
+            )
+            self.textwidget.mark_gravity(
+                f"history-start-{message_state.history_id}", "left"
+            )
+
+        self.textwidget.config(state="normal")
+        start = self.textwidget.index("end - 1 char")
+        self.textwidget.insert("end", _timestamp_to_string(message_state.timestamp))
+        self.textwidget.insert("end", "\t")
+        self.textwidget.insert(
+            "end",
+            message_state.sender or "*",
+            [] if sender_tag is None else [sender_tag],
+        )
+        self.textwidget.insert("end", "\t")
+
+        if message_state.parts:
+            insert_args: list[Any] = []
+            for part in message_state.parts:
+                insert_args.append(part.text)
+                insert_args.append(part.tags + ["text", message_state.tag])
+            self.textwidget.insert("end", *insert_args)
+
+        self.textwidget.insert("end", "\n")
+        if message_state.pinged:
+            self.textwidget.tag_add("pinged", start, "end - 1 char")
+        self.textwidget.config(state="disabled")
+
+        if message_state.history_id is not None:
+            self.textwidget.mark_set(
+                f"history-end-{message_state.history_id}", "end - 1 char"
+            )
+            self.textwidget.mark_gravity(
+                f"history-end-{message_state.history_id}", "left"
+            )
+
+        textwidget_tags.find_and_tag_urls(self.textwidget, start, "end")
+
+        if do_the_scroll:
+            self.textwidget.see("end")
+
         self.view_state.add_message(message_state)
+
+        if self.log_id is not None:
+            self.irc_widget.log_manager.write_to_log(
+                self.log_id,
+                message_state.timestamp,
+                message_state.sender,
+                "".join(part.text for part in message_state.parts),
+            )
 
 
 class ServerView(View):
