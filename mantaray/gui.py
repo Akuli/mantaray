@@ -148,6 +148,8 @@ class IrcWidget(ttk.PanedWindow):
         self.entry.bind("<Tab>", self._tab_event_handler)
         self.entry.bind("<Prior>", self._scroll_up)
         self.entry.bind("<Next>", self._scroll_down)
+        self.entry.bind("<Control-Home>", self._scroll_to_start)
+        self.entry.bind("<Control-End>", self._scroll_to_end)
 
         self.views_by_id: dict[str, View] = {}
         for server_config in self.settings.servers:
@@ -187,6 +189,14 @@ class IrcWidget(ttk.PanedWindow):
 
     def _scroll_down(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(1, "pages")
+
+    def _scroll_to_start(self, junk_event: object) -> str:
+        self.get_current_view().textwidget.yview_moveto(0)
+        return "break"
+
+    def _scroll_to_end(self, junk_event: object) -> str:
+        self.get_current_view().textwidget.yview_moveto(1)
+        return "break"
 
     def bigger_font_size(self) -> None:
         self.settings.font["size"] += 1
