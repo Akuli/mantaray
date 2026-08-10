@@ -647,6 +647,20 @@ class ChannelView(View):
     def channel_name(self) -> str:
         return self.view_name
 
+    def sync_from_state(self) -> None:
+        super().sync_from_state()
+        server_state = self.server_view.irc_widget.app_state.servers.get(
+            self.server_view.view_id
+        )
+        if server_state is None:
+            return
+
+        nicks = server_state.userlist.get(self.channel_name)
+        if nicks is None:
+            return
+
+        self.userlist.set_nicks(nicks)
+
     def destroy_widgets(self) -> None:
         super().destroy_widgets()
         self.userlist.treeview.destroy()

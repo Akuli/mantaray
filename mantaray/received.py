@@ -69,9 +69,20 @@ def _get_views_relevant_for_nick(
     server_view: views.ServerView, nick: str
 ) -> list[views.ChannelView | views.PMView]:
     result: list[views.ChannelView | views.PMView] = []
+    server_state = _get_server_state(server_view)
     for view in server_view.get_subviews():
-        if isinstance(view, views.ChannelView) and nick in view.userlist.get_nicks():
-            result.append(view)
+        if isinstance(view, views.ChannelView):
+            local_nicks = list(view.userlist.get_nicks())
+            if server_state is not None:
+                server_nicks = server_state.userlist.get(view.channel_name)
+                if server_nicks is None:
+                    channel_nicks = local_nicks
+                else:
+                    channel_nicks = sorted(set(local_nicks) | set(server_nicks), key=str.casefold)
+            else:
+                channel_nicks = local_nicks
+            if nick in channel_nicks:
+                result.append(view)
 
     pm_view = server_view.find_pm(nick)
     if pm_view is not None:
@@ -311,7 +322,6 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
-    channel_view.userlist.add_user(nick)
     server_state = _get_server_state(server_view)
     if server_state is not None:
         _add_channel_user(server_state, channel_view.channel_name, nick)
@@ -394,7 +404,6 @@ def _handle_part(
             _sync_channel_userlist(server_state, channel_view.channel_name, [])
 
     else:
-        channel_view.userlist.remove_user(parting_nick)
         server_state = _get_server_state(server_view)
         if server_state:
             _remove_channel_user(server_state, channel_view.channel_name, parting_nick)
@@ -441,8 +450,6 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                     views.MessagePart("."),
                 ],
             )
-            if isinstance(view, views.ChannelView):
-                view.userlist.change_nick(old_nick, new_nick)
 
     else:
         server_state = _get_server_state(server_view)
@@ -459,9 +466,6 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                     views.MessagePart("."),
                 ],
             )
-
-            if isinstance(view, views.ChannelView):
-                view.userlist.change_nick(old_nick, new_nick)
 
             if isinstance(view, views.PMView):
                 # Someone else might have had this nick before
@@ -486,7 +490,6 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
         if view.server_view.should_show_join_leave_message(nick):
             _render_message(view, [views.MessagePart(" quit." + reason_string)])
         if isinstance(view, views.ChannelView):
-            view.userlist.remove_user(nick)
             if server_state is not None:
                 _remove_channel_user(server_state, view.channel_name, nick)
 
@@ -547,7 +550,6 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
     channel_view = server_view.find_channel(channel)
     assert channel_view is not None
 
-    channel_view.userlist.remove_user(kicked_nick)
     server_state = _get_server_state(server_view)
     if server_state is not None:
         _remove_channel_user(server_state, channel_view.channel_name, kicked_nick)
@@ -715,13 +717,10 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         server_view.irc_widget.add_view(channel_view)
         logs.read_old_logs(channel_view)
         logs.start_logging(channel_view)
-    else:
-        # Can exist already, when has been disconnected from server
-        channel_view.userlist.set_nicks(join.nicks)
 
     server_state = _get_server_state(server_view)
     if server_state is not None:
-        _sync_channel_userlist(server_state, channel_view.channel_name, list(channel_view.userlist.get_nicks()))
+        _sync_channel_userlist(server_state, channel_view.channel_name, join.nicks)
 
     if "away-notify" in server_view.core.cap_list:
         if server_view in _pending_who_sends:
