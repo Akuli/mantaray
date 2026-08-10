@@ -506,6 +506,18 @@ class View:
             self.textwidget.see("end")
 
     def sync_from_state(self) -> None:
+        if self.view_state.name != self.view_name:
+            self.view_name = self.view_state.name
+
+        if self.notification_count != self.view_state.notification_count:
+            self.notification_count = self.view_state.notification_count
+            self._update_view_selector()
+
+        old_tags = set(self.irc_widget.view_selector.item(self.view_id, "tags"))
+        new_tags = set(self.view_state.selector_tags)
+        if old_tags != new_tags:
+            self.irc_widget.view_selector.item(self.view_id, tags=list(new_tags))
+
         while self._rendered_message_count < len(self.view_state.messages):
             message_state = self.view_state.messages[self._rendered_message_count]
             self._render_message_state_to_widget(message_state)
