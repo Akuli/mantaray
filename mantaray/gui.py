@@ -8,7 +8,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
-from mantaray import commands, config, logs
+from mantaray import commands, config, logs, state
 from mantaray.right_click_menus import (
     RIGHT_CLICK_BINDINGS,
     channel_view_right_click,
@@ -114,6 +114,8 @@ class IrcWidget(ttk.PanedWindow):
 
         # https://stackoverflow.com/q/62824799
         self.tk.eval("ttk::style configure ViewSelector.Treeview -indent -5")
+        self.app_state = state.AppState()
+
         self.view_selector = ttk.Treeview(
             self, show="tree", selectmode="browse", style="ViewSelector.Treeview"
         )
@@ -353,17 +355,32 @@ class IrcWidget(ttk.PanedWindow):
                 "<Map>", self._get_widths_from_settings_soon, add=True
             )
 
+        server_state = self.app_state.servers.get(view.server_view.view_id)
+        if server_state is not None:
+            server_state.add_view(view.view_id)
+
     def _create_and_add_server_view(self, settings: config.ServerSettings) -> None:
         view = ServerView(self, settings)
+        server_state = state.ServerState(
+            server_id=view.view_id,
+            name=view.view_name,
+            host=settings.host,
+            nick=settings.nick,
+        )
+        self.app_state.add_server(server_state)
         self.add_view(view)
         logs.start_logging(view)
         view.start_running()  # Must be after add_view()
 
     def remove_view(self, view: ChannelView | PMView) -> None:
         self._select_another_view(view)
+        server_view_id = view.server_view.view_id
         self.view_selector.delete(view.view_id)
         logs.stop_logging(view)
         view.destroy_widgets()
+        server_state = self.app_state.servers.get(server_view_id)
+        if server_state is not None:
+            server_state.remove_view(view.view_id)
         del self.views_by_id[view.view_id]
 
     # Does not remove the server from settings, so mantaray will connect
@@ -383,6 +400,7 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.delete(server_view.view_id)
         logs.stop_logging(server_view)
         server_view.destroy_widgets()
+        self.app_state.remove_server(server_view.view_id)
         del self.views_by_id[server_view.view_id]
 
         if is_last:

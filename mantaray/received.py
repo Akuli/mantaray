@@ -7,7 +7,7 @@ import re
 from base64 import b64encode
 from datetime import datetime
 
-from mantaray import backend, textwidget_tags, views, logs
+from mantaray import backend, textwidget_tags, views, logs, state
 
 if sys.version_info >= (3, 11):
     from typing import assert_never
@@ -78,6 +78,48 @@ def _get_views_relevant_for_nick(
         result.append(pm_view)
 
     return result
+
+
+def _make_view_state(view: views.View) -> state.ViewState:
+    view_type = (
+        "server"
+        if isinstance(view, views.ServerView)
+        else "channel"
+        if isinstance(view, views.ChannelView)
+        else "pm"
+    )
+    parent_id = None if isinstance(view, views.ServerView) else view.server_view.view_id
+    selector_tags = list(view.irc_widget.view_selector.item(view.view_id, "tags"))
+    metadata: dict[str, str] = {}
+    if isinstance(view, views.ChannelView):
+        metadata["channel_name"] = view.channel_name
+    elif isinstance(view, views.PMView):
+        metadata["other_nick"] = view.nick_of_other_user
+
+    return state.ViewState(
+        view_id=view.view_id,
+        view_type=view_type,
+        name=view.view_name,
+        parent_id=parent_id,
+        notification_count=view.notification_count,
+        selector_tags=selector_tags,
+        metadata=metadata,
+    )
+
+
+def _make_server_state(server_view: views.ServerView) -> state.ServerState:
+    joined_channels = [view.channel_name for view in server_view.get_subviews() if isinstance(view, views.ChannelView)]
+    server_state = state.ServerState(
+        server_id=server_view.view_id,
+        name=server_view.view_name,
+        host=server_view.settings.host,
+        nick=server_view.settings.nick,
+        connected=not isinstance(server_view.core._connection_state, float),
+        joined_channels=joined_channels,
+    )
+    for view in server_view.get_subviews():
+        server_state.add_view(view.view_id)
+    return server_state
 
 
 def _add_privmsg_to_view(
@@ -234,6 +276,10 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
         )
 
 
+def _get_server_state(server_view: views.ServerView) -> state.ServerState | None:
+    return server_view.irc_widget.app_state.servers.get(server_view.view_id)
+
+
 def _handle_part(
     server_view: views.ServerView, parting_nick: str, args: list[str]
 ) -> None:
@@ -247,6 +293,9 @@ def _handle_part(
         server_view.irc_widget.remove_view(channel_view)
         if channel_view.channel_name in server_view.settings.joined_channels:
             server_view.settings.joined_channels.remove(channel_view.channel_name)
+        server_state = _get_server_state(server_view)
+        if server_state and channel_view.channel_name in server_state.joined_channels:
+            server_state.joined_channels.remove(channel_view.channel_name)
 
     else:
         channel_view.userlist.remove_user(parting_nick)
@@ -574,6 +623,9 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
         and channel not in server_view.settings.joined_channels
     ):
         server_view.settings.joined_channels.append(channel)
+        server_state = _get_server_state(server_view)
+        if server_state and channel not in server_state.joined_channels:
+            server_state.joined_channels.append(channel)
         server_view.last_slash_join_channel = None
 
 
@@ -749,6 +801,9 @@ def _handle_received_message(
                 user_view.userlist.set_away(server_view.settings.nick, False)
 
         server_view.core.is_away = False
+        server_state = _get_server_state(server_view)
+        if server_state is not None:
+            server_state.away_status = None
         server_view.irc_widget.update_nick_button()
 
     elif msg.command == RPL_NOWAWAY:
@@ -763,6 +818,9 @@ def _handle_received_message(
                 )
 
         server_view.core.is_away = True
+        server_state = _get_server_state(server_view)
+        if server_state is not None:
+            server_state.away_status = server_view.last_away_status
         server_view.irc_widget.update_nick_button()
 
     elif msg.command == "TOPIC" and isinstance(msg, backend.MessageFromUser):
@@ -785,6 +843,10 @@ def handle_event(event: backend.IrcEvent, server_view: views.ServerView) -> None
         server_view.irc_widget.update_nick_button()
 
     elif isinstance(event, backend.HostChanged):
+        server_state = _get_server_state(server_view)
+        if server_state is not None:
+            server_state.host = event.new
+            server_state.name = event.new
         for subview in server_view.get_subviews(include_server=True):
             logs.stop_logging(subview)
         server_view.view_name = event.new

@@ -10,7 +10,7 @@ from tkinter.font import Font
 from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
-from mantaray import backend, config, received, textwidget_tags, logs
+from mantaray import backend, config, received, logs, state, textwidget_tags
 from mantaray.history import History
 from mantaray.right_click_menus import RIGHT_CLICK_BINDINGS, nick_right_click
 
@@ -205,12 +205,25 @@ BIBERAO_MODE_DELAY = 60  # seconds
 
 
 class View:
-    def __init__(self, irc_widget: IrcWidget, name: str, *, parent_view_id: str = ""):
+    def __init__(
+        self,
+        irc_widget: IrcWidget,
+        name: str,
+        *,
+        view_type: state.ViewType = "server",
+        parent_view_id: str = "",
+    ):
         self.irc_widget = irc_widget
         self.view_id = irc_widget.view_selector.insert(parent_view_id, "end", text=name)
         self._name = name
         self.notification_count = 0
         self._biberao_notification_timers: list[str] = []
+        self.view_state = state.ViewState(
+            view_id=self.view_id,
+            view_type=view_type,
+            name=name,
+            parent_id=(None if parent_view_id == "" else parent_view_id),
+        )
 
         self.textwidget = tkinter.Text(
             irc_widget.textwidget_container,
@@ -266,6 +279,7 @@ class View:
     @view_name.setter
     def view_name(self, new_name: str) -> None:
         self._name = new_name
+        self.view_state.name = new_name
         self._update_view_selector()
 
     def _window_has_focus(self) -> bool:
@@ -287,6 +301,7 @@ class View:
 
         self.notification_count += 1
         self._update_view_selector()
+        self.view_state.increment_notification_count()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
         if self.server_view.settings.audio_notification:
             try:
@@ -303,6 +318,7 @@ class View:
             self.textwidget.after_cancel(timeout_id)
         self._biberao_notification_timers.clear()
 
+        self.view_state.clear_notifications()
         self.notification_count = 0
         self._update_view_selector()
         self.irc_widget.event_generate("<<NotificationCountChanged>>")
@@ -320,6 +336,7 @@ class View:
         if "pinged" in old_tags:  # Adding tag does not unping
             return
 
+        self.view_state.add_selector_tag(tag)
         self.irc_widget.view_selector.item(
             self.view_id, tags=list((old_tags - {"new_message", "pinged"}) | {tag})
         )
@@ -399,13 +416,23 @@ class View:
                 self.log_id, timestamp, sender, "".join(part.text for part in message)
             )
 
+        message_state = state.MessageState(
+            sender=sender,
+            parts=[state.MessagePartState(part.text, tags=part.tags) for part in message],
+            tag=tag,
+            pinged=pinged,
+            history_id=history_id,
+            timestamp=timestamp,
+        )
+        self.view_state.add_message(message_state)
+
 
 class ServerView(View):
     # help mypy with some weird errors...
     core: backend.IrcCore
 
     def __init__(self, irc_widget: IrcWidget, settings: config.ServerSettings):
-        super().__init__(irc_widget, settings.host)
+        super().__init__(irc_widget, settings.host, view_type="server")
         self.settings = settings
         self.core = backend.IrcCore(settings, verbose=irc_widget.verbose)
 
@@ -505,7 +532,10 @@ class ServerView(View):
 class ChannelView(View):
     def __init__(self, server_view: ServerView, channel_name: str, nicks: list[str]):
         super().__init__(
-            server_view.irc_widget, channel_name, parent_view_id=server_view.view_id
+            server_view.irc_widget,
+            channel_name,
+            view_type="channel",
+            parent_view_id=server_view.view_id,
         )
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.channel_image
@@ -528,7 +558,10 @@ class ChannelView(View):
 class PMView(View):
     def __init__(self, server_view: ServerView, nick: str):
         super().__init__(
-            server_view.irc_widget, nick, parent_view_id=server_view.view_id
+            server_view.irc_widget,
+            nick,
+            view_type="pm",
+            parent_view_id=server_view.view_id,
         )
         self.irc_widget.view_selector.item(
             self.view_id, image=server_view.irc_widget.pm_image
