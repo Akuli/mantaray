@@ -179,6 +179,10 @@ class IrcWidget(ttk.PanedWindow):
         if new_nick != server_view.settings.nick:
             server_view.core.send(f"NICK {new_nick}")
 
+    def sync_server_views(self, server_view: ServerView) -> None:
+        for view in server_view.get_subviews(include_server=True):
+            view.sync_from_state()
+
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
         entry_text, history_id = view.history.get_text_and_clear_entry()

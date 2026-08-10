@@ -283,7 +283,7 @@ def _render_message(
         history_id=history_id,
         timestamp=timestamp,
     )
-    view.add_message_state(message_state)
+    view.add_message_state_to_state(message_state)
 
 
 # privmsg can be a message to a channel or a PM (actual Private Message directly to the user)

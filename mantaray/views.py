@@ -244,6 +244,7 @@ class View:
         self.history = History(self.textwidget)
 
         self.log_id: int | None = None
+        self._rendered_message_count = 0
 
     # for debug prints
     def __repr__(self) -> str:
@@ -427,6 +428,27 @@ class View:
         self.add_message_state(message_state)
 
     def add_message_state(self, message_state: state.MessageState) -> None:
+        if message_state.timestamp is None:
+            raise AssertionError("MessageState must have a timestamp")
+
+        self.add_message_state_to_state(message_state)
+        self._render_message_state_to_widget(message_state)
+        self._rendered_message_count += 1
+
+    def add_message_state_to_state(self, message_state: state.MessageState) -> None:
+        if message_state.timestamp is None:
+            raise AssertionError("MessageState must have a timestamp")
+
+        self.view_state.add_message(message_state)
+        if self.log_id is not None:
+            self.irc_widget.log_manager.write_to_log(
+                self.log_id,
+                message_state.timestamp,
+                message_state.sender,
+                "".join(part.text for part in message_state.parts),
+            )
+
+    def _render_message_state_to_widget(self, message_state: state.MessageState) -> None:
         if message_state.sender is None:
             sender_tag = None
         elif message_state.sender == self.server_view.settings.nick:
@@ -483,15 +505,11 @@ class View:
         if do_the_scroll:
             self.textwidget.see("end")
 
-        self.view_state.add_message(message_state)
-
-        if self.log_id is not None:
-            self.irc_widget.log_manager.write_to_log(
-                self.log_id,
-                message_state.timestamp,
-                message_state.sender,
-                "".join(part.text for part in message_state.parts),
-            )
+    def sync_from_state(self) -> None:
+        while self._rendered_message_count < len(self.view_state.messages):
+            message_state = self.view_state.messages[self._rendered_message_count]
+            self._render_message_state_to_widget(message_state)
+            self._rendered_message_count += 1
 
 
 class ServerView(View):
@@ -526,6 +544,7 @@ class ServerView(View):
             except Exception:
                 logging.exception(f"error while handling event: {event}")
 
+        self.irc_widget.sync_server_views(self)
         self.irc_widget.after(50, self._run_core)
 
     def start_running(self) -> None:

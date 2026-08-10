@@ -62,12 +62,14 @@ def handle_command(view: View, entry_text: str, history_id: int) -> list[state.U
         try:
             func = _commands[entry_text.split()[0].lower()][0]
         except KeyError:
-            view.add_message(
-                f"No command named '{entry_text.split()[0]}'",
-                tag="error",
-                history_id=history_id,
-            )
-            return []
+            return [
+                _render_message_action(
+                    view,
+                    f"No command named '{entry_text.split()[0]}'",
+                    tag="error",
+                    history_id=history_id,
+                )
+            ]
 
         params = list(inspect.signature(func).parameters.values())[1:]
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
