@@ -349,6 +349,7 @@ class IrcWidget(ttk.PanedWindow):
         assert view.view_id not in self.views_by_id
         self.view_selector.item(view.server_view.view_id, open=True)
         self.views_by_id[view.view_id] = view
+        self.app_state.add_view(view.view_state)
         self.view_selector.selection_set(view.view_id)
         if isinstance(view, ChannelView):
             view.userlist.treeview.bind(
@@ -381,6 +382,7 @@ class IrcWidget(ttk.PanedWindow):
         server_state = self.app_state.servers.get(server_view_id)
         if server_state is not None:
             server_state.remove_view(view.view_id)
+        self.app_state.remove_view(view.view_id)
         del self.views_by_id[view.view_id]
 
     # Does not remove the server from settings, so mantaray will connect
@@ -400,6 +402,7 @@ class IrcWidget(ttk.PanedWindow):
         self.view_selector.delete(server_view.view_id)
         logs.stop_logging(server_view)
         server_view.destroy_widgets()
+        self.app_state.remove_view(server_view.view_id)
         self.app_state.remove_server(server_view.view_id)
         del self.views_by_id[server_view.view_id]
 

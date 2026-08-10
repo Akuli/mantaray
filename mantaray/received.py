@@ -262,6 +262,10 @@ def _handle_join(server_view: views.ServerView, nick: str, args: list[str]) -> N
     assert channel_view is not None
 
     channel_view.userlist.add_user(nick)
+    server_state = _get_server_state(server_view)
+    if server_state is not None:
+        _add_channel_user(server_state, channel_view.channel_name, nick)
+
     # TODO: Add hidden join/leave messages to log? Would cause trouble when
     #       parsing the log, because join/leave messages coming from the log
     #       might need hiding based on user's preferences.
@@ -280,6 +284,45 @@ def _get_server_state(server_view: views.ServerView) -> state.ServerState | None
     return server_view.irc_widget.app_state.servers.get(server_view.view_id)
 
 
+def _sync_channel_userlist(
+    server_state: state.ServerState, channel: str, nicks: list[str]
+) -> None:
+    if nicks:
+        server_state.userlist[channel] = sorted(nicks, key=str.casefold)
+    else:
+        server_state.userlist.pop(channel, None)
+
+
+def _add_channel_user(
+    server_state: state.ServerState, channel: str, nick: str
+) -> None:
+    userlist = server_state.userlist.setdefault(channel, [])
+    if nick not in userlist:
+        userlist.append(nick)
+        userlist.sort(key=str.casefold)
+
+
+def _remove_channel_user(
+    server_state: state.ServerState, channel: str, nick: str
+) -> None:
+    userlist = server_state.userlist.get(channel)
+    if userlist is None:
+        return
+    if nick in userlist:
+        userlist.remove(nick)
+    if not userlist:
+        server_state.userlist.pop(channel, None)
+
+
+def _rename_nick_in_userlists(
+    server_state: state.ServerState, old_nick: str, new_nick: str
+) -> None:
+    for channel, nicks in list(server_state.userlist.items()):
+        if old_nick in nicks:
+            nicks[:] = [new_nick if nick == old_nick else nick for nick in nicks]
+            nicks.sort(key=str.casefold)
+
+
 def _handle_part(
     server_view: views.ServerView, parting_nick: str, args: list[str]
 ) -> None:
@@ -294,11 +337,16 @@ def _handle_part(
         if channel_view.channel_name in server_view.settings.joined_channels:
             server_view.settings.joined_channels.remove(channel_view.channel_name)
         server_state = _get_server_state(server_view)
-        if server_state and channel_view.channel_name in server_state.joined_channels:
-            server_state.joined_channels.remove(channel_view.channel_name)
+        if server_state:
+            if channel_view.channel_name in server_state.joined_channels:
+                server_state.joined_channels.remove(channel_view.channel_name)
+            _sync_channel_userlist(server_state, channel_view.channel_name, [])
 
     else:
         channel_view.userlist.remove_user(parting_nick)
+        server_state = _get_server_state(server_view)
+        if server_state:
+            _remove_channel_user(server_state, channel_view.channel_name, parting_nick)
 
         if reason is None:
             extra = ""
@@ -328,6 +376,10 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
         server_view.settings.save()
         server_view.irc_widget.update_nick_button()
 
+        server_state = _get_server_state(server_view)
+        if server_state is not None:
+            server_state.nick = new_nick
+
         for view in server_view.get_subviews(include_server=True):
             view.add_message(
                 [
@@ -340,6 +392,10 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
                 view.userlist.change_nick(old_nick, new_nick)
 
     else:
+        server_state = _get_server_state(server_view)
+        if server_state is not None:
+            _rename_nick_in_userlists(server_state, old_nick, new_nick)
+
         for view in _get_views_relevant_for_nick(server_view, old_nick):
             view.add_message(
                 [
@@ -361,6 +417,7 @@ def _handle_nick(server_view: views.ServerView, old_nick: str, args: list[str]) 
 
                 logs.stop_logging(view)
                 view.view_name = new_nick
+                view.view_state.metadata["other_nick"] = new_nick
                 logs.start_logging(view)
 
 
@@ -370,7 +427,7 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
     else:
         reason_string = ""
 
-    # This isn't perfect, other person's QUIT not received if not both joined on the same channel
+    server_state = _get_server_state(server_view)
     for view in _get_views_relevant_for_nick(server_view, nick):
         if view.server_view.should_show_join_leave_message(nick):
             view.add_message(
@@ -381,6 +438,8 @@ def _handle_quit(server_view: views.ServerView, nick: str, args: list[str]) -> N
             )
         if isinstance(view, views.ChannelView):
             view.userlist.remove_user(nick)
+            if server_state is not None:
+                _remove_channel_user(server_state, view.channel_name, nick)
 
 
 def _handle_away(server_view: views.ServerView, nick: str, args: list[str]) -> None:
@@ -439,6 +498,10 @@ def _handle_kick(server_view: views.ServerView, kicker: str, args: list[str]) ->
     assert channel_view is not None
 
     channel_view.userlist.remove_user(kicked_nick)
+    server_state = _get_server_state(server_view)
+    if server_state is not None:
+        _remove_channel_user(server_state, channel_view.channel_name, kicked_nick)
+
     if kicker == channel_view.server_view.settings.nick:
         kicker_tag = "self-nick"
     else:
@@ -576,6 +639,14 @@ def _handle_namreply(server_view: views.ServerView, args: list[str]) -> None:
     join = _joins_in_progress.setdefault((server_view, channel), _JoinInProgress())
     join.nicks.extend(name.lstrip("~&@%+") for name in names.split())
 
+    server_state = _get_server_state(server_view)
+    if server_state is not None:
+        _sync_channel_userlist(server_state, channel, join.nicks)
+
+    server_state = _get_server_state(server_view)
+    if server_state is not None:
+        _sync_channel_userlist(server_state, channel, join.nicks)
+
 
 # While waiting for a response to a WHO, don't send another WHO.
 # This prevents the server from deciding to disconnect because it's
@@ -599,6 +670,10 @@ def _handle_endofnames(server_view: views.ServerView, args: list[str]) -> None:
     else:
         # Can exist already, when has been disconnected from server
         channel_view.userlist.set_nicks(join.nicks)
+
+    server_state = _get_server_state(server_view)
+    if server_state is not None:
+        _sync_channel_userlist(server_state, channel_view.channel_name, list(channel_view.userlist.get_nicks()))
 
     if "away-notify" in server_view.core.cap_list:
         if server_view in _pending_who_sends:

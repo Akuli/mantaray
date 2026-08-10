@@ -84,6 +84,7 @@ class ServerState:
 class AppState:
     server_ids: list[str] = field(default_factory=list)
     servers: dict[str, ServerState] = field(default_factory=dict)
+    views: dict[str, ViewState] = field(default_factory=dict)
 
     def add_server(self, server_state: ServerState) -> None:
         if server_state.server_id not in self.servers:
@@ -94,6 +95,14 @@ class AppState:
         if server_id in self.servers:
             self.server_ids.remove(server_id)
             del self.servers[server_id]
+
+    def add_view(self, view_state: ViewState) -> None:
+        if view_state.view_id not in self.views:
+            self.views[view_state.view_id] = view_state
+
+    def remove_view(self, view_id: str) -> None:
+        if view_id in self.views:
+            del self.views[view_id]
 
 
 class UserAction:
