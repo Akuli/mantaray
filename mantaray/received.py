@@ -170,7 +170,7 @@ def _add_privmsg_to_view(
             view,
             [views.MessagePart(sender, tags=[sender_tag]), views.MessagePart(" ")]
             + parts,
-            sender=sender,
+            sender=None,
             tag="privmsg",
             pinged=pinged,
             history_id=history_id,

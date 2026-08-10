@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import inspect
 import re
+from datetime import datetime
 from tkinter import messagebox
 from typing import Callable
 
-from mantaray.backend import IrcCore
+from mantaray import state
 from mantaray.views import ChannelView, MessagePart, PMView, View
 
 
 def _format_usage(command_name: str, func: Callable[..., None]) -> str:
-    # First two parameters are passed by mantaray, not from user
-    params = list(inspect.signature(func).parameters.values())[2:]
+    # First parameter is the view, the rest are from the user.
+    params = list(inspect.signature(func).parameters.values())[1:]
     usage = command_name
     for p in params:
         if p.default == inspect.Parameter.empty:
@@ -23,24 +24,39 @@ def _format_usage(command_name: str, func: Callable[..., None]) -> str:
     return usage
 
 
-def _send_privmsg(
-    view: View, core: IrcCore, message: str, *, history_id: int | None = None
-) -> None:
-    if isinstance(view, ChannelView):
-        core.send_privmsg(view.channel_name, message, history_id=history_id)
-    elif isinstance(view, PMView):
-        core.send_privmsg(view.nick_of_other_user, message, history_id=history_id)
-    else:
-        view.add_message(
-            "You can't send messages here. Join a channel instead and send messages there.",
-            tag="error",
-            history_id=history_id,
-        )
+def _message_to_parts(message: str | list[MessagePart]) -> list[state.MessagePartState]:
+    if isinstance(message, str):
+        return [state.MessagePartState(message)]
+    return [state.MessagePartState(part.text, tags=part.tags) for part in message]
 
 
-def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) -> None:
+def _render_message_action(
+    view: View,
+    message: str | list[MessagePart],
+    sender: str | None = None,
+    *,
+    tag: str = "info",
+    pinged: bool = False,
+    history_id: int | None = None,
+    timestamp: datetime | None = None,
+) -> state.RenderMessageAction:
+    if timestamp is None:
+        timestamp = datetime.now().astimezone()
+
+    return state.RenderMessageAction(
+        view_id=view.view_id,
+        message=_message_to_parts(message),
+        sender=sender,
+        tag=tag,
+        pinged=pinged,
+        history_id=history_id,
+        timestamp=timestamp,
+    )
+
+
+def handle_command(view: View, entry_text: str, history_id: int) -> list[state.UserAction]:
     if not entry_text:
-        return
+        return []
 
     if re.fullmatch(r"/([A-Za-z]+|\?)( .*)?", entry_text):
         try:
@@ -51,9 +67,9 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
                 tag="error",
                 history_id=history_id,
             )
-            return
+            return []
 
-        view_arg, core_arg, *params = inspect.signature(func).parameters.values()
+        params = list(inspect.signature(func).parameters.values())[1:]
         assert all(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in params)
         required_params = [p for p in params if p.default == inspect.Parameter.empty]
 
@@ -61,19 +77,27 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         # Do not pass maxsplit=0 as that means "/lol asdf" --> ["/lol asdf"]
         command_name, *args = entry_text.rstrip().split(maxsplit=max(len(params), 1))
         if len(args) < len(required_params) or len(args) > len(params):
-            view.add_message(
-                [
-                    MessagePart("Usage: "),
-                    # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
-                    MessagePart(_format_usage(command_name, func), tags=["pinged"]),
-                ],
-                tag="error",
-                history_id=history_id,
-            )
+            return [
+                _render_message_action(
+                    view,
+                    [
+                        MessagePart("Usage: "),
+                        # TODO: Add a dedicated command-syntax tag instead of reusing "pinged".
+                        MessagePart(_format_usage(command_name, func), tags=["pinged"]),
+                    ],
+                    tag="error",
+                    history_id=history_id,
+                )
+            ]
         else:
-            func(view, core, *args)
+            result = func(view, *args)
+            if result is None:
+                return []
+            if isinstance(result, list):
+                return result
+            return [result]
 
-        return
+        return []
 
     if entry_text.startswith("//"):
         entry_text = entry_text[1:]
@@ -94,125 +118,208 @@ def handle_command(view: View, core: IrcCore, entry_text: str, history_id: int) 
         )
         view.irc_widget.entry.focus()
         if not result:
-            return
+            return []
 
+    actions: list[state.UserAction] = []
     for line in lines:
-        _send_privmsg(view, core, line, history_id=history_id)
+        actions.append(
+            state.SendMessageAction(view_id=view.view_id, text=line, history_id=history_id)
+        )
+    return actions
 
 
-def _define_commands() -> dict[str, tuple[Callable[..., None], str]]:
+def _define_commands() -> dict[str, tuple[Callable[..., list[state.UserAction] | state.UserAction | None], str]]:
     # Channel is required, and not assumed to be the current channel view.
     # So when you have been kicked, you will have to type the current channel
     # name manually to rejoin, which is good because it might give you time
     # to calm down a bit before you continue ranting.
-    def join(view: View, core: IrcCore, channel: str) -> None:
-        core.send(f"JOIN {channel}")
+    def join(view: View, channel: str) -> state.ExecuteCommandAction:
         view.server_view.last_slash_join_channel = channel
+        return state.ExecuteCommandAction(
+            view_id=view.view_id,
+            command=f"JOIN {channel}",
+        )
 
-    def part(view: View, core: IrcCore, channel: str | None = None) -> None:
+    def part(view: View, channel: str | None = None) -> list[state.UserAction] | state.ExecuteCommandAction:
         if channel is not None:
-            core.send(f"PART {channel}")
+            return state.ExecuteCommandAction(view_id=view.view_id, command=f"PART {channel}")
         elif isinstance(view, ChannelView):
-            core.send(f"PART {view.channel_name}")
-        else:
-            view.add_message("Usage: /part [<channel>]")
-            view.add_message(
-                "Channel is needed unless you are currently on a channel.", tag="error"
+            return state.ExecuteCommandAction(
+                view_id=view.view_id, command=f"PART {view.channel_name}"
             )
+        else:
+            return [
+                _render_message_action(view, "Usage: /part [<channel>]") ,
+                _render_message_action(
+                    view,
+                    "Channel is needed unless you are currently on a channel.",
+                    tag="error",
+                ),
+            ]
 
     # TODO: add /quit, make sure it quits all servers.
     # Do not support specifying a reason, because when talking about these commands, I
     # often type "/quit is a command" without thinking about it much.
 
-    def nick(view: View, core: IrcCore, new_nick: str) -> None:
-        core.send(f"NICK :{new_nick}")
+    def nick(view: View, new_nick: str) -> state.ExecuteCommandAction:
+        return state.ExecuteCommandAction(view_id=view.view_id, command=f"NICK :{new_nick}")
 
-    def topic(view: View, core: IrcCore, new_topic: str) -> None:
+    def topic(view: View, new_topic: str) -> list[state.UserAction] | state.ExecuteCommandAction:
         if isinstance(view, ChannelView):
-            core.send(f"TOPIC {view.channel_name} :{new_topic}")
-        else:
-            view.add_message(
-                "You must be on a channel to change its topic.", tag="error"
+            return state.ExecuteCommandAction(
+                view_id=view.view_id,
+                command=f"TOPIC {view.channel_name} :{new_topic}",
             )
+        return _render_message_action(
+            view,
+            "You must be on a channel to change its topic.",
+            tag="error",
+        )
 
-    def me(view: View, core: IrcCore, message: str) -> None:
-        _send_privmsg(view, core, "\x01ACTION " + message + "\x01")
+    def me(view: View, message: str) -> state.SendMessageAction:
+        return state.SendMessageAction(
+            view_id=view.view_id,
+            text="\x01ACTION " + message + "\x01",
+            history_id=None,
+        )
 
     # TODO: /msg <nick>, should open up PMView
-    def msg(view: View, core: IrcCore, nick: str, message: str) -> None:
-        core.send_privmsg(nick, message)
+    def msg(view: View, nick: str, message: str) -> state.SendMessageAction:
+        pm_view = view.server_view.find_or_open_pm(nick, select_existing=True)
+        return state.SendMessageAction(
+            view_id=pm_view.view_id,
+            text=message,
+        )
 
-    def msg_nickserv(view: View, core: IrcCore, message: str) -> None:
-        return msg(view, core, "NickServ", message)
+    def msg_nickserv(view: View, message: str) -> list[state.UserAction]:
+        pm_view = view.server_view.find_or_open_pm("NickServ", select_existing=True)
 
-    def msg_memoserv(view: View, core: IrcCore, message: str) -> None:
-        return msg(view, core, "MemoServ", message)
-
-    def msg_chanserv(view: View, core: IrcCore, message: str) -> None:
-        return msg(view, core, "ChanServ", message)
-
-    def whois(view: View, core: IrcCore, nick: str) -> None:
-        core.send(f"WHOIS {nick}")
-
-    def op(view: View, core: IrcCore, nick: str) -> None:
-        if isinstance(view, ChannelView):
-            core.send(f"MODE {view.channel_name} +o :{nick}")
+        masked = message.split(" ", 1)
+        if len(masked) == 2:
+            visible, _ = masked
+            masked_text = f"{visible} ********"
         else:
-            view.add_message("You can use /op only on a channel.", tag="error")
+            masked_text = message
 
-    def deop(view: View, core: IrcCore, nick: str) -> None:
+        return [
+            _render_message_action(
+                pm_view,
+                masked_text,
+                tag="info",
+            ),
+            state.SendMessageAction(
+                view_id=pm_view.view_id,
+                text=message,
+            ),
+        ]
+
+    def msg_memoserv(view: View, message: str) -> state.SendMessageAction:
+        return msg(view, "MemoServ", message)
+
+    def msg_chanserv(view: View, message: str) -> state.SendMessageAction:
+        return msg(view, "ChanServ", message)
+
+    def whois(view: View, nick: str) -> state.ExecuteCommandAction:
+        return state.ExecuteCommandAction(view_id=view.view_id, command=f"WHOIS {nick}")
+
+    def op(view: View, nick: str) -> list[state.UserAction] | state.ExecuteCommandAction:
         if isinstance(view, ChannelView):
-            core.send(f"MODE {view.channel_name} -o :{nick}")
-        else:
-            view.add_message("You can use /deop only on a channel.", tag="error")
+            return state.ExecuteCommandAction(
+                view_id=view.view_id,
+                command=f"MODE {view.channel_name} +o :{nick}",
+            )
+        return _render_message_action(
+            view,
+            "You can use /op only on a channel.",
+            tag="error",
+        )
 
-    def kick(view: View, core: IrcCore, nick: str, reason: str | None = None) -> None:
+    def deop(view: View, nick: str) -> list[state.UserAction] | state.ExecuteCommandAction:
+        if isinstance(view, ChannelView):
+            return state.ExecuteCommandAction(
+                view_id=view.view_id,
+                command=f"MODE {view.channel_name} -o :{nick}",
+            )
+        return _render_message_action(
+            view,
+            "You can use /deop only on a channel.",
+            tag="error",
+        )
+
+    def kick(view: View, nick: str, reason: str | None = None) -> list[state.UserAction] | state.ExecuteCommandAction:
         if isinstance(view, ChannelView):
             if reason is None:
-                core.send(f"KICK {view.channel_name} {nick}")
-            else:
-                core.send(f"KICK {view.channel_name} {nick} :{reason}")
-        else:
-            view.add_message("You can use /kick only on a channel.", tag="error")
+                return state.ExecuteCommandAction(
+                    view_id=view.view_id, command=f"KICK {view.channel_name} {nick}"
+                )
+            return state.ExecuteCommandAction(
+                view_id=view.view_id,
+                command=f"KICK {view.channel_name} {nick} :{reason}",
+            )
+        return _render_message_action(
+            view,
+            "You can use /kick only on a channel.",
+            tag="error",
+        )
 
-    def away(view: View, core: IrcCore, away_message: str) -> None:
-        core.send(f"AWAY :{away_message}")
+    def away(view: View, away_message: str) -> state.ExecuteCommandAction:
         view.server_view.last_away_status = away_message
+        return state.ExecuteCommandAction(
+            view_id=view.view_id,
+            command=f"AWAY :{away_message}",
+        )
 
-    def back(view: View, core: IrcCore) -> None:
-        core.send("AWAY")
+    def back(view: View) -> state.ExecuteCommandAction:
+        return state.ExecuteCommandAction(view_id=view.view_id, command="AWAY")
 
-    def raw(view: View, core: IrcCore, command: str) -> None:
-        core.send(command)
+    def raw(view: View, command: str) -> state.ExecuteCommandAction:
+        return state.ExecuteCommandAction(view_id=view.view_id, command=command)
 
-    def help(view: View, core: IrcCore, command: str | None = None) -> None:
+    def help(view: View, command: str | None = None) -> list[state.UserAction]:
+        actions: list[state.UserAction] = []
         if command is None:
-            # TODO: Which tags to use? "pinged" is not really meant for this.
-            view.add_message([MessagePart("Available commands:", tags=["pinged", "underline"])])
+            actions.append(
+                _render_message_action(
+                    view,
+                    [MessagePart("Available commands:", tags=["pinged", "underline"])],
+                )
+            )
             keys = sorted(_commands.keys())
         else:
             key = command.lower()
             if not key.startswith("/"):
                 key = "/" + key
             if key not in _commands:
-                view.add_message(f"No command named '{command}'", tag="error")
-                return
+                return [
+                    _render_message_action(
+                        view,
+                        f"No command named '{command}'",
+                        tag="error",
+                    )
+                ]
             keys = [key]
 
         for command_name in sorted(keys):
             func, description = _commands[command_name]
-            view.add_message(
-                [
-                    # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
-                    MessagePart(_format_usage(command_name, func), tags=["topic"]),
-                    MessagePart(" - " + description),
-                ]
+            actions.append(
+                _render_message_action(
+                    view,
+                    [
+                        # TODO: Add a dedicated command-syntax tag instead of reusing "topic".
+                        MessagePart(_format_usage(command_name, func), tags=["topic"]),
+                        MessagePart(" - " + description),
+                    ],
+                )
             )
 
         if command is None:
-            view.add_message(
-                "Feel free to ask questions by creating an issue on GitHub: https://github.com/Akuli/mantaray"
+            actions.append(
+                _render_message_action(
+                    view,
+                    "Feel free to ask questions by creating an issue on GitHub: https://github.com/Akuli/mantaray",
+                )
             )
+        return actions
 
     return {
         "/join": (join, "Join a channel"),

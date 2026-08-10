@@ -124,6 +124,17 @@ class ExecuteCommandAction(UserAction):
 
 
 @dataclass
+class RenderMessageAction(UserAction):
+    view_id: str
+    message: str | list[MessagePartState]
+    sender: str | None = None
+    tag: str = "info"
+    pinged: bool = False
+    history_id: int | None = None
+    timestamp: datetime | None = None
+
+
+@dataclass
 class ChangeNickAction(UserAction):
     server_id: str
     new_nick: str

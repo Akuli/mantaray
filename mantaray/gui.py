@@ -182,7 +182,46 @@ class IrcWidget(ttk.PanedWindow):
     def on_enter_pressed(self, junk_event: object = None) -> None:
         view = self.get_current_view()
         entry_text, history_id = view.history.get_text_and_clear_entry()
-        commands.handle_command(view, view.server_view.core, entry_text, history_id)
+        actions = commands.handle_command(view, entry_text, history_id)
+        for action in actions:
+            if isinstance(action, state.RenderMessageAction):
+                target = self.views_by_id.get(action.view_id)
+                if target is not None:
+                    target.add_message_state(
+                        state.MessageState(
+                            sender=action.sender,
+                            parts=action.message,
+                            tag=action.tag,
+                            pinged=action.pinged,
+                            history_id=action.history_id,
+                            timestamp=action.timestamp,
+                        )
+                    )
+            elif isinstance(action, state.ExecuteCommandAction):
+                target = self.views_by_id.get(action.view_id, view)
+                target.server_view.core.send(action.command)
+            elif isinstance(action, state.SendMessageAction):
+                target = self.views_by_id.get(action.view_id, view)
+                if isinstance(target, ChannelView):
+                    target.server_view.core.send_privmsg(
+                        target.channel_name,
+                        action.text,
+                        history_id=action.history_id,
+                    )
+                elif isinstance(target, PMView):
+                    target.server_view.core.send_privmsg(
+                        target.nick_of_other_user,
+                        action.text,
+                        history_id=action.history_id,
+                    )
+                else:
+                    target.add_message(
+                        "You can't send messages here. Join a channel instead and send messages there.",
+                        tag="error",
+                        history_id=action.history_id,
+                    )
+            else:
+                raise NotImplementedError(type(action).__name__)
 
     def _scroll_up(self, junk_event: object) -> None:
         self.get_current_view().textwidget.yview_scroll(-1, "pages")
